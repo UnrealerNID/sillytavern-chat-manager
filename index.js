@@ -104,20 +104,24 @@ async function configureUpdateButton(button, version, semanticVersion) {
         const status = await getExtensionVersionStatus();
         const shortHash = status.currentCommitHash?.slice(0, 7);
         version.textContent = `version ${semanticVersion}${shortHash ? ` (${shortHash})` : ''}`;
-        button.hidden = status.isUpToDate !== false || (isGlobalExtension() && !isAdmin());
+        const hasUpdate = status.isUpToDate === false;
+        const canUpdate = !isGlobalExtension() || isAdmin();
+        button.textContent = hasUpdate ? (canUpdate ? '更新' : '有可用更新') : '已是最新';
+        button.disabled = !hasUpdate || !canUpdate;
     } catch (error) {
         console.warn('[聊天文件管理] 检查扩展更新失败', error);
+        button.textContent = '检查失败';
+        button.disabled = true;
         return;
     }
 
     button.addEventListener('click', async () => {
-        const icon = button.querySelector('i');
         button.disabled = true;
-        icon?.classList.add('fa-spin');
+        button.textContent = '更新中…';
         try {
             const result = await updateExtension();
             if (result.isUpToDate) {
-                button.hidden = true;
+                button.textContent = '已是最新';
                 globalThis.toastr?.info?.('插件已经是最新版本');
                 return;
             }
@@ -126,9 +130,8 @@ async function configureUpdateButton(button, version, semanticVersion) {
         } catch (error) {
             console.error('[聊天文件管理] 更新扩展失败', error);
             globalThis.toastr?.error?.(`插件更新失败：${error.message}`);
-        } finally {
             button.disabled = false;
-            icon?.classList.remove('fa-spin');
+            button.textContent = '重试更新';
         }
     });
 }
