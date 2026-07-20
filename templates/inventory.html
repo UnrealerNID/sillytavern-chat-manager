@@ -40,9 +40,9 @@
         </div>
 
         <div class="cm-inventory-options cm-hidden" data-cm-inventory-orphan-actions>
-            <button class="menu_button" type="button" data-cm-inventory-scan-chats>
-                <i class="fa-solid fa-link-slash" aria-hidden="true"></i>
-                <span>查找孤立聊天</span>
+            <button class="menu_button" type="button" data-cm-inventory-open-cleanup>
+                <i class="fa-solid fa-broom" aria-hidden="true"></i>
+                <span>清理孤立聊天</span>
             </button>
             <button class="menu_button" type="button" data-cm-inventory-scan-backups>
                 <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
@@ -50,7 +50,7 @@
             </button>
             <small class="cm-inventory-hint">
                 <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
-                <span>两个操作彼此独立；旧备份缺少完整性标识时会标记为“待确认”。</span>
+                <span>孤立聊天交由酒馆原生数据清理处理；缺少完整性标识的旧备份会标记为“待确认”。</span>
             </small>
             <div class="cm-inventory-selection cm-hidden" data-cm-inventory-selection>
                 <button class="menu_button" type="button" data-cm-inventory-select-all>全选当前结果</button>
@@ -67,9 +67,6 @@
             </button>
             <button class="menu_button" type="button" role="tab" aria-selected="false" data-cm-inventory-tab="backups" data-cm-inventory-view="all">
                 <span>备份文件</span><small data-cm-inventory-backup-count>0</small>
-            </button>
-            <button class="menu_button cm-hidden" type="button" role="tab" aria-selected="false" data-cm-inventory-tab="orphans" data-cm-inventory-view="orphan">
-                <span>孤立聊天</span><small data-cm-inventory-orphan-count>0</small>
             </button>
             <button class="menu_button cm-hidden" type="button" role="tab" aria-selected="false" data-cm-inventory-tab="orphanBackups" data-cm-inventory-view="orphan">
                 <span>孤立备份</span><small data-cm-inventory-orphan-backup-count>0</small>

@@ -28,13 +28,16 @@ test('panel template exposes all stable UI mounts', async () => {
     }
 });
 
-test('file inventory is a separate second-level panel with optional orphan scanning', async () => {
-    const html = await readFile(new URL('../templates/inventory.html', import.meta.url), 'utf8');
+test('file inventory delegates chat cleanup and scans only orphan backups', async () => {
+    const [html, source] = await Promise.all([
+        readFile(new URL('../templates/inventory.html', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/file-inventory.js', import.meta.url), 'utf8'),
+    ]);
     for (const marker of [
         'chat_manager_inventory_overlay',
         'data-cm-inventory-mode="all"',
         'data-cm-inventory-mode="orphan"',
-        'data-cm-inventory-scan-chats',
+        'data-cm-inventory-open-cleanup',
         'data-cm-inventory-scan-backups',
         'data-cm-inventory-select-all',
         'data-cm-inventory-delete-selected',
@@ -42,7 +45,6 @@ test('file inventory is a separate second-level panel with optional orphan scann
         'data-cm-inventory-delete-dialog',
         'data-cm-inventory-tab="chats"',
         'data-cm-inventory-tab="backups"',
-        'data-cm-inventory-tab="orphans"',
         'data-cm-inventory-tab="orphanBackups"',
         'data-cm-inventory-row-template',
         'data-cm-inventory-previous',
@@ -50,10 +52,14 @@ test('file inventory is a separate second-level panel with optional orphan scann
     ]) {
         assert.match(html, new RegExp(marker));
     }
-    assert.match(html, /查找孤立聊天/);
+    assert.match(html, /清理孤立聊天/);
     assert.match(html, /检查孤立备份/);
+    assert.doesNotMatch(html, /data-cm-inventory-tab="orphans"/);
     assert.match(html, /type="checkbox"/);
     assert.doesNotMatch(html, /打开酒馆数据清理/);
+    assert.match(source, /document\.querySelector\('#data_maid_button'\)/);
+    assert.match(source, /await this\.backups\.dispose\(\);\s*button\.click\(\)/);
+    assert.doesNotMatch(source, /dataMaidReport\.chats|dataMaidReport\.groupChats/);
 });
 
 test('dialog templates expose every static dialog and dynamic mount', async () => {

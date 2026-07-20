@@ -32,9 +32,9 @@ export class FileInventoryUi {
         this.api = api;
         this.backups = backups;
         this.openRecord = openRecord;
-        this.items = { chats: [], backups: [], orphans: [], orphanBackups: [] };
+        this.items = { chats: [], backups: [], orphanBackups: [] };
         this.mode = 'all';
-        this.scanned = { orphans: false, orphanBackups: false };
+        this.scanned = { orphanBackups: false };
         this.activeKind = 'chats';
         this.page = 0;
         this.controller = null;
@@ -65,7 +65,7 @@ export class FileInventoryUi {
         this.root = root;
         this.search = required('[data-cm-inventory-search]', HTMLInputElement);
         this.sort = required('[data-cm-inventory-sort]', HTMLSelectElement);
-        this.scanOrphanChats = required('[data-cm-inventory-scan-chats]', HTMLButtonElement);
+        this.nativeCleanup = required('[data-cm-inventory-open-cleanup]', HTMLButtonElement);
         this.scanOrphanBackups = required('[data-cm-inventory-scan-backups]', HTMLButtonElement);
         this.status = required('[data-cm-inventory-status]');
         this.statusText = required('[data-cm-inventory-status-text]');
@@ -104,7 +104,6 @@ export class FileInventoryUi {
         this.counts = {
             chats: required('[data-cm-inventory-chat-count]'),
             backups: required('[data-cm-inventory-backup-count]'),
-            orphans: required('[data-cm-inventory-orphan-count]'),
             orphanBackups: required('[data-cm-inventory-orphan-backup-count]'),
         };
         required('[data-cm-inventory-close]', HTMLButtonElement).addEventListener('click', () => this.close());
@@ -113,8 +112,8 @@ export class FileInventoryUi {
         this.sort.addEventListener('change', () => { this.page = 0; this.#render(); });
         this.previous.addEventListener('click', () => { this.page--; this.#render(); });
         this.next.addEventListener('click', () => { this.page++; this.#render(); });
-        this.scanOrphanChats.addEventListener('click', () => void this.#scanOptionalFiles('chats'));
-        this.scanOrphanBackups.addEventListener('click', () => void this.#scanOptionalFiles('backups'));
+        this.nativeCleanup.addEventListener('click', () => void this.#openNativeCleanup());
+        this.scanOrphanBackups.addEventListener('click', () => void this.#scanOrphanBackups());
         this.selectAll.addEventListener('click', () => this.#toggleSelectAll());
         this.deleteSelected.addEventListener('click', () => this.#showDelete(Array.from(this.selected.values())));
         required('[data-cm-inventory-viewer-close]', HTMLButtonElement).addEventListener('click', () => this.#closeViewer());
@@ -159,7 +158,6 @@ export class FileInventoryUi {
         this.controller = new AbortController();
         const controller = this.controller;
         const signal = this.controller.signal;
-        this.scanOrphanChats.disabled = true;
         this.scanOrphanBackups.disabled = true;
         const startedAt = Date.now();
         let completed = 0;
@@ -199,7 +197,6 @@ export class FileInventoryUi {
         if (signal.aborted) return;
         this.#setStatus(failures.join('；'), { error: failures.length > 0 });
         if (this.controller === controller) {
-            this.scanOrphanChats.disabled = false;
             this.scanOrphanBackups.disabled = false;
         }
     }
@@ -270,16 +267,12 @@ export class FileInventoryUi {
         };
     }
 
-    /**
-     * 执行一个独立的孤立文件检查动作
-     * @param {'chats'|'backups'} target 检查目标
-     */
-    async #scanOptionalFiles(target) {
+    /** 检查无法对应现有聊天的原生备份 */
+    async #scanOrphanBackups() {
         const revision = ++this.scanRevision;
         this.orphanController?.abort();
         this.orphanController = new AbortController();
         const signal = this.orphanController.signal;
-        this.scanOrphanChats.disabled = true;
         this.scanOrphanBackups.disabled = true;
         const startedAt = Date.now();
         const updateStatus = () => this.#setStatus('正在生成文件检查报告…', {
@@ -300,26 +293,15 @@ export class FileInventoryUi {
                 this.reportShared = true;
             }
             clearInterval(timer);
-            if (target === 'chats') {
-                const characterChats = Array.isArray(this.dataMaidReport.chats) ? this.dataMaidReport.chats : [];
-                const groupChats = Array.isArray(this.dataMaidReport.groupChats) ? this.dataMaidReport.groupChats : [];
-                this.items.orphans = [
-                    ...characterChats.map(item => this.#mapOrphan(item, `已删除角色目录：${item.parent ?? '未知目录'}`)),
-                    ...groupChats.map(item => this.#mapOrphan(item, '未被群组引用的聊天')),
-                ];
-                this.scanned.orphans = true;
-            }
-            if (target === 'backups') {
-                this.orphanBackupCache ??= await this.#findOrphanBackups(this.dataMaidReport.chatBackups, signal, startedAt);
-                this.items.orphanBackups = this.orphanBackupCache;
-                this.scanned.orphanBackups = true;
-            }
-            const found = target === 'chats' ? this.items.orphans.length : this.items.orphanBackups.length;
+            this.orphanBackupCache ??= await this.#findOrphanBackups(this.dataMaidReport.chatBackups, signal, startedAt);
+            this.items.orphanBackups = this.orphanBackupCache;
+            this.scanned.orphanBackups = true;
+            const found = this.items.orphanBackups.length;
             this.#setStatus(found
-                ? target === 'chats' ? `已找到 ${found} 个孤立聊天` : `已找到 ${found} 个孤立或待确认备份`
-                : target === 'chats' ? '没有发现孤立聊天' : '没有发现孤立或待确认备份');
+                ? `已找到 ${found} 个孤立或待确认备份`
+                : '没有发现孤立或待确认备份');
             this.#syncMode();
-            this.#selectKind(target === 'chats' ? 'orphans' : 'orphanBackups');
+            this.#selectKind('orphanBackups');
             this.#render();
         } catch (error) {
             if (!signal.aborted) {
@@ -329,7 +311,6 @@ export class FileInventoryUi {
         } finally {
             clearInterval(timer);
             if (revision === this.scanRevision) {
-                this.scanOrphanChats.disabled = false;
                 this.scanOrphanBackups.disabled = false;
                 this.orphanController = null;
             }
@@ -338,12 +319,10 @@ export class FileInventoryUi {
 
     /** 清除额外检查结果但保留基础聊天与备份清单 */
     #clearOptionalResults() {
-        this.items.orphans = [];
         this.items.orphanBackups = [];
-        this.scanned.orphans = false;
         this.scanned.orphanBackups = false;
         this.selected.clear();
-        if (['orphans', 'orphanBackups'].includes(this.activeKind)) this.activeKind = 'chats';
+        if (this.activeKind === 'orphanBackups') this.activeKind = 'chats';
         this.#syncMode();
     }
 
@@ -453,9 +432,7 @@ export class FileInventoryUi {
         if (!this.modes.has(mode)) return;
         this.mode = mode;
         if (mode === 'all') this.activeKind = 'chats';
-        else if (this.scanned.orphans) this.activeKind = 'orphans';
-        else if (this.scanned.orphanBackups) this.activeKind = 'orphanBackups';
-        else this.activeKind = 'orphans';
+        else this.activeKind = 'orphanBackups';
         this.page = 0;
         this.#syncMode();
         this.#render();
@@ -496,8 +473,8 @@ export class FileInventoryUi {
         if (!visible.length) {
             const empty = document.createElement('div');
             empty.className = 'cm-state cm-empty-state';
-            empty.textContent = this.mode === 'orphan' && !this.scanned.orphans && !this.scanned.orphanBackups
-                ? '选择上方操作开始检查孤立文件'
+            empty.textContent = this.mode === 'orphan' && !this.scanned.orphanBackups
+                ? '点击“检查孤立备份”开始检查'
                 : '没有可显示的文件';
             this.list.append(empty);
         }
@@ -572,7 +549,7 @@ export class FileInventoryUi {
 
     /** 同步孤立结果选择与批量删除控件 */
     #syncSelection() {
-        const selectable = this.mode === 'orphan' && ['orphans', 'orphanBackups'].includes(this.activeKind) && this.scanned[this.activeKind];
+        const selectable = this.mode === 'orphan' && this.activeKind === 'orphanBackups' && this.scanned.orphanBackups;
         this.selection.classList.toggle('cm-hidden', !selectable);
         const current = selectable ? this.#filteredItems().filter(item => item.orphan?.hash) : [];
         const allSelected = current.length > 0 && current.every(item => this.selected.has(item.orphan.hash));
@@ -719,7 +696,6 @@ export class FileInventoryUi {
             await this.api.deleteDataMaidFiles(this.reportToken, items.map(item => item.orphan.hash));
             const hashes = new Set(items.map(item => item.orphan.hash));
             const names = new Set(items.map(item => item.name));
-            this.items.orphans = this.items.orphans.filter(item => !hashes.has(item.orphan?.hash));
             this.items.orphanBackups = this.items.orphanBackups.filter(item => !hashes.has(item.orphan?.hash));
             this.items.backups = this.items.backups.filter(item => !names.has(item.name));
             this.backups.forget(names);
@@ -768,6 +744,18 @@ export class FileInventoryUi {
         } catch (error) {
             notify('error', error.message);
         }
+    }
+
+    /** 关闭插件面板并打开酒馆原生数据清理面板 */
+    async #openNativeCleanup() {
+        const button = document.querySelector('#data_maid_button');
+        if (!(button instanceof HTMLElement)) {
+            notify('error', '当前酒馆版本没有可用的数据清理入口');
+            return;
+        }
+        this.close();
+        await this.backups.dispose();
+        button.click();
     }
 
     #setStatus(message, { loading = false, error = false, detail = '', done = null, total = null } = {}) {
