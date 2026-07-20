@@ -21,11 +21,28 @@
 
 ## 当前状态
 
-项目处于设计阶段，尚未提供可安装扩展。
+已提供可安装的纯前端扩展，目标版本为 SillyTavern 1.18.0。
+
+## 安装
+
+将本仓库目录复制或克隆到：
+
+```text
+SillyTavern/public/scripts/extensions/third-party/sillytavern-chat-manager
+```
+
+随后在 SillyTavern 的扩展管理中启用 **SillyTavern Chat Manager** 并刷新页面。插件入口位于原生“聊天文件”菜单项之后。
+
+## 开发验证
+
+```bash
+npm run check
+npm test
+```
 
 完整方案见 [docs/design.md](docs/design.md)。
 
-## 计划结构
+## 项目结构
 
 ```text
 .
@@ -35,7 +52,9 @@
 ├─ index.js
 ├─ style.css
 ├─ modules/
-└─ i18n/
+├─ i18n/
+├─ scripts/
+└─ test/
 ```
 
-实现将遵循 SillyTavern 前端第三方扩展协议，优先使用 `SillyTavern.getContext()` 和原生 API。
+实现遵循 SillyTavern 前端第三方扩展协议，优先使用 `SillyTavern.getContext()` 和原生 API。

@@ -111,16 +111,21 @@ document
 ├─ style.css
 ├─ modules/
 │  ├─ api.js
-│  ├─ chat-list.js
-│  ├─ backup-matcher.js
-│  ├─ chat-splitter.js
-│  ├─ verifier.js
-│  ├─ task-journal.js
+│  ├─ backups.js
 │  ├─ native-chat-panel.js
-│  └─ ui.js
+│  ├─ source.js
+│  ├─ splitter.js
+│  ├─ task-journal.js
+│  ├─ ui.js
+│  └─ utils.js
+├─ scripts/
+│  └─ check.mjs
+├─ test/
+│  ├─ backups.test.js
+│  ├─ splitter.test.js
+│  └─ utils.test.js
 └─ i18n/
-   ├─ zh-cn.json
-   └─ en.json
+   └─ zh-cn.json
 ```
 
 ### 4.2 `manifest.json`
@@ -130,16 +135,18 @@ document
   "display_name": "SillyTavern Chat Manager",
   "loading_order": 100,
   "requires": [],
-  "dependencies": [],
+  "optional": [],
   "js": "index.js",
   "css": "style.css",
-  "author": "Local",
+  "author": "Unrealer",
   "version": "0.1.0",
   "minimum_client_version": "1.18.0",
   "auto_update": false,
   "i18n": {
-    "zh-cn": "i18n/zh-cn.json",
-    "en": "i18n/en.json"
+    "zh-cn": "i18n/zh-cn.json"
+  },
+  "hooks": {
+    "activate": "init"
   }
 }
 ```

@@ -1,0 +1,18 @@
+{
+  "display_name": "SillyTavern Chat Manager",
+  "loading_order": 100,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "css": "style.css",
+  "author": "Unrealer",
+  "version": "0.1.0",
+  "minimum_client_version": "1.18.0",
+  "auto_update": false,
+  "i18n": {
+    "zh-cn": "i18n/zh-cn.json"
+  },
+  "hooks": {
+    "activate": "init"
+  }
+}
