@@ -299,12 +299,12 @@ export class ChatManagerUi {
         await this.refresh();
     }
 
-    /** 同步当前对象和全部聊天按钮 */
+    /** 同步互斥的聊天范围选项 */
     #syncScopeButtons() {
         this.scopeCurrentLabel.textContent = this.currentOwner?.label ?? '当前角色';
         this.scopeCurrentButton.disabled = !this.currentOwner;
         for (const [button, active] of [[this.scopeCurrentButton, this.scope === 'current'], [this.scopeAllButton, this.scope === 'all']]) {
-            button.setAttribute('aria-pressed', String(active));
+            button.setAttribute('aria-checked', String(active));
             button.classList.toggle('cm-active', active);
         }
     }
@@ -347,7 +347,7 @@ export class ChatManagerUi {
     /** 同步分组按钮的可访问状态与视觉状态 */
     #syncGroupingButtons() {
         for (const [button, active] of [[this.groupOwnersButton, this.groupOwners], [this.groupSplitsButton, this.groupSplits]]) {
-            button.setAttribute('aria-pressed', String(active));
+            button.setAttribute('aria-checked', String(active));
             button.classList.toggle('cm-active', active);
             button.disabled = this.selectionMode;
         }

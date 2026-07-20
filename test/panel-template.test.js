@@ -26,6 +26,13 @@ test('panel template exposes all stable UI mounts', async () => {
     ]) {
         assert.match(html, new RegExp(`\\b${marker}\\b`));
     }
+    assert.match(html, /class="cm-scope-controls" role="radiogroup"/);
+    assert.match(html, /role="radio"[^>]*data-cm-scope-current/);
+    assert.match(html, /role="radio"[^>]*data-cm-scope-all/);
+    assert.match(html, /role="switch"[^>]*data-cm-group-owners/);
+    assert.match(html, /role="switch"[^>]*data-cm-group-splits/);
+    assert.match(html, /角色分组/);
+    assert.match(html, /分卷分组/);
 });
 
 test('data maid enhancement mounts after either native or plugin-triggered scans', async () => {

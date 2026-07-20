@@ -28,10 +28,13 @@
         flex-basis: 100%;
     }
 
-    .cm-scope-controls,
-    .cm-view-controls,
+    .cm-control-cluster,
     .cm-delete-controls {
         flex: 1;
+    }
+
+    .cm-control-cluster {
+        justify-content: flex-start;
     }
 
     .cm-delete-controls .menu_button {

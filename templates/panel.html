@@ -17,25 +17,31 @@
                 <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
                 <input class="text_pole cm-search" type="search" placeholder="筛选角色、群组或聊天文件名" data-cm-search>
             </label>
-            <div class="cm-scope-controls" role="group" aria-label="聊天显示范围">
-                <button class="menu_button" type="button" aria-pressed="false" data-cm-scope-current>
-                    <i class="fa-solid fa-user" aria-hidden="true"></i>
-                    <span data-cm-scope-current-label>当前角色</span>
-                </button>
-                <button class="menu_button" type="button" aria-pressed="false" data-cm-scope-all>
-                    <i class="fa-solid fa-globe" aria-hidden="true"></i>
-                    <span>全部聊天</span>
-                </button>
+            <div class="cm-control-cluster cm-scope-cluster">
+                <span class="cm-control-label">范围</span>
+                <div class="cm-scope-controls" role="radiogroup" aria-label="聊天显示范围">
+                    <button class="menu_button" type="button" role="radio" aria-checked="false" data-cm-scope-current>
+                        <i class="fa-solid fa-user" aria-hidden="true"></i>
+                        <span data-cm-scope-current-label>当前角色</span>
+                    </button>
+                    <button class="menu_button" type="button" role="radio" aria-checked="false" data-cm-scope-all>
+                        <i class="fa-solid fa-globe" aria-hidden="true"></i>
+                        <span>全部聊天</span>
+                    </button>
+                </div>
             </div>
-            <div class="cm-view-controls" role="group" aria-label="聊天列表分组方式">
-                <button class="menu_button" type="button" title="按角色或群组合并聊天" aria-pressed="false" data-cm-group-owners>
-                    <i class="fa-solid fa-users" aria-hidden="true"></i>
-                    <span>合并角色</span>
-                </button>
-                <button class="menu_button" type="button" title="把同一组分卷合并显示" aria-pressed="false" data-cm-group-splits>
-                    <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
-                    <span>合并分卷</span>
-                </button>
+            <div class="cm-control-cluster cm-view-cluster">
+                <span class="cm-control-label">显示</span>
+                <div class="cm-view-controls" role="group" aria-label="聊天列表显示方式">
+                    <button class="menu_button" type="button" role="switch" title="按角色或群组折叠显示" aria-checked="false" data-cm-group-owners>
+                        <i class="fa-solid fa-users" aria-hidden="true"></i>
+                        <span>角色分组</span>
+                    </button>
+                    <button class="menu_button" type="button" role="switch" title="按分卷组折叠显示" aria-checked="false" data-cm-group-splits>
+                        <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
+                        <span>分卷分组</span>
+                    </button>
+                </div>
             </div>
             <div class="cm-delete-controls" role="group" aria-label="批量删除聊天">
                 <button class="menu_button" type="button" data-cm-batch-start>
