@@ -16,11 +16,12 @@ import { NativeChatPanel } from './modules/native-chat-panel.js';
 import { SplitService } from './modules/splitter.js';
 import { TaskJournal } from './modules/task-journal.js';
 import { ChatManagerUi } from './modules/ui.js';
-import { element } from './modules/utils.js';
+import { element, isNewerVersion } from './modules/utils.js';
 
 let initialized = false;
 const extensionId = 'third-party/sillytavern-chat-manager';
 const extensionFolder = 'sillytavern-chat-manager';
+const remoteManifestUrl = 'https://raw.githubusercontent.com/UnrealerNID/sillytavern-chat-manager/main/manifest.json';
 
 /**
  * 扩展清单中用于界面展示的元数据
@@ -37,7 +38,6 @@ const extensionFolder = 'sillytavern-chat-manager';
 /**
  * 酒馆原生扩展版本接口返回值
  * @typedef {object} ExtensionVersionStatus
- * @property {boolean} isUpToDate 是否已是最新提交
  * @property {string} [currentCommitHash] 当前 Git 提交号
  */
 
@@ -79,6 +79,18 @@ async function getExtensionVersionStatus() {
 }
 
 /**
+ * 读取远端发布清单中的语义版本
+ * @returns {Promise<string>} 远端语义版本
+ */
+async function getRemoteExtensionVersion() {
+    const response = await fetch(remoteManifestUrl, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const metadata = await response.json();
+    if (typeof metadata.version !== 'string') throw new Error('远端扩展清单缺少版本号');
+    return metadata.version;
+}
+
+/**
  * 使用酒馆原生更新接口拉取插件远程提交
  * @returns {Promise<{isUpToDate:boolean, shortCommitHash?:string}>} 更新结果
  */
@@ -104,7 +116,13 @@ async function configureUpdateButton(button, version, semanticVersion) {
         const status = await getExtensionVersionStatus();
         const shortHash = status.currentCommitHash?.slice(0, 7);
         version.textContent = `version ${semanticVersion}${shortHash ? ` (${shortHash})` : ''}`;
-        const hasUpdate = status.isUpToDate === false;
+    } catch (error) {
+        console.warn('[聊天文件管理] 读取扩展提交号失败', error);
+    }
+
+    try {
+        const remoteVersion = await getRemoteExtensionVersion();
+        const hasUpdate = isNewerVersion(remoteVersion, semanticVersion);
         const canUpdate = !isGlobalExtension() || isAdmin();
         button.textContent = hasUpdate ? (canUpdate ? '更新' : '有可用更新') : '已是最新';
         button.disabled = !hasUpdate || !canUpdate;
@@ -121,8 +139,9 @@ async function configureUpdateButton(button, version, semanticVersion) {
         try {
             const result = await updateExtension();
             if (result.isUpToDate) {
-                button.textContent = '已是最新';
-                globalThis.toastr?.info?.('插件已经是最新版本');
+                button.disabled = false;
+                button.textContent = '重试更新';
+                globalThis.toastr?.warning?.('酒馆未拉取到新提交，请稍后重试');
                 return;
             }
             globalThis.toastr?.success?.('插件更新完成，正在刷新页面');

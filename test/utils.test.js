@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildRanges, canonicalJson, stripJsonl } from '../modules/utils.js';
+import { buildRanges, canonicalJson, isNewerVersion, stripJsonl } from '../modules/utils.js';
 
 test('buildRanges keeps inclusive floors and the remainder', () => {
     assert.deepEqual(buildRanges(100, 349, 100), [
@@ -22,4 +22,11 @@ test('canonicalJson ignores object key insertion order', () => {
 test('stripJsonl removes only a trailing extension', () => {
     assert.equal(stripJsonl('聊天.jsonl'), '聊天');
     assert.equal(stripJsonl('聊天.jsonl.copy'), '聊天.jsonl.copy');
+});
+
+test('isNewerVersion only accepts a higher remote release', () => {
+    assert.equal(isNewerVersion('0.1.13', '0.1.12'), true);
+    assert.equal(isNewerVersion('0.1.12', '0.1.12'), false);
+    assert.equal(isNewerVersion('0.1.10', '0.1.12'), false);
+    assert.equal(isNewerVersion('invalid', '0.1.12'), false);
 });
