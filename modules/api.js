@@ -52,8 +52,33 @@ export class ChatManagerApi {
         return data;
     }
 
-    getRecentChats(signal) {
+    /**
+     * 调用酒馆的 recent 接口扫描当前全部聊天文件
+     * @param {AbortSignal} [signal] 取消信号
+     * @returns {Promise<object[]>} 实时聊天文件信息
+     */
+    listChatFiles(signal) {
         return this.post('/api/chats/recent', { metadata: true }, { signal });
+    }
+
+    /**
+     * 只读取当前角色或群组的聊天文件信息
+     * @param {{ownerType:'character'|'group',ownerId:string}} owner 当前所有者
+     * @param {AbortSignal} [signal] 取消信号
+     * @returns {Promise<object[]>} 当前所有者的聊天文件信息
+     */
+    async listOwnerChatFiles(owner, signal) {
+        if (owner.ownerType === 'character') {
+            const items = await this.getCharacterChats(owner.ownerId, { metadata: true, signal });
+            return Array.isArray(items) ? items.map(item => ({ ...item, avatar: owner.ownerId })) : [];
+        }
+        const groups = Array.isArray(this.getContext().groups) ? this.getContext().groups : [];
+        const group = groups.find(item => String(item.id) === String(owner.ownerId));
+        if (!group || !Array.isArray(group.chats)) return [];
+        const settled = await Promise.allSettled(group.chats.map(fileId => this.getGroupInfo(fileId, signal)));
+        return settled
+            .filter(result => result.status === 'fulfilled' && result.value?.file_name)
+            .map(result => ({ ...result.value, group: group.id }));
     }
 
     getCharacterChats(avatar, options = {}) {

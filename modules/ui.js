@@ -46,6 +46,9 @@ export class ChatManagerUi {
         this.selectionMode = false;
         this.selectedRecords = new Map();
         this.loading = false;
+        this.refreshTask = null;
+        this.refreshKey = '';
+        this.refreshTimer = null;
         this.groupOwners = Boolean(viewOptions.groupOwners);
         this.groupSplits = Boolean(viewOptions.groupSplits);
         this.expandedOwners = new Set();
@@ -107,8 +110,8 @@ export class ChatManagerUi {
 
         required(root, '[data-cm-close]', HTMLButtonElement).addEventListener('click', () => this.close());
         required(root, '[data-cm-refresh]', HTMLButtonElement).addEventListener('click', () => this.refresh());
-        this.scopeCurrentButton.addEventListener('click', () => this.#setScope('current'));
-        this.scopeAllButton.addEventListener('click', () => this.#setScope('all'));
+        this.scopeCurrentButton.addEventListener('click', () => void this.#setScope('current'));
+        this.scopeAllButton.addEventListener('click', () => void this.#setScope('all'));
         this.groupOwnersButton.addEventListener('click', () => this.#toggleGrouping('owners'));
         this.groupSplitsButton.addEventListener('click', () => this.#toggleGrouping('splits'));
         this.batchStartButton.addEventListener('click', () => this.#setSelectionMode(true));
@@ -134,15 +137,30 @@ export class ChatManagerUi {
     async open() {
         this.#useDefaultScope();
         this.root.classList.remove('cm-hidden');
-        if (!this.records) await this.refresh();
-        else {
-            this.#filter();
-            this.updateRuntimeState();
-        }
+        // 生成期间保留上一次稳定快照，结束事件会立即安排同步
+        if (!this.records || !this.isGenerating()) await this.refresh();
+        else this.#filter();
+        this.updateRuntimeState();
     }
 
     close() {
+        if (this.refreshTimer !== null) clearTimeout(this.refreshTimer);
+        this.refreshTimer = null;
         this.root.classList.add('cm-hidden');
+    }
+
+    /**
+     * 标记聊天文件清单已变化，并在面板可见且文件稳定时防抖同步
+     * @param {number} delay 防抖等待时间
+     */
+    invalidateChatFiles(delay = 350) {
+        if (this.refreshTimer !== null) clearTimeout(this.refreshTimer);
+        this.refreshTimer = null;
+        if (this.root.classList.contains('cm-hidden') || this.isGenerating() || this.splitter.running) return;
+        this.refreshTimer = setTimeout(() => {
+            this.refreshTimer = null;
+            void this.refresh();
+        }, delay);
     }
 
     #setState(message, error = false) {
@@ -162,19 +180,54 @@ export class ChatManagerUi {
     }
 
     async refresh() {
-        if (this.loading) return;
+        const target = {
+            key: this.#inventoryKey(),
+            scope: this.scope,
+            owner: this.currentOwner ? { ...this.currentOwner } : null,
+        };
+        if (this.refreshTask) {
+            if (this.refreshKey === target.key) return this.refreshTask;
+            await this.refreshTask;
+            return this.refresh();
+        }
+        this.refreshKey = target.key;
+        this.refreshTask = this.#loadChatFiles(target);
+        try {
+            return await this.refreshTask;
+        } finally {
+            this.refreshTask = null;
+            this.refreshKey = '';
+        }
+    }
+
+    /** @returns {string} 当前清单范围的稳定键 */
+    #inventoryKey() {
+        return this.scope === 'current' && this.currentOwner
+            ? `current:${this.currentOwner.ownerType}:${this.currentOwner.ownerId}`
+            : 'all';
+    }
+
+    /**
+     * @param {{key:string,scope:'current'|'all',owner:object|null}} target 清单读取目标
+     * @returns {Promise<void>}
+     */
+    async #loadChatFiles(target) {
         this.loading = true;
         this.#syncSelectionControls();
-        this.#setState('正在读取全部聊天…');
+        this.#setState('正在同步聊天文件…');
         try {
-            const data = await this.api.getRecentChats();
-            if (!Array.isArray(data)) throw new Error('全部聊天接口返回格式无效');
+            const data = target.scope === 'current' && target.owner
+                ? await this.api.listOwnerChatFiles(target.owner)
+                : await this.api.listChatFiles();
+            if (!Array.isArray(data)) throw new Error('聊天文件接口返回格式无效');
             const context = this.getContext();
-            this.records = data.map(item => {
+            const characters = new Map((context.characters ?? []).map(character => [character.avatar, character]));
+            const groups = new Map((context.groups ?? []).map(group => [String(group.id), group]));
+            const records = data.map(item => {
                 const isGroup = item.group !== undefined && item.group !== null;
                 const owner = isGroup
-                    ? context.groups.find(group => String(group.id) === String(item.group))
-                    : context.characters.find(character => character.avatar === item.avatar);
+                    ? groups.get(String(item.group))
+                    : characters.get(item.avatar);
                 if (!owner) return null;
                 const record = {
                     ownerType: isGroup ? 'group' : 'character',
@@ -191,6 +244,9 @@ export class ChatManagerUi {
                 record.avatarUrl = this.getAvatarUrl(record);
                 return record;
             }).filter(Boolean).sort((a, b) => new Date(b.lastMessageAt).valueOf() - new Date(a.lastMessageAt).valueOf());
+            // 范围切换后，较早返回的请求不能覆盖新范围的清单
+            if (target.key !== this.#inventoryKey()) return;
+            this.records = records;
             this.page = 0;
             this.#filter();
             this.updateRuntimeState();
@@ -220,12 +276,13 @@ export class ChatManagerUi {
      * 切换聊天列表的所有者范围
      * @param {'current'|'all'} scope 显示范围
      */
-    #setScope(scope) {
+    async #setScope(scope) {
         if (scope === 'current' && !this.currentOwner) return;
+        if (scope === this.scope) return;
         this.scope = scope;
         this.page = 0;
         this.#syncScopeButtons();
-        this.#filter();
+        await this.refresh();
     }
 
     /** 同步当前对象和全部聊天按钮 */

@@ -481,4 +481,22 @@ export async function init() {
     context.eventSource.on(context.eventTypes.GENERATION_ENDED, updateState);
     context.eventSource.on(context.eventTypes.GENERATION_STOPPED, updateState);
 
+    // 原生 recent 接口会实时扫描磁盘；事件只负责在文件可能变化时安排一次防抖同步
+    const chatFileEvents = [
+        context.eventTypes.CHAT_CHANGED,
+        context.eventTypes.CHAT_CREATED,
+        context.eventTypes.CHAT_RENAMED,
+        context.eventTypes.CHAT_DELETED,
+        context.eventTypes.GROUP_CHAT_CREATED,
+        context.eventTypes.GROUP_CHAT_DELETED,
+        context.eventTypes.MESSAGE_EDITED,
+        context.eventTypes.MESSAGE_DELETED,
+        context.eventTypes.MESSAGE_UPDATED,
+        context.eventTypes.GENERATION_ENDED,
+        context.eventTypes.GENERATION_STOPPED,
+    ].filter(Boolean);
+    for (const eventType of new Set(chatFileEvents)) {
+        context.eventSource.on(eventType, () => ui.invalidateChatFiles());
+    }
+
 }

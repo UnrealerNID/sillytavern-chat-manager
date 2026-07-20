@@ -137,3 +137,19 @@ test('chat deletion uses SillyTavern native character and group workflows', asyn
     assert.match(source, /deleteCharacterChatByName\(String\(characterId\), record\.fileId\)/);
     assert.match(source, /deleteGroupChatByName\(group\.id, record\.fileId\)/);
 });
+
+test('chat inventory resynchronizes on every open and coalesces concurrent refreshes', async () => {
+    const [entry, api, ui] = await Promise.all([
+        readFile(new URL('../index.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/api.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/ui.js', import.meta.url), 'utf8'),
+    ]);
+    assert.match(api, /listChatFiles\(signal\)/);
+    assert.match(api, /listOwnerChatFiles\(owner, signal\)/);
+    assert.match(ui, /if \(!this\.records \|\| !this\.isGenerating\(\)\) await this\.refresh\(\)/);
+    assert.match(ui, /if \(this\.refreshKey === target\.key\) return this\.refreshTask/);
+    assert.match(ui, /target\.scope === 'current' && target\.owner[\s\S]*listOwnerChatFiles\(target\.owner\)/);
+    assert.match(ui, /const characters = new Map/);
+    assert.match(ui, /const groups = new Map/);
+    assert.match(entry, /ui\.invalidateChatFiles\(\)/);
+});
