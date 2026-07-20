@@ -11,18 +11,6 @@ export class NativeChatPanel {
         this.getContext = getContext;
         this.ui = ui;
         this.isGenerating = isGenerating;
-        this.enabled = true;
-    }
-
-    /**
-     * 设置聊天文件面板增强功能的启用状态
-     * @param {boolean} enabled 是否启用
-     */
-    setEnabled(enabled) {
-        this.enabled = enabled;
-        this.container?.querySelectorAll('[data-chat-manager-action]').forEach(button => {
-            button.toggleAttribute('hidden', !enabled);
-        });
     }
 
     init() {
@@ -46,7 +34,6 @@ export class NativeChatPanel {
             );
             wrapper.dataset.chatManagerEnhanced = 'true';
         }
-        this.setEnabled(this.enabled);
         this.updateRuntimeState();
     }
 
@@ -92,7 +79,6 @@ export class NativeChatPanel {
     }
 
     #onClick(event) {
-        if (!this.enabled) return;
         const button = event.target.closest('[data-chat-manager-action]');
         if (!button || !this.container.contains(button)) return;
         event.preventDefault();

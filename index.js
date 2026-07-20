@@ -1,6 +1,13 @@
 import { getRequestHeaders, isGenerating, saveSettingsDebounced, setActiveCharacter, setActiveGroup } from '/script.js';
 import { openGroupById } from '/scripts/group-chats.js';
-import { extension_settings, extensionTypes, renderExtensionTemplateAsync } from '/scripts/extensions.js';
+import {
+    disableExtension,
+    enableExtension,
+    extension_settings,
+    extensionTypes,
+    findExtension,
+    renderExtensionTemplateAsync,
+} from '/scripts/extensions.js';
 import { isAdmin } from '/scripts/user.js';
 
 import { ChatManagerApi } from './modules/api.js';
@@ -24,8 +31,14 @@ const extensionFolder = 'sillytavern-chat-manager';
 /**
  * 插件功能设置
  * @typedef {object} ChatManagerSettings
- * @property {boolean} enabled 是否启用插件功能
  * @property {'left'|'right'} [column] 首次选择并固定使用的扩展栏
+ */
+
+/**
+ * 酒馆原生扩展版本接口返回值
+ * @typedef {object} ExtensionVersionStatus
+ * @property {boolean} isUpToDate 是否已是最新提交
+ * @property {string} [currentCommitHash] 当前 Git 提交号
  */
 
 /**
@@ -52,18 +65,17 @@ function isGlobalExtension() {
 }
 
 /**
- * 使用酒馆原生版本接口检查插件更新
- * @returns {Promise<boolean>} 是否存在远程更新
+ * 使用酒馆原生版本接口读取 Git 状态
+ * @returns {Promise<ExtensionVersionStatus>} 当前版本状态
  */
-async function hasExtensionUpdate() {
+async function getExtensionVersionStatus() {
     const response = await fetch('/api/extensions/version', {
         method: 'POST',
         headers: getRequestHeaders(),
         body: JSON.stringify({ extensionName: extensionFolder, global: isGlobalExtension() }),
     });
     if (!response.ok) throw new Error(await response.text() || response.statusText);
-    const data = await response.json();
-    return data.isUpToDate === false;
+    return response.json();
 }
 
 /**
@@ -83,12 +95,16 @@ async function updateExtension() {
 /**
  * 根据酒馆返回的版本状态控制更新按钮
  * @param {HTMLButtonElement} button 更新按钮
+ * @param {HTMLElement} version 版本文本
+ * @param {string} semanticVersion 清单语义版本
  * @returns {Promise<void>}
  */
-async function configureUpdateButton(button) {
-    if (isGlobalExtension() && !isAdmin()) return;
+async function configureUpdateButton(button, version, semanticVersion) {
     try {
-        button.hidden = !await hasExtensionUpdate();
+        const status = await getExtensionVersionStatus();
+        const shortHash = status.currentCommitHash?.slice(0, 7);
+        version.textContent = `version ${semanticVersion}${shortHash ? ` (${shortHash})` : ''}`;
+        button.hidden = status.isUpToDate !== false || (isGlobalExtension() && !isAdmin());
     } catch (error) {
         console.warn('[聊天文件管理] 检查扩展更新失败', error);
         return;
@@ -113,6 +129,36 @@ async function configureUpdateButton(button) {
         } finally {
             button.disabled = false;
             icon?.classList.remove('fa-spin');
+        }
+    });
+}
+
+/**
+ * 将复选框绑定到酒馆原生扩展启用状态
+ * @param {HTMLInputElement} toggle 启用复选框
+ */
+function configureEnabledToggle(toggle) {
+    const extension = findExtension(extensionFolder);
+    if (!extension) {
+        toggle.checked = false;
+        toggle.disabled = true;
+        return;
+    }
+
+    toggle.checked = extension.enabled;
+    toggle.addEventListener('change', async () => {
+        const enabled = toggle.checked;
+        toggle.disabled = true;
+        try {
+            const current = findExtension(extensionFolder);
+            if (!current) throw new Error('酒馆未找到当前扩展');
+            if (enabled) await enableExtension(current.name);
+            else await disableExtension(current.name);
+        } catch (error) {
+            console.error('[聊天文件管理] 切换扩展状态失败', error);
+            globalThis.toastr?.error?.(`切换扩展状态失败：${error.message}`);
+            toggle.checked = findExtension(extensionFolder)?.enabled ?? !enabled;
+            toggle.disabled = false;
         }
     });
 }
@@ -149,10 +195,9 @@ function selectExtensionColumn(savedColumn) {
  * 向酒馆原生扩展程序抽屉添加状态卡片
  * @param {ExtensionMetadata} metadata 扩展元数据
  * @param {ChatManagerSettings} settings 插件功能设置
- * @param {(enabled: boolean) => void} onEnabledChange 启用状态变更回调
  * @returns {Promise<boolean>} 是否已找到原生容器并完成插入
  */
-async function insertExtensionStatus(metadata, settings, onEnabledChange) {
+async function insertExtensionStatus(metadata, settings) {
     if (document.querySelector('#chat_manager_extension_status')) return true;
     const container = selectExtensionColumn(settings.column);
     if (!container) return false;
@@ -176,11 +221,10 @@ async function insertExtensionStatus(metadata, settings, onEnabledChange) {
         throw new Error('扩展设置模板结构无效');
     }
 
-    version.textContent = `v${metadata.version}`;
-    enabledToggle.checked = settings.enabled;
-    enabledToggle.addEventListener('change', () => onEnabledChange(enabledToggle.checked));
+    version.textContent = `version ${metadata.version}`;
+    configureEnabledToggle(enabledToggle);
     container.append(drawer);
-    configureUpdateButton(updateButton);
+    configureUpdateButton(updateButton, version, metadata.version);
     return true;
 }
 
@@ -232,19 +276,7 @@ export async function init() {
     const ui = new ChatManagerUi({ getContext, api, backups, splitter, isGenerating, openRecord });
     const nativePanel = new NativeChatPanel({ getContext, ui, isGenerating });
     const metadata = await loadExtensionMetadata();
-    const settings = extension_settings.chatManager ??= { enabled: true };
-    if (typeof settings.enabled !== 'boolean') settings.enabled = true;
-
-    const applyEnabledState = enabled => {
-        settings.enabled = enabled;
-        document.querySelector('#chat_manager_open')?.toggleAttribute('hidden', !enabled);
-        nativePanel.setEnabled(enabled);
-    };
-
-    const onEnabledChange = enabled => {
-        applyEnabledState(enabled);
-        saveSettingsDebounced();
-    };
+    const settings = extension_settings.chatManager ??= {};
 
     const insertEntry = () => {
         if (document.querySelector('#chat_manager_open')) return true;
@@ -260,7 +292,6 @@ export async function init() {
             const options = document.querySelector('#options');
             if (options instanceof HTMLElement) options.style.display = 'none';
         });
-        entry.toggleAttribute('hidden', !settings.enabled);
         anchor.insertAdjacentElement('afterend', entry);
         return true;
     };
@@ -269,9 +300,9 @@ export async function init() {
         if (!insertEntry()) globalThis.toastr?.error?.('聊天管理无法找到原生聊天文件入口');
     }, 1000);
     try {
-        if (!await insertExtensionStatus(metadata, settings, onEnabledChange)) {
+        if (!await insertExtensionStatus(metadata, settings)) {
             setTimeout(() => {
-                insertExtensionStatus(metadata, settings, onEnabledChange).catch(error => {
+                insertExtensionStatus(metadata, settings).catch(error => {
                     console.error('[聊天文件管理] 插入扩展设置失败', error);
                 });
             }, 1000);
@@ -280,7 +311,6 @@ export async function init() {
         console.error('[聊天文件管理] 插入扩展设置失败', error);
     }
     if (!nativePanel.init()) setTimeout(() => nativePanel.init(), 1000);
-    applyEnabledState(settings.enabled);
 
     const updateState = () => {
         ui.updateRuntimeState();
