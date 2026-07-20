@@ -168,9 +168,11 @@ test('chat deletion uses SillyTavern native character and group workflows', asyn
     ]);
     assert.match(entry, /deleteCharacterChatByName\(String\(characterId\), record\.fileId\)/);
     assert.match(entry, /deleteGroupChatByName\(group\.id, record\.fileId\)/);
-    assert.match(ui, /this\.loading \|\| this\.refreshTask[\s\S]*聊天清单正在读取，完成后才能删除聊天/);
-    assert.match(ui, /this\.loading = true;\s*this\.#syncSelectionControls\(\);\s*this\.#render\(\);\s*this\.#setState\('正在同步聊天文件…'\)/);
-    assert.match(ui, /finally\s*{\s*this\.loading = false;\s*this\.#syncSelectionControls\(\);\s*this\.#render\(\)/);
+    assert.match(ui, /if \(this\.loading\) return notify\('warning', '聊天清单正在读取，完成后才能删除聊天'\)/);
+    assert.doesNotMatch(ui, /this\.loading \|\| this\.refreshTask[\s\S]*聊天清单正在读取，完成后才能删除聊天/);
+    assert.match(ui, /#setLoading\(loading\)[\s\S]*this\.refreshButton\.disabled = loading;[\s\S]*this\.#syncSelectionControls\(\);[\s\S]*this\.#render\(\)/);
+    assert.match(ui, /async #loadChatFiles\(target\)\s*{\s*this\.#setLoading\(true\)/);
+    assert.match(ui, /finally\s*{\s*this\.#setLoading\(false\)/);
 });
 
 test('chat inventory resynchronizes on every open and coalesces concurrent refreshes', async () => {

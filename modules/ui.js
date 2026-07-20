@@ -111,7 +111,8 @@ export class ChatManagerUi {
         );
 
         required(root, '[data-cm-close]', HTMLButtonElement).addEventListener('click', () => this.close());
-        required(root, '[data-cm-refresh]', HTMLButtonElement).addEventListener('click', () => this.refresh());
+        this.refreshButton = required(root, '[data-cm-refresh]', HTMLButtonElement);
+        this.refreshButton.addEventListener('click', () => this.refresh());
         required(root, '[data-cm-data-maid-open]', HTMLButtonElement).addEventListener('click', () => {
             this.close();
             void this.openDataMaid();
@@ -175,6 +176,16 @@ export class ChatManagerUi {
         this.state.classList.toggle('cm-error', error);
     }
 
+    /** @param {boolean} loading 聊天清单是否正在加载 */
+    #setLoading(loading) {
+        if (this.loading === loading) return;
+        this.loading = loading;
+        this.refreshButton.disabled = loading;
+        this.#syncSelectionControls();
+        this.#render();
+        if (loading) this.#setState('正在同步聊天文件…');
+    }
+
     updateRuntimeState() {
         const generating = this.isGenerating();
         this.#setState(generating
@@ -218,10 +229,7 @@ export class ChatManagerUi {
      * @returns {Promise<void>}
      */
     async #loadChatFiles(target) {
-        this.loading = true;
-        this.#syncSelectionControls();
-        this.#render();
-        this.#setState('正在同步聊天文件…');
+        this.#setLoading(true);
         try {
             const data = target.scope === 'current' && target.owner
                 ? await this.api.listOwnerChatFiles(target.owner)
@@ -261,9 +269,7 @@ export class ChatManagerUi {
             this.#setState(error.message, true);
             notify('error', error.message);
         } finally {
-            this.loading = false;
-            this.#syncSelectionControls();
-            this.#render();
+            this.#setLoading(false);
         }
     }
 
@@ -613,7 +619,7 @@ export class ChatManagerUi {
      */
     async #confirmDelete(records) {
         if (!records.length) return;
-        if (this.loading || this.refreshTask) return notify('warning', '聊天清单正在读取，完成后才能删除聊天');
+        if (this.loading) return notify('warning', '聊天清单正在读取，完成后才能删除聊天');
         if (this.isGenerating()) return notify('warning', '聊天正在生成，结束后才能删除聊天');
         if (this.splitter.running) return notify('warning', '分割任务正在写入聊天，完成后才能删除聊天');
         const unique = Array.from(new Map(records.map(record => [chatKey(record), record])).values());
