@@ -27,16 +27,27 @@
 }
 
 .cm-scope-controls,
-.cm-view-controls {
+.cm-view-controls,
+.cm-delete-controls {
     display: flex;
     flex: 0 0 auto;
     gap: 6px;
 }
 
 .cm-scope-controls .menu_button,
-.cm-view-controls .menu_button {
+.cm-view-controls .menu_button,
+.cm-delete-controls .menu_button {
     gap: 5px;
     margin: 0;
+}
+
+.cm-danger-action {
+    color: var(--fullred) !important;
+}
+
+.cm-danger-action:not(:disabled):hover {
+    border-color: var(--fullred) !important;
+    background: rgb(180 45 45 / 14%) !important;
 }
 
 .cm-scope-controls .cm-active,
@@ -102,6 +113,44 @@
 .cm-chat-row.cm-opening {
     border-color: var(--SmartThemeQuoteColor);
     background: rgb(255 255 255 / 7%);
+}
+
+.cm-chat-row.cm-selected {
+    border-color: var(--SmartThemeQuoteColor);
+    background: rgb(255 255 255 / 8%);
+}
+
+.cm-chat-selector {
+    display: grid;
+    width: 28px;
+    height: 36px;
+    flex: 0 0 28px;
+    place-items: center;
+    cursor: pointer;
+}
+
+.cm-group-selector {
+    display: grid;
+    width: 28px;
+    height: 36px;
+    flex: 0 0 28px;
+    place-items: center;
+    cursor: pointer;
+}
+
+.cm-chat-selector input,
+.cm-group-selector input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+}
+
+.cm-selection-mode .cm-chat-actions {
+    display: none;
+}
+
+.cm-selection-mode [data-cm-split-continue] {
+    display: none;
 }
 
 .cm-chat-row.cm-opening {

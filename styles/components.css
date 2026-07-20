@@ -20,6 +20,11 @@
     background: rgb(0 0 0 / 12%);
 }
 
+.cm-record-group.cm-selected {
+    border-color: var(--SmartThemeQuoteColor);
+    background: rgb(255 255 255 / 7%);
+}
+
 .cm-group-header {
     display: flex;
     min-width: 0;

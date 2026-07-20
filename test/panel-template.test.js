@@ -12,6 +12,10 @@ test('panel template exposes all stable UI mounts', async () => {
         'data-cm-scope-all',
         'data-cm-group-owners',
         'data-cm-group-splits',
+        'data-cm-batch-start',
+        'data-cm-batch-cancel',
+        'data-cm-batch-confirm',
+        'data-cm-batch-count',
         'data-cm-state',
         'data-cm-list',
         'data-cm-version',
@@ -41,6 +45,9 @@ test('dialog templates expose every static dialog and dynamic mount', async () =
         'cm-split-primary-fields',
         'cm-split-floor-fields',
         'cm-split-notice',
+        'data-cm-dialog-content="delete-chats"',
+        'data-cm-delete-list',
+        'data-cm-delete-confirm',
         'data-cm-dialog-content="recovery"',
         'data-cm-recovery-list',
     ]) {
@@ -57,13 +64,17 @@ test('component templates expose every repeated card and action mount', async ()
     for (const marker of [
         'data-cm-component="chat-row"',
         'data-cm-chat-open',
+        'data-cm-chat-select',
+        'data-cm-chat-delete',
         'cm-chat-owner-line',
         'data-cm-chat-source',
         'data-cm-component="owner-group"',
         'data-cm-owner-toggle',
+        'data-cm-owner-select',
         'data-cm-owner-latest',
         'data-cm-component="split-group"',
         'data-cm-split-continue',
+        'data-cm-split-select',
         'data-cm-split-group-latest',
         'data-cm-component="backup-row"',
         'data-cm-backup-view',
@@ -75,6 +86,8 @@ test('component templates expose every repeated card and action mount', async ()
         'data-cm-message-content',
         'data-cm-component="split-part"',
         'data-cm-split-part-text',
+        'data-cm-component="delete-target"',
+        'data-cm-delete-status',
         'data-cm-component="state"',
         'data-cm-state-text',
         'data-cm-component="recovery-task"',
@@ -117,4 +130,10 @@ test('backup listing is only requested explicitly while chat files are stable', 
     assert.match(ui, /backup\.disabled\s*=\s*this\.isGenerating\(\)\s*\|\|\s*this\.splitter\.running/);
     assert.match(ui, /async openBackups\(record\)\s*{\s*if \(this\.isGenerating\(\)\)/);
     assert.match(ui, /if \(this\.splitter\.running\) return notify\('warning', '分割任务正在写入聊天/);
+});
+
+test('chat deletion uses SillyTavern native character and group workflows', async () => {
+    const source = await readFile(new URL('../index.js', import.meta.url), 'utf8');
+    assert.match(source, /deleteCharacterChatByName\(String\(characterId\), record\.fileId\)/);
+    assert.match(source, /deleteGroupChatByName\(group\.id, record\.fileId\)/);
 });

@@ -37,6 +37,17 @@
                     <span>合并分卷</span>
                 </button>
             </div>
+            <div class="cm-delete-controls" role="group" aria-label="批量删除聊天">
+                <button class="menu_button" type="button" data-cm-batch-start>
+                    <i class="fa-solid fa-list-check" aria-hidden="true"></i>
+                    <span>批量删除</span>
+                </button>
+                <button class="menu_button cm-hidden" type="button" data-cm-batch-cancel>取消选择</button>
+                <button class="menu_button cm-danger-action cm-hidden" type="button" disabled data-cm-batch-confirm>
+                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                    <span data-cm-batch-count>删除已选（0）</span>
+                </button>
+            </div>
             <button class="menu_button cm-refresh-button" type="button" data-cm-refresh>
                 <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
                 <span>刷新</span>

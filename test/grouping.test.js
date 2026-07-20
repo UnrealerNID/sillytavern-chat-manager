@@ -70,6 +70,22 @@ test('groups split records independently inside stable owner groups', () => {
     assert.equal(owners.length, 2);
     assert.equal(owners[0].children[0].type, 'split-group');
     assert.equal(owners[0].records.length, 4);
+    assert.equal(owners[0].allRecords.length, 4);
+});
+
+test('group selections retain every owner and split record outside the filtered subset', () => {
+    const all = [
+        record('长聊天'),
+        splitRecord('长聊天 - 1', 0, 99, 1),
+        splitRecord('长聊天 - 2', 100, 199, 2),
+        record('普通聊天'),
+    ];
+    const filtered = [all[1]];
+    const [splitGroup] = groupSplitRecords(filtered, all);
+    const [ownerGroup] = groupOwnerRecords(filtered, true, all);
+    assert.deepEqual(splitGroup.allRecords.map(item => item.record.fileId), ['长聊天 - 1', '长聊天 - 2']);
+    assert.equal(splitGroup.sourceRecord.fileId, '长聊天');
+    assert.deepEqual(ownerGroup.allRecords.map(item => item.fileId), all.map(item => item.fileId));
 });
 
 test('derives incremental config from new messages in the last volume', () => {

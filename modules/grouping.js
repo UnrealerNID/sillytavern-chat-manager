@@ -78,6 +78,11 @@ export function groupSplitRecords(records, allRecords = records) {
     }
     for (const series of seriesByKey.values()) {
         series.records.sort((a, b) => a.split.start - b.split.start || (a.split.sequence ?? 0) - (b.split.sequence ?? 0));
+        series.allRecords = allRecords.flatMap(record => {
+            if (record.ownerType !== series.ownerType || String(record.ownerId) !== String(series.ownerId)) return [];
+            const split = getStoredSplitIdentity(record);
+            return split?.rootChatId === series.rootChatId ? [{ record, split }] : [];
+        }).sort((a, b) => a.split.start - b.split.start || (a.split.sequence ?? 0) - (b.split.sequence ?? 0));
         series.sourceRecord = allRecords.find(record => record.ownerType === series.ownerType
             && String(record.ownerId) === String(series.ownerId)
             && record.fileId === series.rootChatId);
@@ -108,6 +113,10 @@ export function groupOwnerRecords(records, groupSplits, allRecords = records) {
     }
     for (const owner of owners) {
         const allOwnerRecords = allRecords.filter(record => record.ownerType === owner.ownerType && String(record.ownerId) === String(owner.ownerId));
+        owner.allRecords = allOwnerRecords;
+        owner.splitGroupCount = groupSplits
+            ? groupSplitRecords(allOwnerRecords, allOwnerRecords).filter(unit => unit.type === 'split-group').length
+            : 0;
         owner.children = groupSplits
             ? groupSplitRecords(owner.records, allOwnerRecords)
             : owner.records.map(record => ({ type: 'record', key: `record:${record.ownerType}:${record.ownerId}:${record.fileId}`, record }));

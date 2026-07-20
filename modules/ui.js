@@ -18,6 +18,7 @@ export class ChatManagerUi {
      * @param {import('./splitter.js').SplitService} dependencies.splitter 分割服务
      * @param {()=>boolean} dependencies.isGenerating 是否正在生成
      * @param {(record:object)=>Promise<void>} dependencies.openRecord 打开聊天回调
+     * @param {(record:object)=>Promise<void>} dependencies.deleteRecord 删除聊天回调
      * @param {(record:object,backup:object)=>Promise<string[]>} dependencies.restoreBackup 原生备份恢复回调
      * @param {string} dependencies.template 稳定面板模板
      * @param {string} dependencies.dialogTemplates 弹窗模板注册表
@@ -26,13 +27,14 @@ export class ChatManagerUi {
      * @param {{groupOwners?:boolean,groupSplits?:boolean}} dependencies.viewOptions 列表分组设置
      * @param {(options:{groupOwners:boolean,groupSplits:boolean})=>void} dependencies.onViewOptionsChange 分组设置回调
      */
-    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, restoreBackup, template, dialogTemplates, componentTemplates, getAvatarUrl, viewOptions = {}, onViewOptionsChange = () => {} }) {
+    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, deleteRecord, restoreBackup, template, dialogTemplates, componentTemplates, getAvatarUrl, viewOptions = {}, onViewOptionsChange = () => {} }) {
         this.getContext = getContext;
         this.api = api;
         this.backups = backups;
         this.splitter = splitter;
         this.isGenerating = isGenerating;
         this.openRecord = openRecord;
+        this.deleteRecord = deleteRecord;
         this.restoreBackup = restoreBackup;
         this.getAvatarUrl = getAvatarUrl;
         this.records = null;
@@ -41,6 +43,8 @@ export class ChatManagerUi {
         this.scope = 'all';
         this.currentOwner = null;
         this.openingKey = null;
+        this.selectionMode = false;
+        this.selectedRecords = new Map();
         this.loading = false;
         this.groupOwners = Boolean(viewOptions.groupOwners);
         this.groupSplits = Boolean(viewOptions.groupSplits);
@@ -83,6 +87,10 @@ export class ChatManagerUi {
         this.scopeAllButton = required(root, '[data-cm-scope-all]', HTMLButtonElement);
         this.groupOwnersButton = required(root, '[data-cm-group-owners]', HTMLButtonElement);
         this.groupSplitsButton = required(root, '[data-cm-group-splits]', HTMLButtonElement);
+        this.batchStartButton = required(root, '[data-cm-batch-start]', HTMLButtonElement);
+        this.batchCancelButton = required(root, '[data-cm-batch-cancel]', HTMLButtonElement);
+        this.batchConfirmButton = required(root, '[data-cm-batch-confirm]', HTMLButtonElement);
+        this.batchCount = required(root, '[data-cm-batch-count]');
         this.dialogTemplate = required(dialogRegistry, '[data-cm-dialog-shell]', HTMLTemplateElement);
         this.dialogContentTemplates = new Map(
             Array.from(dialogRegistry.querySelectorAll('[data-cm-dialog-content]'), templateNode => [
@@ -103,11 +111,15 @@ export class ChatManagerUi {
         this.scopeAllButton.addEventListener('click', () => this.#setScope('all'));
         this.groupOwnersButton.addEventListener('click', () => this.#toggleGrouping('owners'));
         this.groupSplitsButton.addEventListener('click', () => this.#toggleGrouping('splits'));
+        this.batchStartButton.addEventListener('click', () => this.#setSelectionMode(true));
+        this.batchCancelButton.addEventListener('click', () => this.#setSelectionMode(false));
+        this.batchConfirmButton.addEventListener('click', () => this.#confirmDelete(Array.from(this.selectedRecords.values())));
         this.search.addEventListener('input', () => { this.page = 0; this.#filter(); });
         this.previous.addEventListener('click', () => { this.page--; this.#render(); });
         this.next.addEventListener('click', () => { this.page++; this.#render(); });
         this.#syncGroupingButtons();
         this.#syncScopeButtons();
+        this.#syncSelectionControls();
         document.body.append(this.root);
     }
 
@@ -145,12 +157,14 @@ export class ChatManagerUi {
             ? '聊天正在生成：当前仅允许浏览'
             : this.splitter.running ? '分割任务正在执行' : '');
         if (this.activeSplitRoot?.isConnected) this.activeSplitSync?.();
+        this.#syncSelectionControls();
         this.#render();
     }
 
     async refresh() {
         if (this.loading) return;
         this.loading = true;
+        this.#syncSelectionControls();
         this.#setState('正在读取全部聊天…');
         try {
             const data = await this.api.getRecentChats();
@@ -185,6 +199,7 @@ export class ChatManagerUi {
             notify('error', error.message);
         } finally {
             this.loading = false;
+            this.#syncSelectionControls();
         }
     }
 
@@ -263,7 +278,32 @@ export class ChatManagerUi {
         for (const [button, active] of [[this.groupOwnersButton, this.groupOwners], [this.groupSplitsButton, this.groupSplits]]) {
             button.setAttribute('aria-pressed', String(active));
             button.classList.toggle('cm-active', active);
+            button.disabled = this.selectionMode;
         }
+    }
+
+    /** @param {boolean} enabled 是否进入批量选择模式 */
+    #setSelectionMode(enabled) {
+        if (enabled && (this.isGenerating() || this.splitter.running)) return;
+        this.selectionMode = enabled;
+        if (!enabled) this.selectedRecords.clear();
+        this.page = 0;
+        this.#syncGroupingButtons();
+        this.#syncSelectionControls();
+        this.#render();
+    }
+
+    /** 同步批量删除按钮和面板选择状态 */
+    #syncSelectionControls() {
+        const blocked = this.isGenerating() || this.splitter.running || this.loading;
+        this.root.classList.toggle('cm-selection-mode', this.selectionMode);
+        this.batchStartButton.classList.toggle('cm-hidden', this.selectionMode);
+        this.batchCancelButton.classList.toggle('cm-hidden', !this.selectionMode);
+        this.batchConfirmButton.classList.toggle('cm-hidden', !this.selectionMode);
+        this.batchStartButton.disabled = blocked;
+        this.batchCancelButton.disabled = blocked;
+        this.batchConfirmButton.disabled = blocked || this.selectedRecords.size === 0;
+        this.batchCount.textContent = `删除已选（${this.selectedRecords.size}）`;
     }
 
     /**
@@ -273,6 +313,11 @@ export class ChatManagerUi {
      */
     #ownerGroup(group) {
         const root = this.#component('owner-group');
+        this.#configureGroupSelection(
+            this.#mount(root, '[data-cm-owner-select-wrap]'),
+            this.#mount(root, '[data-cm-owner-select]', HTMLInputElement),
+            group.allRecords ?? group.records,
+        );
         const image = this.#mount(root, '[data-cm-owner-avatar]', HTMLImageElement);
         const toggle = this.#mount(root, '[data-cm-owner-toggle]', HTMLButtonElement);
         const children = this.#mount(root, '[data-cm-owner-children]');
@@ -280,9 +325,10 @@ export class ChatManagerUi {
         image.src = group.avatarUrl;
         image.alt = group.ownerName;
         this.#mount(root, '[data-cm-owner-name]').textContent = group.ownerName;
-        const splitCount = group.children.filter(child => child.type === 'split-group').length;
-        const aggregate = this.#recordAggregate(group.records);
-        const summary = `${group.records.length} 条聊天${splitCount ? ` · ${splitCount} 个分卷组` : ''} · 文件合计 ${aggregate.messageCount} 层 / ${formatBytes(aggregate.bytes)}`;
+        const splitCount = group.splitGroupCount ?? group.children.filter(child => child.type === 'split-group').length;
+        const ownerRecords = group.allRecords ?? group.records;
+        const aggregate = this.#recordAggregate(ownerRecords);
+        const summary = `${ownerRecords.length} 条聊天${splitCount ? ` · ${splitCount} 个分卷组` : ''} · 文件合计 ${aggregate.messageCount} 层 / ${formatBytes(aggregate.bytes)}`;
         const latest = aggregate.latest
             ? `最近：${aggregate.latest.fileId} · ${this.#formatDate(aggregate.latest.lastMessageAt)}`
             : '没有可用的聊天记录';
@@ -310,16 +356,25 @@ export class ChatManagerUi {
      */
     #splitGroup(group) {
         const root = this.#component('split-group');
+        const splitRecords = group.allRecords ?? group.records;
+        const selectableRecords = group.sourceRecord
+            ? [group.sourceRecord, ...splitRecords.map(item => item.record)]
+            : splitRecords.map(item => item.record);
+        this.#configureGroupSelection(
+            this.#mount(root, '[data-cm-split-select-wrap]'),
+            this.#mount(root, '[data-cm-split-select]', HTMLInputElement),
+            selectableRecords,
+        );
         const toggle = this.#mount(root, '[data-cm-split-toggle]', HTMLButtonElement);
         const children = this.#mount(root, '[data-cm-split-children]');
         const continueButton = this.#mount(root, '[data-cm-split-continue]', HTMLButtonElement);
         const incremental = deriveIncrementalSplit(group);
         const expanded = this.expandedSplits.has(group.key);
-        const first = group.records[0].split;
-        const last = group.records.at(-1).split;
-        const aggregate = this.#recordAggregate(group.records.map(item => item.record));
+        const first = splitRecords[0].split;
+        const last = splitRecords.at(-1).split;
+        const aggregate = this.#recordAggregate(splitRecords.map(item => item.record));
         this.#mount(root, '[data-cm-split-group-name]').textContent = group.rootChatId;
-        const summary = `${group.records.length} 个分卷 · 覆盖 #${first.start}–#${last.end} · 分卷合计 ${aggregate.messageCount} 层 / ${formatBytes(aggregate.bytes)} · ${group.sourceRecord ? '源聊天存在' : '仅保留分卷'}`;
+        const summary = `${splitRecords.length} 个分卷 · 覆盖 #${first.start}–#${last.end} · 分卷合计 ${aggregate.messageCount} 层 / ${formatBytes(aggregate.bytes)} · ${group.sourceRecord ? '源聊天存在' : '仅保留分卷'}`;
         const latest = aggregate.latest
             ? `最近：${aggregate.latest.fileId} · ${this.#formatDate(aggregate.latest.lastMessageAt)}`
             : '没有可用的分卷记录';
@@ -345,6 +400,30 @@ export class ChatManagerUi {
             group.records.forEach(item => children.append(this.#chatRow(item.record)));
         }
         return root;
+    }
+
+    /**
+     * 将组复选框绑定到组内全部实际聊天文件，并同步全选和半选状态
+     * @param {HTMLElement} wrap 复选框容器
+     * @param {HTMLInputElement} input 组复选框
+     * @param {object[]} records 组内聊天记录
+     */
+    #configureGroupSelection(wrap, input, records) {
+        const unique = Array.from(new Map(records.map(record => [chatKey(record), record])).values());
+        const selectedCount = unique.filter(record => this.selectedRecords.has(chatKey(record))).length;
+        wrap.classList.toggle('cm-hidden', !this.selectionMode);
+        input.checked = unique.length > 0 && selectedCount === unique.length;
+        input.indeterminate = selectedCount > 0 && selectedCount < unique.length;
+        wrap.closest('.cm-record-group')?.classList.toggle('cm-selected', selectedCount > 0);
+        input.addEventListener('change', () => {
+            for (const record of unique) {
+                const key = chatKey(record);
+                if (input.checked) this.selectedRecords.set(key, record);
+                else this.selectedRecords.delete(key);
+            }
+            this.#syncSelectionControls();
+            this.#render();
+        });
     }
 
     /**
@@ -385,6 +464,8 @@ export class ChatManagerUi {
 
     #chatRow(record, { source = false } = {}) {
         const row = this.#component('chat-row');
+        const selectWrap = this.#mount(row, '[data-cm-chat-select-wrap]');
+        const select = this.#mount(row, '[data-cm-chat-select]', HTMLInputElement);
         const image = this.#mount(row, '[data-cm-chat-avatar]', HTMLImageElement);
         const name = this.#mount(row, '[data-cm-chat-name]');
         const owner = this.#mount(row, '[data-cm-chat-owner]');
@@ -398,6 +479,10 @@ export class ChatManagerUi {
         const open = this.#mount(row, '[data-cm-chat-open]', HTMLButtonElement);
         const backup = this.#mount(row, '[data-cm-chat-backups]', HTMLButtonElement);
         const split = this.#mount(row, '[data-cm-chat-split]', HTMLButtonElement);
+        const remove = this.#mount(row, '[data-cm-chat-delete]', HTMLButtonElement);
+        const key = chatKey(record);
+        selectWrap.classList.toggle('cm-hidden', !this.selectionMode);
+        select.checked = this.selectedRecords.has(key);
         row.classList.toggle('cm-source-record', source);
         sourceBadge.classList.toggle('cm-hidden', !source);
         row.title = `打开 ${record.ownerName} / ${record.fileId}`;
@@ -413,7 +498,6 @@ export class ChatManagerUi {
         count.textContent = String(record.messageCount);
         size.textContent = record.fileSize;
         const openRecord = async () => {
-            const key = chatKey(record);
             if (this.openingKey) return;
             this.openingKey = key;
             row.classList.add('cm-opening');
@@ -430,15 +514,100 @@ export class ChatManagerUi {
         this.#bindButton(open, openRecord);
         this.#bindButton(backup, () => this.openBackups(record));
         this.#bindButton(split, () => this.openSplit(record));
+        this.#bindButton(remove, () => this.#confirmDelete([record]));
         open.disabled = this.isGenerating() || this.splitter.running;
         backup.disabled = this.isGenerating() || this.splitter.running;
         split.disabled = this.isGenerating() || this.splitter.running || record.messageCount < 1;
+        remove.disabled = this.isGenerating() || this.splitter.running;
+
+        select.addEventListener('change', () => {
+            if (select.checked) this.selectedRecords.set(key, record);
+            else this.selectedRecords.delete(key);
+            row.classList.toggle('cm-selected', select.checked);
+            this.#syncSelectionControls();
+            this.#render();
+        });
+        row.classList.toggle('cm-selected', select.checked);
 
         row.addEventListener('click', event => {
-            if (event.target.closest('button')) return;
+            if (event.target.closest('button, label')) return;
+            if (this.selectionMode) {
+                select.checked = !select.checked;
+                select.dispatchEvent(new Event('change'));
+                return;
+            }
             void openRecord().catch(error => notify('error', error.message));
         });
         return row;
+    }
+
+    /**
+     * 显示删除清单，并在确认后串行调用酒馆原生删除链路
+     * @param {object[]} records 待删除聊天
+     * @returns {Promise<void>}
+     */
+    async #confirmDelete(records) {
+        if (!records.length) return;
+        if (this.isGenerating()) return notify('warning', '聊天正在生成，结束后才能删除聊天');
+        if (this.splitter.running) return notify('warning', '分割任务正在写入聊天，完成后才能删除聊天');
+        const unique = Array.from(new Map(records.map(record => [chatKey(record), record])).values());
+        const dialog = this.#dialog([
+            unique.length === 1 ? '删除聊天' : '批量删除聊天',
+            unique.length === 1 ? unique[0].ownerName : `已选择 ${unique.length} 条聊天`,
+            unique.length === 1 ? unique[0].fileId : '确认后将按列表顺序逐条删除',
+        ], 'delete-chats');
+        const summary = this.#mount(dialog.body, '[data-cm-delete-summary]');
+        const list = this.#mount(dialog.body, '[data-cm-delete-list]');
+        const cancel = this.#mount(dialog.body, '[data-cm-delete-cancel]', HTMLButtonElement);
+        const confirm = this.#mount(dialog.body, '[data-cm-delete-confirm]', HTMLButtonElement);
+        const confirmText = this.#mount(dialog.body, '[data-cm-delete-confirm-text]');
+        const aggregate = this.#recordAggregate(unique);
+        const rows = new Map();
+        summary.textContent = `${unique.length} 个聊天文件 · 合计 ${aggregate.messageCount} 层 / ${formatBytes(aggregate.bytes)}`;
+        confirmText.textContent = unique.length === 1 ? '确认删除' : `确认删除 ${unique.length} 条`;
+        for (const record of unique) {
+            const row = this.#component('delete-target');
+            this.#mount(row, '[data-cm-delete-owner]').textContent = record.ownerName;
+            this.#mount(row, '[data-cm-delete-file]').textContent = record.fileId;
+            this.#mount(row, '[data-cm-delete-facts]').textContent = `${record.messageCount} 层 · ${record.fileSize}`;
+            rows.set(chatKey(record), row);
+            list.append(row);
+        }
+        this.#bindButton(cancel, () => dialog.close());
+        this.#bindButton(confirm, async () => {
+            confirm.disabled = true;
+            cancel.disabled = true;
+            dialog.setClosable(false);
+            let succeeded = 0;
+            let failed = 0;
+            for (const record of unique) {
+                const row = rows.get(chatKey(record));
+                const status = this.#mount(row, '[data-cm-delete-status]');
+                status.textContent = '正在删除';
+                status.dataset.state = 'loading';
+                try {
+                    await this.deleteRecord(record);
+                    if (await this.api.chatExists(record)) throw new Error('酒馆原生删除链路未删除该文件');
+                    succeeded++;
+                    status.textContent = '已删除';
+                    status.dataset.state = 'ready';
+                } catch (error) {
+                    failed++;
+                    status.textContent = '删除失败';
+                    status.dataset.state = 'error';
+                    row.title = error.message;
+                }
+                summary.textContent = `正在处理 ${succeeded + failed} / ${unique.length} · 已删除 ${succeeded} 条${failed ? ` · 失败 ${failed} 条` : ''}`;
+            }
+            dialog.setClosable(true);
+            cancel.disabled = false;
+            cancel.textContent = '关闭';
+            confirm.classList.add('cm-hidden');
+            summary.textContent = `处理完成 · 已删除 ${succeeded} 条${failed ? ` · 失败 ${failed} 条` : ''}`;
+            this.#setSelectionMode(false);
+            await this.refresh();
+            notify(failed ? 'warning' : 'success', failed ? `已删除 ${succeeded} 条，${failed} 条失败` : `已删除 ${succeeded} 条聊天`);
+        });
     }
 
     async openBackups(record) {

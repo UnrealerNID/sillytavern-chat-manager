@@ -1,5 +1,6 @@
 import {
     displayPastChats,
+    deleteCharacterChatByName,
     getRequestHeaders,
     getThumbnailUrl,
     importCharacterChat,
@@ -9,7 +10,7 @@ import {
     setActiveGroup,
     system_avatar,
 } from '/script.js';
-import { importGroupChat, openGroupById } from '/scripts/group-chats.js';
+import { deleteGroupChatByName, importGroupChat, openGroupById } from '/scripts/group-chats.js';
 import {
     extension_settings,
     extensionTypes,
@@ -348,6 +349,24 @@ async function restoreBackup(record, backup) {
 }
 
 /**
+ * 复用酒馆最近聊天列表的原生链路删除指定聊天
+ * @param {import('./modules/utils.js').ChatRecord} record 待删除聊天
+ * @returns {Promise<void>}
+ */
+async function deleteRecord(record) {
+    const context = getContext();
+    if (record.ownerType === 'character') {
+        const characterId = context.characters.findIndex(character => character.avatar === record.ownerId);
+        if (characterId < 0) throw new Error(`找不到角色：${record.ownerName}`);
+        await deleteCharacterChatByName(String(characterId), record.fileId);
+        return;
+    }
+    const group = context.groups.find(item => String(item.id) === String(record.ownerId));
+    if (!group) throw new Error(`找不到群聊：${record.ownerName}`);
+    await deleteGroupChatByName(group.id, record.fileId);
+}
+
+/**
  * 通过酒馆扩展清单钩子激活插件
  * @returns {Promise<void>}
  */
@@ -376,6 +395,7 @@ export async function init() {
         splitter,
         isGenerating,
         openRecord,
+        deleteRecord,
         restoreBackup,
         template: panelTemplate,
         dialogTemplates,

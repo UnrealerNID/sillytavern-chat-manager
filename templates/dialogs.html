@@ -96,4 +96,20 @@
     <template data-cm-dialog-content="recovery">
         <div data-cm-recovery-list></div>
     </template>
+
+    <template data-cm-dialog-content="delete-chats">
+        <div class="cm-delete-notice" role="note">
+            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+            <span>确认后将永久删除下列聊天文件，无法从聊天列表撤销；酒馆已有的备份不会随之删除，之后仍可通过“查找备份”恢复为新聊天。</span>
+        </div>
+        <div class="cm-delete-summary" data-cm-delete-summary></div>
+        <div class="cm-delete-list" data-cm-delete-list></div>
+        <div class="cm-dialog-actions">
+            <button class="menu_button" type="button" data-cm-delete-cancel>取消</button>
+            <button class="menu_button cm-danger-action" type="button" data-cm-delete-confirm>
+                <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                <span data-cm-delete-confirm-text>确认删除</span>
+            </button>
+        </div>
+    </template>
 </div>

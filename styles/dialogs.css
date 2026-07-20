@@ -12,6 +12,10 @@
     width: min(760px, 94vw);
 }
 
+.cm-dialog-delete-chats {
+    width: min(720px, 94vw);
+}
+
 .cm-dialog-body {
     display: flex;
     flex: 1;
@@ -166,4 +170,49 @@
     margin-top: 12px;
     padding-top: 12px;
     border-top: 1px solid var(--SmartThemeBorderColor);
+}
+
+.cm-delete-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 10px 12px;
+    border: 1px solid rgb(190 65 65 / 70%);
+    border-radius: 7px;
+    color: var(--grey70);
+    background: rgb(150 35 35 / 10%);
+    line-height: 1.45;
+}
+
+.cm-delete-notice i {
+    flex: 0 0 auto;
+    margin-top: 0.15em;
+    color: var(--fullred);
+}
+
+.cm-delete-summary {
+    margin: 12px 0 8px;
+    color: var(--grey70);
+    font-size: calc(var(--mainFontSize) * 0.88);
+}
+
+.cm-delete-list {
+    min-height: 0;
+    overflow: auto;
+}
+
+.cm-delete-target {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 7px;
+    padding: 9px 11px;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 7px;
+    background: rgb(0 0 0 / 10%);
+}
+
+.cm-delete-target:last-child {
+    margin-bottom: 0;
 }

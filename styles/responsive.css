@@ -29,8 +29,14 @@
     }
 
     .cm-scope-controls,
-    .cm-view-controls {
+    .cm-view-controls,
+    .cm-delete-controls {
         flex: 1;
+    }
+
+    .cm-delete-controls .menu_button {
+        flex: 1;
+        justify-content: center;
     }
 
     .cm-group-header {

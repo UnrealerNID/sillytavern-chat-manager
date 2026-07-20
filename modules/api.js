@@ -140,4 +140,15 @@ export class ChatManagerApi {
         await response.body?.cancel();
         return true;
     }
+
+    /**
+     * 检查指定聊天文件是否仍然存在
+     * @param {import('./utils.js').ChatRecord} record 聊天记录
+     * @returns {Promise<boolean>} 文件是否存在
+     */
+    async chatExists(record) {
+        if (record.ownerType === 'group') return this.groupChatExists(record.fileId);
+        const chats = await this.getCharacterChats(record.ownerId, { simple: true });
+        return Array.isArray(chats) && chats.some(item => String(item.file_name ?? '').replace(/\.jsonl$/i, '') === record.fileId);
+    }
 }
