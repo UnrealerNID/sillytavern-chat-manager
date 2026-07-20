@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 test('panel template exposes all stable UI mounts', async () => {
-    const html = await readFile(new URL('../panel.html', import.meta.url), 'utf8');
+    const html = await readFile(new URL('../templates/panel.html', import.meta.url), 'utf8');
     for (const marker of [
         'data-cm-search',
         'data-cm-refresh',
@@ -13,16 +13,34 @@ test('panel template exposes all stable UI mounts', async () => {
         'data-cm-update',
         'data-cm-previous',
         'data-cm-next',
-        'data-cm-dialog-template',
     ]) {
         assert.match(html, new RegExp(`\\b${marker}\\b`));
     }
 });
 
+test('dialog templates expose every static dialog and dynamic mount', async () => {
+    const html = await readFile(new URL('../templates/dialogs.html', import.meta.url), 'utf8');
+    for (const marker of [
+        'data-cm-dialog-shell',
+        'data-cm-dialog-content="backups"',
+        'data-cm-backup-status',
+        'data-cm-backup-progress',
+        'data-cm-backup-results',
+        'data-cm-dialog-content="backup-viewer"',
+        'data-cm-message-list',
+        'data-cm-dialog-content="split"',
+        'data-cm-split-preview',
+        'data-cm-dialog-content="recovery"',
+        'data-cm-recovery-list',
+    ]) {
+        assert.match(html, new RegExp(marker));
+    }
+});
+
 test('panel and settings share the same version update controls', async () => {
     const [panel, settings] = await Promise.all([
-        readFile(new URL('../panel.html', import.meta.url), 'utf8'),
-        readFile(new URL('../settings.html', import.meta.url), 'utf8'),
+        readFile(new URL('../templates/panel.html', import.meta.url), 'utf8'),
+        readFile(new URL('../templates/settings.html', import.meta.url), 'utf8'),
     ]);
     for (const className of [
         'chat-manager-extension-meta',

@@ -18,9 +18,10 @@ export class ChatManagerUi {
      * @param {()=>boolean} dependencies.isGenerating Generation state
      * @param {(record:object)=>Promise<void>} dependencies.openRecord Open callback
      * @param {string} dependencies.template 稳定面板模板
+     * @param {string} dependencies.dialogTemplates 弹窗模板注册表
      * @param {(record:object)=>string} dependencies.getAvatarUrl 头像地址生成器
      */
-    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, template, getAvatarUrl }) {
+    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, template, dialogTemplates, getAvatarUrl }) {
         this.getContext = getContext;
         this.api = api;
         this.backups = backups;
@@ -33,33 +34,43 @@ export class ChatManagerUi {
         this.page = 0;
         this.selectedKey = null;
         this.loading = false;
-        this.#build(template);
+        this.#build(template, dialogTemplates);
     }
 
-    #build(template) {
+    #build(template, dialogTemplates) {
         const holder = document.createElement('template');
         holder.innerHTML = template.trim();
         const root = holder.content.firstElementChild;
         if (!(root instanceof HTMLElement)) throw new Error('聊天管理面板模板无效');
-        const required = (selector, type = HTMLElement) => {
-            const node = root.querySelector(selector);
-            if (!(node instanceof type)) throw new Error(`聊天管理面板缺少 ${selector}`);
+        const required = (scope, selector, type = HTMLElement) => {
+            const node = scope.querySelector(selector);
+            if (!(node instanceof type)) throw new Error(`聊天管理模板缺少 ${selector}`);
             return node;
         };
+        const dialogHolder = document.createElement('template');
+        dialogHolder.innerHTML = dialogTemplates.trim();
+        const dialogRegistry = dialogHolder.content.firstElementChild;
+        if (!(dialogRegistry instanceof HTMLElement)) throw new Error('聊天管理弹窗模板无效');
 
         this.root = root;
-        this.search = required('[data-cm-search]', HTMLInputElement);
-        this.state = required('[data-cm-state]');
-        this.list = required('[data-cm-list]');
-        this.previous = required('[data-cm-previous]', HTMLButtonElement);
-        this.next = required('[data-cm-next]', HTMLButtonElement);
-        this.pageLabel = required('[data-cm-page]');
-        this.version = required('[data-cm-version]');
-        this.updateButton = required('[data-cm-update]', HTMLButtonElement);
-        this.dialogTemplate = required('[data-cm-dialog-template]', HTMLTemplateElement);
+        this.search = required(root, '[data-cm-search]', HTMLInputElement);
+        this.state = required(root, '[data-cm-state]');
+        this.list = required(root, '[data-cm-list]');
+        this.previous = required(root, '[data-cm-previous]', HTMLButtonElement);
+        this.next = required(root, '[data-cm-next]', HTMLButtonElement);
+        this.pageLabel = required(root, '[data-cm-page]');
+        this.version = required(root, '[data-cm-version]');
+        this.updateButton = required(root, '[data-cm-update]', HTMLButtonElement);
+        this.dialogTemplate = required(dialogRegistry, '[data-cm-dialog-shell]', HTMLTemplateElement);
+        this.dialogContentTemplates = new Map(
+            Array.from(dialogRegistry.querySelectorAll('[data-cm-dialog-content]'), templateNode => [
+                templateNode.dataset.cmDialogContent,
+                templateNode,
+            ]),
+        );
 
-        required('[data-cm-close]', HTMLButtonElement).addEventListener('click', () => this.close());
-        required('[data-cm-refresh]', HTMLButtonElement).addEventListener('click', () => this.refresh());
+        required(root, '[data-cm-close]', HTMLButtonElement).addEventListener('click', () => this.close());
+        required(root, '[data-cm-refresh]', HTMLButtonElement).addEventListener('click', () => this.refresh());
         this.search.addEventListener('input', () => { this.page = 0; this.#filter(); });
         this.previous.addEventListener('click', () => { this.page--; this.#render(); });
         this.next.addEventListener('click', () => { this.page++; this.#render(); });
@@ -218,21 +229,36 @@ export class ChatManagerUi {
     }
 
     async openBackups(record) {
-        const dialog = this.#dialog(['对应备份', record.ownerName, record.fileId]);
-        const status = element('div', { className: 'cm-state cm-loading-state' });
-        const statusText = element('span', { text: '正在读取备份列表…' });
-        status.append(
-            element('i', { className: 'fa-solid fa-spinner fa-spin', attrs: { 'aria-hidden': 'true' } }),
-            statusText,
-        );
-        dialog.body.append(status);
+        const dialog = this.#dialog(['对应备份', record.ownerName, record.fileId], 'backups');
+        const status = this.#mount(dialog.body, '[data-cm-backup-status]');
+        const statusText = this.#mount(dialog.body, '[data-cm-backup-status-text]');
+        const elapsed = this.#mount(dialog.body, '[data-cm-backup-elapsed]');
+        const progress = this.#mount(dialog.body, '[data-cm-backup-progress]');
+        const progressValue = this.#mount(dialog.body, '[data-cm-backup-progress-value]');
+        const results = this.#mount(dialog.body, '[data-cm-backup-results]');
+        const startedAt = Date.now();
+        const updateElapsed = () => {
+            elapsed.textContent = `已等待 ${((Date.now() - startedAt) / 1_000).toFixed(1)} 秒`;
+        };
+        const timer = setInterval(updateElapsed, 250);
+        const stopLoading = () => clearInterval(timer);
+        dialog.signal.addEventListener('abort', stopLoading, { once: true });
         try {
             const matches = await this.backups.find(record, (done, total) => {
                 statusText.textContent = `正在验证候选备份 ${done} / ${total}`;
+                if (total > 0) {
+                    progress.classList.remove('cm-loading-progress-indeterminate');
+                    progress.setAttribute('aria-valuemin', '0');
+                    progress.setAttribute('aria-valuemax', String(total));
+                    progress.setAttribute('aria-valuenow', String(done));
+                    progressValue.style.width = `${Math.min(100, (done / total) * 100)}%`;
+                }
             }, dialog.signal);
-            dialog.body.replaceChildren();
+            stopLoading();
+            status.remove();
+            results.replaceChildren();
             if (!matches.length) {
-                dialog.body.append(element('div', { className: 'cm-empty', text: '没有找到能够关联到该聊天的备份' }));
+                results.append(element('div', { className: 'cm-empty', text: '没有找到能够关联到该聊天的备份' }));
                 return;
             }
             for (const backup of matches) {
@@ -249,10 +275,11 @@ export class ChatManagerUi {
                     this.#button('下载', () => this.backups.download(backup.file_name)),
                 );
                 row.append(info, actions);
-                dialog.body.append(row);
+                results.append(row);
             }
         } catch (error) {
             if (dialog.signal.aborted) return;
+            stopLoading();
             status.classList.remove('cm-loading-state');
             status.replaceChildren(element('span', { text: error.message }));
             notify('error', error.message);
@@ -260,16 +287,15 @@ export class ChatManagerUi {
     }
 
     async #viewBackup(backup) {
-        const dialog = this.#dialog(`查看备份 · ${backup.file_name}`);
+        const dialog = this.#dialog(`查看备份 · ${backup.file_name}`, 'backup-viewer');
         let page = 0;
         const pageSize = 50;
-        const content = element('div', { className: 'cm-message-list' });
-        const controls = element('div', { className: 'cm-footer' });
-        const previous = this.#button('上一页', () => { page--; load(); });
-        const label = element('span');
-        const next = this.#button('下一页', () => { page++; load(); });
-        controls.append(previous, label, next);
-        dialog.body.append(content, controls);
+        const content = this.#mount(dialog.body, '[data-cm-message-list]');
+        const previous = this.#mount(dialog.body, '[data-cm-message-previous]', HTMLButtonElement);
+        const label = this.#mount(dialog.body, '[data-cm-message-page]');
+        const next = this.#mount(dialog.body, '[data-cm-message-next]', HTMLButtonElement);
+        this.#bindButton(previous, () => { page--; return load(); });
+        this.#bindButton(next, () => { page++; return load(); });
         const load = async () => {
             content.replaceChildren(element('div', { className: 'cm-state', text: '正在读取该页…' }));
             try {
@@ -299,33 +325,28 @@ export class ChatManagerUi {
     async openSplit(record) {
         if (this.isGenerating()) return notify('warning', '聊天正在生成，当前不能分割');
         this.activeSplitClose?.();
-        const dialog = this.#dialog(`分割聊天 · ${record.ownerName} / ${record.fileId}`);
+        const dialog = this.#dialog(`分割聊天 · ${record.ownerName} / ${record.fileId}`, 'split');
         this.activeSplitRoot = dialog.root;
         this.activeSplitClose = dialog.close;
-        const form = element('div', { className: 'cm-split-form' });
-        const mode = element('select', { className: 'text_pole' });
-        mode.append(new Option('指定范围', 'range'), new Option('固定楼层数', 'fixed'));
-        const start = this.#numberInput(0, 0, Math.max(0, record.messageCount - 1));
-        const end = this.#numberInput(Math.max(0, record.messageCount - 1), 0, Math.max(0, record.messageCount - 1));
-        const chunk = this.#numberInput(500, 1, Math.max(1, record.messageCount));
-        const chunkRow = this.#field('每卷楼层数', chunk);
-        chunkRow.classList.add('cm-hidden');
+        const summary = this.#mount(dialog.body, '[data-cm-split-summary]');
+        const mode = this.#mount(dialog.body, '[data-cm-split-mode]', HTMLSelectElement);
+        const start = this.#mount(dialog.body, '[data-cm-split-start]', HTMLInputElement);
+        const end = this.#mount(dialog.body, '[data-cm-split-end]', HTMLInputElement);
+        const chunk = this.#mount(dialog.body, '[data-cm-split-chunk]', HTMLInputElement);
+        const chunkRow = this.#mount(dialog.body, '[data-cm-split-chunk-field]');
+        const preview = this.#mount(dialog.body, '[data-cm-split-preview]');
+        const notice = this.#mount(dialog.body, '[data-cm-split-notice]');
+        const acknowledge = this.#mount(dialog.body, '[data-cm-split-acknowledge]', HTMLInputElement);
+        const generate = this.#mount(dialog.body, '[data-cm-split-generate]', HTMLButtonElement);
+        const confirm = this.#mount(dialog.body, '[data-cm-split-confirm]', HTMLButtonElement);
+        const stop = this.#mount(dialog.body, '[data-cm-split-stop]', HTMLButtonElement);
+        const maxFloor = Math.max(0, record.messageCount - 1);
+        summary.textContent = `${record.fileSize} · ${record.messageCount} 层`;
+        this.#configureNumberInput(start, 0, 0, maxFloor);
+        this.#configureNumberInput(end, maxFloor, 0, maxFloor);
+        this.#configureNumberInput(chunk, 500, 1, Math.max(1, record.messageCount));
         mode.addEventListener('change', () => chunkRow.classList.toggle('cm-hidden', mode.value !== 'fixed'));
-        form.append(
-            element('div', { className: 'cm-source-summary', text: `${record.fileSize} · ${record.messageCount} 层` }),
-            this.#field('模式', mode),
-            this.#field('起始楼层 #', start),
-            this.#field('结束楼层 #', end),
-            chunkRow,
-        );
-        const preview = element('div', { className: 'cm-preview' });
-        const notice = element('label', { className: 'cm-confirm-notice' });
-        const acknowledge = element('input');
-        acknowledge.type = 'checkbox';
-        notice.append(acknowledge, document.createTextNode(' 我了解：创建分卷会触发酒馆原生备份及轮换规则'));
-        notice.classList.add('cm-hidden');
-        const actions = element('div', { className: 'cm-dialog-actions' });
-        const generate = this.#button('生成预览', async () => {
+        this.#bindButton(generate, async () => {
             if (this.isGenerating()) return notify('warning', '聊天正在生成，不能生成预览');
             busy = true;
             syncControls();
@@ -352,7 +373,7 @@ export class ChatManagerUi {
                 syncControls();
             }
         });
-        const confirm = this.#button('确认分割', async () => {
+        this.#bindButton(confirm, async () => {
             if (!plan || !acknowledge.checked) return;
             if (this.isGenerating()) return notify('warning', '聊天正在生成，不能写入分卷');
             busy = true;
@@ -377,8 +398,7 @@ export class ChatManagerUi {
                 syncControls();
             }
         });
-        const stop = this.#button('完成当前卷后停止', () => this.splitter.requestStop());
-        stop.classList.add('cm-hidden');
+        this.#bindButton(stop, () => this.splitter.requestStop());
         acknowledge.addEventListener('change', () => syncControls());
         for (const input of [mode, start, end, chunk]) input.addEventListener('change', () => {
             plan = null;
@@ -395,13 +415,12 @@ export class ChatManagerUi {
         };
         this.activeSplitSync = syncControls;
         syncControls();
-        actions.append(generate, confirm, stop);
-        dialog.body.append(form, preview, notice, actions);
     }
 
     async showRecovery(tasks) {
         if (!tasks.length) return;
-        const dialog = this.#dialog('检测到未完成的分割任务');
+        const dialog = this.#dialog('检测到未完成的分割任务', 'recovery');
+        const list = this.#mount(dialog.body, '[data-cm-recovery-list]');
         for (const task of tasks) {
             const card = element('article', { className: 'cm-recovery' });
             const details = element('div', { className: 'cm-chat-info' });
@@ -431,7 +450,7 @@ export class ChatManagerUi {
             });
             actions.append(resume, clear);
             card.append(details, actions);
-            dialog.body.append(card);
+            list.append(card);
         }
     }
 
@@ -443,7 +462,7 @@ export class ChatManagerUi {
         })));
     }
 
-    #dialog(title) {
+    #dialog(title, contentId) {
         const controller = new AbortController();
         const fragment = this.dialogTemplate.content.cloneNode(true);
         const root = fragment.querySelector('[data-cm-dialog-overlay]');
@@ -463,6 +482,9 @@ export class ChatManagerUi {
         } else {
             heading.textContent = title;
         }
+        const contentTemplate = this.dialogContentTemplates.get(contentId);
+        if (!(contentTemplate instanceof HTMLTemplateElement)) throw new Error(`未找到弹窗模板 ${contentId}`);
+        body.append(contentTemplate.content.cloneNode(true));
         const remove = () => {
             controller.abort();
             root.remove();
@@ -477,6 +499,16 @@ export class ChatManagerUi {
 
     #button(text, handler, title = '') {
         const button = element('button', { className: 'menu_button', text, title, type: 'button' });
+        this.#bindButton(button, handler);
+        return button;
+    }
+
+    /**
+     * 将静态模板中的按钮接入统一的异步错误处理
+     * @param {HTMLButtonElement} button 按钮元素
+     * @param {(event: MouseEvent) => unknown | Promise<unknown>} handler 点击处理函数
+     */
+    #bindButton(button, handler) {
         button.addEventListener('click', event => {
             event.stopPropagation();
             Promise.resolve(handler(event)).catch(error => {
@@ -484,7 +516,6 @@ export class ChatManagerUi {
                 notify('error', error.message);
             });
         });
-        return button;
     }
 
     #iconButton(icon, label, title, handler) {
@@ -498,20 +529,32 @@ export class ChatManagerUi {
         return button;
     }
 
-    #field(label, control) {
-        const field = element('label', { className: 'cm-field' });
-        field.append(element('span', { text: label }), control);
-        return field;
+    /**
+     * 读取并校验静态模板中的挂载点
+     * @template {Element} T
+     * @param {ParentNode} root 查询根节点
+     * @param {string} selector 挂载点选择器
+     * @param {{new(...args: any[]): T}} [type=HTMLElement] 期望的元素类型
+     * @returns {T}
+     */
+    #mount(root, selector, type = HTMLElement) {
+        const target = root.querySelector(selector);
+        if (!(target instanceof type)) throw new Error(`聊天管理模板缺少挂载点 ${selector}`);
+        return target;
     }
 
-    #numberInput(value, min, max) {
-        const input = element('input', { className: 'text_pole' });
-        input.type = 'number';
+    /**
+     * 配置静态模板中的数字输入框边界
+     * @param {HTMLInputElement} input 数字输入框
+     * @param {number} value 初始值
+     * @param {number} min 最小值
+     * @param {number} max 最大值
+     */
+    #configureNumberInput(input, value, min, max) {
         input.value = String(value);
         input.min = String(min);
         input.max = String(max);
         input.step = '1';
-        return input;
     }
 
     #formatDate(value) {

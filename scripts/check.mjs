@@ -28,7 +28,14 @@ if (manifest.version !== packageJson.version) {
 if (manifest.auto_update !== true) {
     throw new Error('manifest.json must enable SillyTavern update checks');
 }
-for (const referenced of [manifest.js, manifest.css, 'settings.html', ...Object.values(manifest.i18n ?? {})]) {
-    if (!existsSync(join(root, referenced))) throw new Error(`manifest.json references missing file: ${referenced}`);
+for (const referenced of [
+    manifest.js,
+    manifest.css,
+    'templates/settings.html',
+    'templates/panel.html',
+    'templates/dialogs.html',
+    ...Object.values(manifest.i18n ?? {}),
+]) {
+    if (!existsSync(join(root, referenced))) throw new Error(`插件引用了不存在的文件：${referenced}`);
 }
 console.log('checked manifest.json');

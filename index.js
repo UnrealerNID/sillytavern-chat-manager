@@ -277,7 +277,7 @@ async function insertExtensionStatus(metadata, settings, applyEnabledState) {
         saveSettingsDebounced();
     }
 
-    const html = await renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'settings');
+    const html = await renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/settings');
     const template = document.createElement('template');
     template.innerHTML = html.trim();
     const drawer = template.content.firstElementChild;
@@ -343,9 +343,10 @@ export async function init() {
     const journal = new TaskJournal();
     const backups = new BackupService(api);
     const splitter = new SplitService(api, journal, () => getContext().uuidv4());
-    const [metadata, panelTemplate] = await Promise.all([
+    const [metadata, panelTemplate, dialogTemplates] = await Promise.all([
         loadExtensionMetadata(),
-        renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'panel'),
+        renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/panel'),
+        renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/dialogs'),
     ]);
     const ui = new ChatManagerUi({
         getContext,
@@ -355,6 +356,7 @@ export async function init() {
         isGenerating,
         openRecord,
         template: panelTemplate,
+        dialogTemplates,
         getAvatarUrl: record => record.ownerType === 'group' ? system_avatar : getThumbnailUrl('avatar', record.ownerId),
     });
     const nativePanel = new NativeChatPanel({ getContext, ui, isGenerating });

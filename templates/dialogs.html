@@ -1,0 +1,77 @@
+<div data-cm-dialog-registry>
+    <template data-cm-dialog-shell>
+        <div class="cm-overlay cm-dialog-overlay" role="presentation" data-cm-dialog-overlay>
+            <section class="cm-dialog" role="dialog" aria-modal="true">
+                <header class="cm-header">
+                    <h3 data-cm-dialog-title></h3>
+                    <button class="cm-icon-button" type="button" title="关闭" aria-label="关闭" data-cm-dialog-close>
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                    </button>
+                </header>
+                <div class="cm-dialog-body" data-cm-dialog-body></div>
+            </section>
+        </div>
+    </template>
+
+    <template data-cm-dialog-content="backups">
+        <div class="cm-state cm-loading-state" role="status" aria-live="polite" data-cm-backup-status>
+            <span class="cm-loading-spinner" aria-hidden="true"></span>
+            <div class="cm-loading-copy">
+                <span data-cm-backup-status-text>正在读取备份列表…</span>
+                <small data-cm-backup-elapsed>已等待 0.0 秒</small>
+            </div>
+            <div class="cm-loading-progress cm-loading-progress-indeterminate" role="progressbar" aria-label="备份扫描进度" data-cm-backup-progress>
+                <span data-cm-backup-progress-value></span>
+            </div>
+        </div>
+        <div data-cm-backup-results></div>
+    </template>
+
+    <template data-cm-dialog-content="backup-viewer">
+        <div class="cm-message-list" data-cm-message-list></div>
+        <div class="cm-footer">
+            <button class="menu_button" type="button" data-cm-message-previous>上一页</button>
+            <span data-cm-message-page></span>
+            <button class="menu_button" type="button" data-cm-message-next>下一页</button>
+        </div>
+    </template>
+
+    <template data-cm-dialog-content="split">
+        <div class="cm-split-form">
+            <div class="cm-source-summary" data-cm-split-summary></div>
+            <label class="cm-field">
+                <span>模式</span>
+                <select class="text_pole" data-cm-split-mode>
+                    <option value="range">指定范围</option>
+                    <option value="fixed">固定楼层数</option>
+                </select>
+            </label>
+            <label class="cm-field">
+                <span>起始楼层 #</span>
+                <input class="text_pole" type="number" step="1" data-cm-split-start>
+            </label>
+            <label class="cm-field">
+                <span>结束楼层 #</span>
+                <input class="text_pole" type="number" step="1" data-cm-split-end>
+            </label>
+            <label class="cm-field cm-hidden" data-cm-split-chunk-field>
+                <span>每卷楼层数</span>
+                <input class="text_pole" type="number" step="1" data-cm-split-chunk>
+            </label>
+        </div>
+        <div class="cm-preview" data-cm-split-preview></div>
+        <label class="cm-confirm-notice cm-hidden" data-cm-split-notice>
+            <input type="checkbox" data-cm-split-acknowledge>
+            <span>我了解：创建分卷会触发酒馆原生备份及轮换规则</span>
+        </label>
+        <div class="cm-dialog-actions">
+            <button class="menu_button" type="button" data-cm-split-generate>生成预览</button>
+            <button class="menu_button" type="button" data-cm-split-confirm>确认分割</button>
+            <button class="menu_button cm-hidden" type="button" data-cm-split-stop>完成当前卷后停止</button>
+        </div>
+    </template>
+
+    <template data-cm-dialog-content="recovery">
+        <div data-cm-recovery-list></div>
+    </template>
+</div>
