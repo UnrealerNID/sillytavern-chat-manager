@@ -33,6 +33,7 @@ for (const referenced of [
     manifest.css,
     'templates/settings.html',
     'templates/panel.html',
+    'templates/inventory.html',
     'templates/dialogs.html',
     'templates/components.html',
     ...Object.values(manifest.i18n ?? {}),

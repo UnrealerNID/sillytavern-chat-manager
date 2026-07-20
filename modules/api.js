@@ -101,20 +101,48 @@ export class ChatManagerApi {
         return this.post('/api/chats/group/info', { id: fileId }, { signal });
     }
 
-    listBackups(signal) {
-        return this.post('/api/backups/chat/get', undefined, { signal });
+    /**
+     * 调用酒馆数据清理报告识别孤立聊天文件
+     * @param {AbortSignal} [signal] 取消信号
+     * @returns {Promise<{report:object,token:string}>} 清理报告与临时访问令牌
+     */
+    createDataMaidReport(signal) {
+        return this.post('/api/data-maid/report', undefined, { signal });
     }
 
-    async downloadBackup(name, signal) {
-        const response = await fetch('/api/backups/chat/download', {
-            method: 'POST',
-            headers: this.headers(),
-            body: JSON.stringify({ name }),
-            cache: 'no-cache',
-            signal,
-        });
-        if (!response.ok) throw new HttpError('备份下载失败', response.status);
+    /**
+     * 释放酒馆数据清理报告的临时访问令牌
+     * @param {string} token 临时访问令牌
+     * @returns {Promise<void>}
+     */
+    async finalizeDataMaidReport(token) {
+        if (!token) return;
+        await this.post('/api/data-maid/finalize', { token });
+    }
+
+    /**
+     * 读取数据清理报告中的文件
+     * @param {string} token 临时访问令牌
+     * @param {string} hash 文件路径摘要
+     * @param {AbortSignal} [signal] 取消信号
+     * @returns {Promise<Response>} 原始文件响应
+     */
+    async readDataMaidFile(token, hash, signal) {
+        const query = new URLSearchParams({ token, hash });
+        const response = await fetch(`/api/data-maid/view?${query}`, { cache: 'no-cache', signal });
+        if (!response.ok) throw new HttpError('孤立聊天文件读取失败', response.status);
         return response;
+    }
+
+    /**
+     * 使用酒馆数据清理令牌批量删除已确认的文件
+     * @param {string} token 临时访问令牌
+     * @param {string[]} hashes 文件路径摘要
+     * @returns {Promise<void>}
+     */
+    async deleteDataMaidFiles(token, hashes) {
+        if (!token || !hashes.length) return;
+        await this.post('/api/data-maid/delete', { token, hashes });
     }
 
     async sanitizeFileName(fileName) {

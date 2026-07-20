@@ -20,6 +20,7 @@ import { isAdmin } from '/scripts/user.js';
 
 import { ChatManagerApi } from './modules/api.js';
 import { BackupService } from './modules/backups.js';
+import { FileInventoryUi } from './modules/file-inventory.js';
 import { openChatRecord } from './modules/chat-opener.js';
 import { NativeChatPanel } from './modules/native-chat-panel.js';
 import { SplitService } from './modules/splitter.js';
@@ -321,20 +322,15 @@ async function openRecord(record) {
  * 复用酒馆原生导入链路，将备份恢复为一份新聊天
  * @param {import('./modules/utils.js').ChatRecord} record 备份所属聊天
  * @param {object} backup 原生备份信息
+ * @param {import('./modules/backups.js').BackupService} backups 安全备份服务
  * @returns {Promise<string[]>} 新聊天文件名
  */
-async function restoreBackup(record, backup) {
+async function restoreBackup(record, backup, backups) {
     if (isGenerating()) throw new Error('聊天正在生成，当前不能恢复备份');
     await openRecord(record);
-    const response = await fetch('/api/backups/chat/download', {
-        method: 'POST',
-        headers: getRequestHeaders(),
-        body: JSON.stringify({ name: backup.file_name }),
-    });
-    if (!response.ok) throw new Error('读取备份失败');
 
     const context = getContext();
-    const file = new File([await response.blob()], backup.file_name, { type: 'application/octet-stream' });
+    const file = new File([await backups.readBlob(backup)], backup.file_name, { type: 'application/octet-stream' });
     const formData = new FormData();
     formData.set('file_type', 'jsonl');
     formData.set('avatar', file);
@@ -382,12 +378,14 @@ export async function init() {
     settings.enabled ??= true;
     settings.groupOwners ??= false;
     settings.groupSplits ??= false;
-    const [metadata, panelTemplate, dialogTemplates, componentTemplates] = await Promise.all([
+    const [metadata, panelTemplate, inventoryTemplate, dialogTemplates, componentTemplates] = await Promise.all([
         loadExtensionMetadata(),
         renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/panel'),
+        renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/inventory'),
         renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/dialogs'),
         renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/components'),
     ]);
+    const inventory = new FileInventoryUi({ getContext, api, backups, openRecord, template: inventoryTemplate });
     const ui = new ChatManagerUi({
         getContext,
         api,
@@ -396,7 +394,8 @@ export async function init() {
         isGenerating,
         openRecord,
         deleteRecord,
-        restoreBackup,
+        restoreBackup: (record, backup) => restoreBackup(record, backup, backups),
+        openInventory: () => inventory.open(),
         template: panelTemplate,
         dialogTemplates,
         componentTemplates,
@@ -426,7 +425,11 @@ export async function init() {
 
     const applyEnabledState = (enabled) => {
         document.querySelector('#chat_manager_open')?.classList.toggle('displayNone', !enabled);
-        if (!enabled) ui.close();
+        if (!enabled) {
+            ui.close();
+            inventory.close();
+            void backups.dispose();
+        }
         nativePanel.setEnabled(enabled);
         if (enabled) {
             void recoverPendingTasks();

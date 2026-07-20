@@ -16,6 +16,7 @@ test('panel template exposes all stable UI mounts', async () => {
         'data-cm-batch-cancel',
         'data-cm-batch-confirm',
         'data-cm-batch-count',
+        'data-cm-inventory-open',
         'data-cm-state',
         'data-cm-list',
         'data-cm-version',
@@ -25,6 +26,34 @@ test('panel template exposes all stable UI mounts', async () => {
     ]) {
         assert.match(html, new RegExp(`\\b${marker}\\b`));
     }
+});
+
+test('file inventory is a separate second-level panel with optional orphan scanning', async () => {
+    const html = await readFile(new URL('../templates/inventory.html', import.meta.url), 'utf8');
+    for (const marker of [
+        'chat_manager_inventory_overlay',
+        'data-cm-inventory-mode="all"',
+        'data-cm-inventory-mode="orphan"',
+        'data-cm-inventory-scan-chats',
+        'data-cm-inventory-scan-backups',
+        'data-cm-inventory-select-all',
+        'data-cm-inventory-delete-selected',
+        'data-cm-inventory-viewer',
+        'data-cm-inventory-delete-dialog',
+        'data-cm-inventory-tab="chats"',
+        'data-cm-inventory-tab="backups"',
+        'data-cm-inventory-tab="orphans"',
+        'data-cm-inventory-tab="orphanBackups"',
+        'data-cm-inventory-row-template',
+        'data-cm-inventory-previous',
+        'data-cm-inventory-next',
+    ]) {
+        assert.match(html, new RegExp(marker));
+    }
+    assert.match(html, /查找孤立聊天/);
+    assert.match(html, /检查孤立备份/);
+    assert.match(html, /type="checkbox"/);
+    assert.doesNotMatch(html, /打开酒馆数据清理/);
 });
 
 test('dialog templates expose every static dialog and dynamic mount', async () => {
@@ -133,9 +162,13 @@ test('backup listing is only requested explicitly while chat files are stable', 
 });
 
 test('chat deletion uses SillyTavern native character and group workflows', async () => {
-    const source = await readFile(new URL('../index.js', import.meta.url), 'utf8');
-    assert.match(source, /deleteCharacterChatByName\(String\(characterId\), record\.fileId\)/);
-    assert.match(source, /deleteGroupChatByName\(group\.id, record\.fileId\)/);
+    const [entry, ui] = await Promise.all([
+        readFile(new URL('../index.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/ui.js', import.meta.url), 'utf8'),
+    ]);
+    assert.match(entry, /deleteCharacterChatByName\(String\(characterId\), record\.fileId\)/);
+    assert.match(entry, /deleteGroupChatByName\(group\.id, record\.fileId\)/);
+    assert.match(ui, /this\.loading \|\| this\.refreshTask[\s\S]*聊天清单正在读取，完成后才能删除聊天/);
 });
 
 test('chat inventory resynchronizes on every open and coalesces concurrent refreshes', async () => {

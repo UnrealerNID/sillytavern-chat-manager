@@ -20,6 +20,7 @@ export class ChatManagerUi {
      * @param {(record:object)=>Promise<void>} dependencies.openRecord 打开聊天回调
      * @param {(record:object)=>Promise<void>} dependencies.deleteRecord 删除聊天回调
      * @param {(record:object,backup:object)=>Promise<string[]>} dependencies.restoreBackup 原生备份恢复回调
+     * @param {()=>Promise<void>} dependencies.openInventory 打开文件清单二级页面
      * @param {string} dependencies.template 稳定面板模板
      * @param {string} dependencies.dialogTemplates 弹窗模板注册表
      * @param {string} dependencies.componentTemplates 重复内容组件模板注册表
@@ -27,7 +28,7 @@ export class ChatManagerUi {
      * @param {{groupOwners?:boolean,groupSplits?:boolean}} dependencies.viewOptions 列表分组设置
      * @param {(options:{groupOwners:boolean,groupSplits:boolean})=>void} dependencies.onViewOptionsChange 分组设置回调
      */
-    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, deleteRecord, restoreBackup, template, dialogTemplates, componentTemplates, getAvatarUrl, viewOptions = {}, onViewOptionsChange = () => {} }) {
+    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, deleteRecord, restoreBackup, openInventory, template, dialogTemplates, componentTemplates, getAvatarUrl, viewOptions = {}, onViewOptionsChange = () => {} }) {
         this.getContext = getContext;
         this.api = api;
         this.backups = backups;
@@ -36,6 +37,7 @@ export class ChatManagerUi {
         this.openRecord = openRecord;
         this.deleteRecord = deleteRecord;
         this.restoreBackup = restoreBackup;
+        this.openInventory = openInventory;
         this.getAvatarUrl = getAvatarUrl;
         this.records = null;
         this.filtered = [];
@@ -110,6 +112,11 @@ export class ChatManagerUi {
 
         required(root, '[data-cm-close]', HTMLButtonElement).addEventListener('click', () => this.close());
         required(root, '[data-cm-refresh]', HTMLButtonElement).addEventListener('click', () => this.refresh());
+        required(root, '[data-cm-inventory-open]', HTMLButtonElement).addEventListener('click', () => {
+            if (this.isGenerating()) return notify('warning', '聊天正在生成，结束后才能读取文件清单');
+            if (this.splitter.running) return notify('warning', '分割任务正在写入聊天，完成后才能读取文件清单');
+            void this.openInventory();
+        });
         this.scopeCurrentButton.addEventListener('click', () => void this.#setScope('current'));
         this.scopeAllButton.addEventListener('click', () => void this.#setScope('all'));
         this.groupOwnersButton.addEventListener('click', () => this.#toggleGrouping('owners'));
@@ -575,7 +582,7 @@ export class ChatManagerUi {
         open.disabled = this.isGenerating() || this.splitter.running;
         backup.disabled = this.isGenerating() || this.splitter.running;
         split.disabled = this.isGenerating() || this.splitter.running || record.messageCount < 1;
-        remove.disabled = this.isGenerating() || this.splitter.running;
+        remove.disabled = this.loading || this.isGenerating() || this.splitter.running;
 
         select.addEventListener('change', () => {
             if (select.checked) this.selectedRecords.set(key, record);
@@ -605,6 +612,7 @@ export class ChatManagerUi {
      */
     async #confirmDelete(records) {
         if (!records.length) return;
+        if (this.loading || this.refreshTask) return notify('warning', '聊天清单正在读取，完成后才能删除聊天');
         if (this.isGenerating()) return notify('warning', '聊天正在生成，结束后才能删除聊天');
         if (this.splitter.running) return notify('warning', '分割任务正在写入聊天，完成后才能删除聊天');
         const unique = Array.from(new Map(records.map(record => [chatKey(record), record])).values());
@@ -781,7 +789,7 @@ export class ChatManagerUi {
             }
         });
         this.#bindButton(this.#mount(row, '[data-cm-backup-view]', HTMLButtonElement), () => this.#viewBackup(backup));
-        this.#bindButton(this.#mount(row, '[data-cm-backup-download]', HTMLButtonElement), () => this.backups.download(backup.file_name));
+        this.#bindButton(this.#mount(row, '[data-cm-backup-download]', HTMLButtonElement), () => this.backups.download(backup));
         return row;
     }
 
@@ -798,7 +806,7 @@ export class ChatManagerUi {
         status.dataset.state = backup.status === 'pending' ? 'loading' : backup.status === 'matched' ? 'ready' : backup.status === 'confirm' ? 'warning' : 'error';
         this.#mount(row, '[data-cm-backup-created]').textContent = this.#formatBackupDate(backup.file_name);
         this.#mount(row, '[data-cm-backup-last-message]').textContent = this.#formatDate(backup.last_mes);
-        this.#mount(row, '[data-cm-backup-size]').textContent = `${backup.file_size} · ${backup.chat_items} / ${record.messageCount} 层`;
+        this.#mount(row, '[data-cm-backup-size]').textContent = `${backup.file_size} · ${backup.chat_items ?? '未知'} / ${record.messageCount} 层`;
         this.#mount(row, '[data-cm-backup-reason]').textContent = `匹配依据：${backup.reason ?? '未提供'}`;
         this.#mount(row, '[data-cm-backup-preview]').textContent = String(backup.mes ?? '没有可显示的最后消息');
         const restore = this.#mount(row, '[data-cm-backup-restore]', HTMLButtonElement);
@@ -818,7 +826,7 @@ export class ChatManagerUi {
         const load = async () => {
             content.replaceChildren(this.#state('正在读取该页…'));
             try {
-                const messages = await this.backups.readPage(backup.file_name, page, pageSize, dialog.signal);
+                const messages = await this.backups.readPage(backup, page, pageSize, dialog.signal);
                 content.replaceChildren();
                 messages.forEach((message, index) => {
                     const item = this.#component('message');
@@ -827,10 +835,11 @@ export class ChatManagerUi {
                     this.#mount(item, '[data-cm-message-content]').textContent = String(message.mes ?? '');
                     content.append(item);
                 });
-                const pages = Math.max(1, Math.ceil(Number(backup.chat_items ?? 0) / pageSize));
-                label.textContent = `${page + 1} / ${pages}`;
+                const total = Number(backup.chat_items);
+                const pages = Number.isFinite(total) ? Math.max(1, Math.ceil(total / pageSize)) : null;
+                label.textContent = pages ? `${page + 1} / ${pages}` : `第 ${page + 1} 页`;
                 previous.disabled = page <= 0;
-                next.disabled = page >= pages - 1;
+                next.disabled = pages ? page >= pages - 1 : messages.length < pageSize;
             } catch (error) {
                 if (dialog.signal.aborted) return;
                 content.replaceChildren(this.#state(error.message, { error: true }));

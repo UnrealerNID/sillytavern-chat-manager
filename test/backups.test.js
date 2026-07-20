@@ -1,10 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 
 import { BackupService } from '../modules/backups.js';
 
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
+
+test('backup features never call the race-prone native backup name endpoints', async () => {
+    const sources = await Promise.all([
+        readFile(new URL('../modules/api.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/backups.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/file-inventory.js', import.meta.url), 'utf8'),
+        readFile(new URL('../index.js', import.meta.url), 'utf8'),
+    ]);
+    const source = sources.join('\n');
+    assert.doesNotMatch(source, /\/api\/backups\/chat\/get/);
+    assert.doesNotMatch(source, /\/api\/backups\/chat\/download/);
+    assert.match(source, /\/api\/data-maid\/report/);
+    assert.match(source, /readDataMaidFile/);
+});
 
 test('matches and caches an underscored Chinese-card backup by integrity', async () => {
     const header = { chat_metadata: { integrity: 'same-chat' }, user_name: 'unused', character_name: 'unused' };
@@ -22,27 +37,18 @@ test('matches and caches an underscored Chinese-card backup by integrity', async
             chat_metadata: header.chat_metadata,
         }],
         getCharacterChat: async () => [header, ...messages],
-        listBackups: async () => {
+        createDataMaidReport: async () => {
             listCount++;
-            return [
-                {
-                    file_name: 'chat____20260101-000000.jsonl',
-                    file_size: '1 KiB',
-                    chat_items: 2,
-                    last_mes: '2026-01-01T00:00:00.000Z',
-                },
-                {
-                    file_name: 'chat_____20260101-000001.jsonl',
-                    file_size: '1 KiB',
-                    chat_items: 2,
-                    last_mes: '2026-01-01T00:00:01.000Z',
-                },
-            ];
+            return { token: 'report-1', report: { chatBackups: [
+                { name: 'chat____20260101-000000.jsonl', size: 1024, mtime: Date.parse('2026-01-01T00:00:00.000Z'), hash: 'first' },
+                { name: 'chat_____20260101-000001.jsonl', size: 1024, mtime: Date.parse('2026-01-01T00:00:01.000Z'), hash: 'second' },
+            ] } };
         },
-        downloadBackup: async () => {
+        readDataMaidFile: async () => {
             downloadCount++;
             return new Response(jsonl);
         },
+        finalizeDataMaidReport: async () => {},
     };
     const service = new BackupService(api);
     const matches = await service.find({
@@ -75,12 +81,12 @@ test('falls back to message comparison for legacy backups without integrity', as
             chat_metadata: {},
         }],
         getCharacterChat: async () => [header, ...messages],
-        listBackups: async () => [{
-            file_name: 'chat____20260101-000000.jsonl',
-            chat_items: 1,
-            last_mes: '2026-01-01T00:00:00.000Z',
-        }],
-        downloadBackup: async () => new Response(jsonl),
+        createDataMaidReport: async () => ({ token: 'report-2', report: { chatBackups: [{
+            name: 'chat____20260101-000000.jsonl', size: 1024,
+            mtime: Date.parse('2026-01-01T00:00:00.000Z'), hash: 'legacy',
+        }] } }),
+        readDataMaidFile: async () => new Response(jsonl),
+        finalizeDataMaidReport: async () => {},
     };
     const matches = await new BackupService(api).find({
         ownerType: 'character',
@@ -110,14 +116,15 @@ test('emits candidate rows before loading the source or scanning backup files', 
             await source;
             return [header, message];
         },
-        listBackups: async () => [
-            { file_name: 'chat____20260101-000000.jsonl', chat_items: 1, last_mes: '2026-01-01T00:00:00.000Z' },
-            { file_name: 'chat____20260101-000001.jsonl', chat_items: 1, last_mes: '2026-01-01T00:00:01.000Z' },
-        ],
-        downloadBackup: async name => {
-            if (name.endsWith('000001.jsonl')) await slow;
+        createDataMaidReport: async () => ({ token: 'report-3', report: { chatBackups: [
+            { name: 'chat____20260101-000000.jsonl', size: 1024, mtime: Date.parse('2026-01-01T00:00:00.000Z'), hash: 'first' },
+            { name: 'chat____20260101-000001.jsonl', size: 1024, mtime: Date.parse('2026-01-01T00:00:01.000Z'), hash: 'second' },
+        ] } }),
+        readDataMaidFile: async (_token, hash) => {
+            if (hash === 'second') await slow;
             return new Response(jsonl);
         },
+        finalizeDataMaidReport: async () => {},
     };
     const emitted = [];
     let resolveFirstMatch;
