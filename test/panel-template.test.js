@@ -7,6 +7,9 @@ test('panel template exposes all stable UI mounts', async () => {
     for (const marker of [
         'data-cm-search',
         'data-cm-refresh',
+        'data-cm-scope-current',
+        'data-cm-scope-current-label',
+        'data-cm-scope-all',
         'data-cm-group-owners',
         'data-cm-group-splits',
         'data-cm-state',

@@ -1,4 +1,41 @@
 /**
+ * 从酒馆上下文解析当前角色或群组
+ * @param {object} context 酒馆上下文
+ * @returns {{ownerType:'character'|'group',ownerId:string,label:string}|null}
+ */
+export function getCurrentOwner(context) {
+    if (context.groupId !== undefined && context.groupId !== null) {
+        const group = context.groups.find(item => String(item.id) === String(context.groupId));
+        return group ? { ownerType: 'group', ownerId: String(group.id), label: '当前群组' } : null;
+    }
+    const character = context.characterId !== undefined && context.characterId !== null
+        ? context.characters[context.characterId]
+        : null;
+    return character?.avatar
+        ? { ownerType: 'character', ownerId: String(character.avatar), label: '当前角色' }
+        : null;
+}
+
+/**
+ * 按显示范围和搜索词过滤聊天记录
+ * @param {object[]} records 全部聊天记录
+ * @param {'current'|'all'} scope 显示范围
+ * @param {object|null} currentOwner 当前所有者
+ * @param {string} query 搜索词
+ * @returns {object[]} 过滤结果
+ */
+export function filterChatRecords(records, scope, currentOwner, query) {
+    const normalized = query.trim().toLocaleLowerCase();
+    return records.filter(record => {
+        const inScope = scope === 'all' || currentOwner
+            && record.ownerType === currentOwner.ownerType
+            && String(record.ownerId) === String(currentOwner.ownerId);
+        return inScope && (!normalized || [record.ownerName, record.fileId]
+            .some(value => value.toLocaleLowerCase().includes(normalized)));
+    });
+}
+
+/**
  * 读取插件明确写入的分卷身份，不根据文件名猜测
  * @param {object} record 聊天记录
  * @returns {{rootChatId:string,sequence:number,start:number,end:number,count:number}|null}

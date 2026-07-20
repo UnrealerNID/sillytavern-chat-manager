@@ -19,6 +19,7 @@ import { isAdmin } from '/scripts/user.js';
 
 import { ChatManagerApi } from './modules/api.js';
 import { BackupService } from './modules/backups.js';
+import { openChatRecord } from './modules/chat-opener.js';
 import { NativeChatPanel } from './modules/native-chat-panel.js';
 import { SplitService } from './modules/splitter.js';
 import { TaskJournal } from './modules/task-journal.js';
@@ -312,27 +313,7 @@ function getContext() {
  * @returns {Promise<void>}
  */
 async function openRecord(record) {
-    if (isGenerating()) throw new Error('聊天正在生成，当前不能切换聊天');
-    let context = getContext();
-    if (record.ownerType === 'character') {
-        const characterId = context.characters.findIndex(character => character.avatar === record.ownerId);
-        if (characterId < 0) throw new Error('目标角色已不存在');
-        await context.selectCharacterById(characterId);
-        setActiveCharacter(record.ownerId);
-        context.saveSettingsDebounced();
-        context = getContext();
-        if (context.getCurrentChatId() !== record.fileId) await context.openCharacterChat(record.fileId);
-        return;
-    }
-
-    const group = context.groups.find(item => String(item.id) === String(record.ownerId));
-    if (!group) throw new Error('目标群组已不存在');
-    if (!group.chats?.includes(record.fileId)) throw new Error('目标聊天已不在群组登记中');
-    await openGroupById(record.ownerId);
-    setActiveGroup(record.ownerId);
-    context.saveSettingsDebounced();
-    context = getContext();
-    if (context.getCurrentChatId() !== record.fileId) await context.openGroupChat(record.ownerId, record.fileId);
+    return openChatRecord(record, { getContext, isGenerating, openGroupById, setActiveCharacter, setActiveGroup });
 }
 
 /**

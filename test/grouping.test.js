@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { deriveIncrementalSplit, getStoredSplitConfigs, getStoredSplitIdentity, groupOwnerRecords, groupSplitRecords } from '../modules/grouping.js';
+import { deriveIncrementalSplit, filterChatRecords, getCurrentOwner, getStoredSplitConfigs, getStoredSplitIdentity, groupOwnerRecords, groupSplitRecords } from '../modules/grouping.js';
 
 function record(fileId, overrides = {}) {
     return {
@@ -30,6 +30,19 @@ function splitRecord(fileId, start, end, sequence, overrides = {}) {
         },
     });
 }
+
+test('defaults to character index zero and can switch back to all chats', () => {
+    const owner = getCurrentOwner({
+        characterId: 0,
+        groupId: null,
+        characters: [{ avatar: '角色.png' }, { avatar: '另一角色.png' }],
+        groups: [],
+    });
+    const records = [record('当前聊天'), record('其他聊天', { ownerId: '另一角色.png', ownerName: '另一角色' })];
+    assert.deepEqual(owner, { ownerType: 'character', ownerId: '角色.png', label: '当前角色' });
+    assert.deepEqual(filterChatRecords(records, 'current', owner, '').map(item => item.fileId), ['当前聊天']);
+    assert.equal(filterChatRecords(records, 'all', owner, '').length, 2);
+});
 
 test('reads split identity only from saved metadata', () => {
     const stored = splitRecord('任意文件名', 100, 199, 2);

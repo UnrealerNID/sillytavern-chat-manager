@@ -1,6 +1,6 @@
 import { chatKey, element, formatBytes, stripJsonl } from './utils.js';
 import { describePart } from './splitter.js';
-import { deriveIncrementalSplit, groupOwnerRecords, groupSplitRecords } from './grouping.js';
+import { deriveIncrementalSplit, filterChatRecords, getCurrentOwner, groupOwnerRecords, groupSplitRecords } from './grouping.js';
 
 const PAGE_SIZE = 50;
 
@@ -38,7 +38,9 @@ export class ChatManagerUi {
         this.records = null;
         this.filtered = [];
         this.page = 0;
-        this.selectedKey = null;
+        this.scope = 'all';
+        this.currentOwner = null;
+        this.openingKey = null;
         this.loading = false;
         this.groupOwners = Boolean(viewOptions.groupOwners);
         this.groupSplits = Boolean(viewOptions.groupSplits);
@@ -76,6 +78,9 @@ export class ChatManagerUi {
         this.pageLabel = required(root, '[data-cm-page]');
         this.version = required(root, '[data-cm-version]');
         this.updateButton = required(root, '[data-cm-update]', HTMLButtonElement);
+        this.scopeCurrentButton = required(root, '[data-cm-scope-current]', HTMLButtonElement);
+        this.scopeCurrentLabel = required(root, '[data-cm-scope-current-label]');
+        this.scopeAllButton = required(root, '[data-cm-scope-all]', HTMLButtonElement);
         this.groupOwnersButton = required(root, '[data-cm-group-owners]', HTMLButtonElement);
         this.groupSplitsButton = required(root, '[data-cm-group-splits]', HTMLButtonElement);
         this.dialogTemplate = required(dialogRegistry, '[data-cm-dialog-shell]', HTMLTemplateElement);
@@ -94,12 +99,15 @@ export class ChatManagerUi {
 
         required(root, '[data-cm-close]', HTMLButtonElement).addEventListener('click', () => this.close());
         required(root, '[data-cm-refresh]', HTMLButtonElement).addEventListener('click', () => this.refresh());
+        this.scopeCurrentButton.addEventListener('click', () => this.#setScope('current'));
+        this.scopeAllButton.addEventListener('click', () => this.#setScope('all'));
         this.groupOwnersButton.addEventListener('click', () => this.#toggleGrouping('owners'));
         this.groupSplitsButton.addEventListener('click', () => this.#toggleGrouping('splits'));
         this.search.addEventListener('input', () => { this.page = 0; this.#filter(); });
         this.previous.addEventListener('click', () => { this.page--; this.#render(); });
         this.next.addEventListener('click', () => { this.page++; this.#render(); });
         this.#syncGroupingButtons();
+        this.#syncScopeButtons();
         document.body.append(this.root);
     }
 
@@ -112,9 +120,13 @@ export class ChatManagerUi {
     }
 
     async open() {
+        this.#useDefaultScope();
         this.root.classList.remove('cm-hidden');
         if (!this.records) await this.refresh();
-        else this.updateRuntimeState();
+        else {
+            this.#filter();
+            this.updateRuntimeState();
+        }
     }
 
     close() {
@@ -177,9 +189,38 @@ export class ChatManagerUi {
     }
 
     #filter() {
-        const query = this.search.value.trim().toLocaleLowerCase();
-        this.filtered = (this.records ?? []).filter(record => !query || [record.ownerName, record.fileId].some(value => value.toLocaleLowerCase().includes(query)));
+        this.filtered = filterChatRecords(this.records ?? [], this.scope, this.currentOwner, this.search.value);
         this.#render();
+    }
+
+    /** 根据酒馆当前上下文选择打开面板时的默认显示范围 */
+    #useDefaultScope() {
+        this.currentOwner = getCurrentOwner(this.getContext());
+        this.scope = this.currentOwner ? 'current' : 'all';
+        this.page = 0;
+        this.#syncScopeButtons();
+    }
+
+    /**
+     * 切换聊天列表的所有者范围
+     * @param {'current'|'all'} scope 显示范围
+     */
+    #setScope(scope) {
+        if (scope === 'current' && !this.currentOwner) return;
+        this.scope = scope;
+        this.page = 0;
+        this.#syncScopeButtons();
+        this.#filter();
+    }
+
+    /** 同步当前对象和全部聊天按钮 */
+    #syncScopeButtons() {
+        this.scopeCurrentLabel.textContent = this.currentOwner?.label ?? '当前角色';
+        this.scopeCurrentButton.disabled = !this.currentOwner;
+        for (const [button, active] of [[this.scopeCurrentButton, this.scope === 'current'], [this.scopeAllButton, this.scope === 'all']]) {
+            button.setAttribute('aria-pressed', String(active));
+            button.classList.toggle('cm-active', active);
+        }
     }
 
     #render() {
@@ -313,7 +354,6 @@ export class ChatManagerUi {
         const open = this.#mount(row, '[data-cm-chat-open]', HTMLButtonElement);
         const backup = this.#mount(row, '[data-cm-chat-backups]', HTMLButtonElement);
         const split = this.#mount(row, '[data-cm-chat-split]', HTMLButtonElement);
-        row.classList.toggle('cm-selected', this.selectedKey === chatKey(record));
         row.classList.toggle('cm-source-record', source);
         sourceBadge.classList.toggle('cm-hidden', !source);
         row.title = `打开 ${record.ownerName} / ${record.fileId}`;
@@ -329,10 +369,19 @@ export class ChatManagerUi {
         count.textContent = String(record.messageCount);
         size.textContent = record.fileSize;
         const openRecord = async () => {
-            this.selectedKey = chatKey(record);
-            this.#render();
-            await this.openRecord(record);
-            this.close();
+            const key = chatKey(record);
+            if (this.openingKey) return;
+            this.openingKey = key;
+            row.classList.add('cm-opening');
+            open.disabled = true;
+            try {
+                await this.openRecord(record);
+                this.close();
+            } finally {
+                this.openingKey = null;
+                row.classList.remove('cm-opening');
+                open.disabled = this.isGenerating() || this.splitter.running;
+            }
         };
         this.#bindButton(open, openRecord);
         this.#bindButton(backup, () => this.openBackups(record));
