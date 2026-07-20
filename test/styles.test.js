@@ -31,6 +31,7 @@ test('file inventory stays above the manager panel and below dialogs', async () 
 
 test('all plugin panels use the same readable disabled button style', async () => {
     const css = await readFile(new URL('../styles/base.css', import.meta.url), 'utf8');
+    assert.match(css, /\.cm-panel \.menu_button,[\s\S]*\.cm-dialog \.menu_button\s*{\s*font-weight:\s*600/);
     assert.match(css, /\.cm-panel :is\(\.menu_button, \.cm-icon-button\):disabled/);
     assert.match(css, /\.cm-dialog :is\(\.menu_button, \.cm-icon-button\):disabled/);
     assert.match(css, /opacity:\s*0\.72\s*!important/);

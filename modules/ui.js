@@ -221,6 +221,7 @@ export class ChatManagerUi {
     async #loadChatFiles(target) {
         this.loading = true;
         this.#syncSelectionControls();
+        this.#render();
         this.#setState('正在同步聊天文件…');
         try {
             const data = target.scope === 'current' && target.owner

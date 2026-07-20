@@ -33,6 +33,11 @@
     max-height: 90dvh;
 }
 
+.cm-panel .menu_button,
+.cm-dialog .menu_button {
+    font-weight: 600;
+}
+
 .cm-dialog-overlay {
     z-index: 32000;
 }

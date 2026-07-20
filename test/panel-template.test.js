@@ -175,6 +175,7 @@ test('chat deletion uses SillyTavern native character and group workflows', asyn
     assert.match(entry, /deleteCharacterChatByName\(String\(characterId\), record\.fileId\)/);
     assert.match(entry, /deleteGroupChatByName\(group\.id, record\.fileId\)/);
     assert.match(ui, /this\.loading \|\| this\.refreshTask[\s\S]*聊天清单正在读取，完成后才能删除聊天/);
+    assert.match(ui, /this\.loading = true;\s*this\.#syncSelectionControls\(\);\s*this\.#render\(\);\s*this\.#setState\('正在同步聊天文件…'\)/);
     assert.match(ui, /finally\s*{\s*this\.loading = false;\s*this\.#syncSelectionControls\(\);\s*this\.#render\(\)/);
 });
 
