@@ -3,9 +3,9 @@ import { fingerprintsEqual, getSourceFingerprint, loadStableSource } from './sou
 
 export class SplitService {
     /**
-     * @param {import('./api.js').ChatManagerApi} api API
-     * @param {import('./task-journal.js').TaskJournal} journal Task journal
-     * @param {()=>string} uuid UUID provider
+     * @param {import('./api.js').ChatManagerApi} api 接口实例
+     * @param {import('./task-journal.js').TaskJournal} journal 任务日志
+     * @param {()=>string} uuid UUID 提供器
      */
     constructor(api, journal, uuid) {
         this.api = api;
@@ -20,12 +20,12 @@ export class SplitService {
     }
 
     /**
-     * Creates a read-only split plan
-     * @param {import('./utils.js').ChatRecord} record Chat record
-     * @param {{mode:'range'|'fixed',start:number,end:number,chunkSize?:number,incremental?:boolean,sequenceStart?:number,outputRootChatId?:string,rangeOffset?:number}} options Options
-     * @param {AbortSignal} [signal] Abort signal
+     * 创建只读分割计划
+     * @param {import('./utils.js').ChatRecord} record 聊天记录
+     * @param {{mode:'range'|'fixed',start:number,end:number,chunkSize?:number,incremental?:boolean,sequenceStart?:number,outputRootChatId?:string,rangeOffset?:number}} options 分割参数
+     * @param {AbortSignal} [signal] 取消信号
      * @param {object} [stableSource] 已读取并校验过的来源快照
-     * @returns {Promise<object>} Split plan
+     * @returns {Promise<object>} 分割计划
      */
     async prepare(record, options, signal, stableSource = null) {
         if (this.running) throw new Error('已有分割任务正在运行');
@@ -95,10 +95,10 @@ export class SplitService {
     }
 
     /**
-     * Executes a confirmed plan serially
-     * @param {object} plan Split plan
-     * @param {{shouldPause?:()=>boolean,onUpdate?:(task:object)=>void,resumeTask?:object,lockAcquired?:boolean}} options Options
-     * @returns {Promise<object>} Task result
+     * 串行执行已确认的分割计划
+     * @param {object} plan 分割计划
+     * @param {{shouldPause?:()=>boolean,onUpdate?:(task:object)=>void,resumeTask?:object,lockAcquired?:boolean}} options 执行参数
+     * @returns {Promise<object>} 任务结果
      */
     async execute(plan, options = {}) {
         if (this.running) throw new Error('已有分割任务正在运行');
@@ -180,8 +180,8 @@ export class SplitService {
     }
 
     /**
-     * Reconciles unfinished journals without writing
-     * @returns {Promise<object[]>} Reconciled tasks
+     * 只读核对未完成的任务日志
+     * @returns {Promise<object[]>} 核对后的任务
      */
     async reconcile() {
         const tasks = (await this.journal.list()).filter(task => task.status !== 'complete');
@@ -208,9 +208,9 @@ export class SplitService {
     }
 
     /**
-     * Rebuilds a resumable plan from a journal
-     * @param {object} task Journal task
-     * @returns {Promise<object>} Plan
+     * 根据任务日志重建可恢复计划
+     * @param {object} task 日志任务
+     * @returns {Promise<object>} 分割计划
      */
     async restorePlan(task) {
         const source = await loadStableSource(task.record, this.api);

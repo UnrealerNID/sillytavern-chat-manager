@@ -6,7 +6,7 @@ const MATCH_RESULT_CACHE_MS = 60_000;
 const MATCH_CONCURRENCY = 4;
 
 export class BackupService {
-    /** @param {import('./api.js').ChatManagerApi} api API */
+    /** @param {import('./api.js').ChatManagerApi} api 接口实例 */
     constructor(api) {
         this.api = api;
         this.backupListCache = null;
@@ -27,14 +27,14 @@ export class BackupService {
     }
 
     /**
-     * Finds backups related to one exact chat
-     * @param {import('./utils.js').ChatRecord} record Chat record
+     * 查找与指定聊天相关的备份
+     * @param {import('./utils.js').ChatRecord} record 聊天记录
      * @param {object} callbacks 扫描阶段回调
      * @param {(done:number,total:number)=>void} [callbacks.onProgress] 进度回调
      * @param {(candidates:object[])=>void} [callbacks.onCandidates] 候选列表就绪回调
      * @param {(candidate:object,result:object|null)=>void} [callbacks.onResult] 单个候选完成回调
-     * @param {AbortSignal} [signal] Abort signal
-     * @returns {Promise<object[]>} Matches
+     * @param {AbortSignal} [signal] 取消信号
+     * @returns {Promise<object[]>} 匹配结果
      */
     async find(record, callbacks = {}, signal) {
         const { onProgress = () => {}, onCandidates = () => {}, onResult = () => {} } = callbacks;
@@ -187,12 +187,12 @@ export class BackupService {
     }
 
     /**
-     * Reads one backup page without retaining the whole backup
-     * @param {string} name Backup file name
-     * @param {number} page Zero-based page
-     * @param {number} pageSize Page size
-     * @param {AbortSignal} [signal] Abort signal
-     * @returns {Promise<object[]>} Messages
+     * 读取一页备份消息，不在内存中保留完整备份
+     * @param {string} name 备份文件名
+     * @param {number} page 从零开始的页码
+     * @param {number} pageSize 每页数量
+     * @param {AbortSignal} [signal] 取消信号
+     * @returns {Promise<object[]>} 消息列表
      */
     async readPage(name, page, pageSize = 50, signal) {
         const start = page * pageSize;
@@ -208,7 +208,7 @@ export class BackupService {
         return messages;
     }
 
-    /** @param {string} name Backup file name */
+    /** @param {string} name 备份文件名 */
     async download(name) {
         const response = await this.api.downloadBackup(name);
         const blob = await response.blob();

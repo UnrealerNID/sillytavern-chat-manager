@@ -2,10 +2,10 @@ import { element } from './utils.js';
 
 export class NativeChatPanel {
     /**
-     * @param {object} options Options
-     * @param {()=>any} options.getContext Context provider
-     * @param {import('./ui.js').ChatManagerUi} options.ui UI
-     * @param {()=>boolean} options.isGenerating Generation state
+     * @param {object} options 配置项
+     * @param {()=>any} options.getContext 上下文提供器
+     * @param {import('./ui.js').ChatManagerUi} options.ui 界面控制器
+     * @param {()=>boolean} options.isGenerating 是否正在生成
      */
     constructor({ getContext, ui, isGenerating }) {
         this.getContext = getContext;

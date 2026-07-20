@@ -11,13 +11,13 @@ function notify(type, message) {
 
 export class ChatManagerUi {
     /**
-     * @param {object} dependencies Dependencies
-     * @param {()=>any} dependencies.getContext Context provider
-     * @param {import('./api.js').ChatManagerApi} dependencies.api API
-     * @param {import('./backups.js').BackupService} dependencies.backups Backup service
-     * @param {import('./splitter.js').SplitService} dependencies.splitter Split service
-     * @param {()=>boolean} dependencies.isGenerating Generation state
-     * @param {(record:object)=>Promise<void>} dependencies.openRecord Open callback
+     * @param {object} dependencies 依赖项
+     * @param {()=>any} dependencies.getContext 上下文提供器
+     * @param {import('./api.js').ChatManagerApi} dependencies.api 酒馆接口
+     * @param {import('./backups.js').BackupService} dependencies.backups 备份服务
+     * @param {import('./splitter.js').SplitService} dependencies.splitter 分割服务
+     * @param {()=>boolean} dependencies.isGenerating 是否正在生成
+     * @param {(record:object)=>Promise<void>} dependencies.openRecord 打开聊天回调
      * @param {(record:object,backup:object)=>Promise<string[]>} dependencies.restoreBackup 原生备份恢复回调
      * @param {string} dependencies.template 稳定面板模板
      * @param {string} dependencies.dialogTemplates 弹窗模板注册表
@@ -936,7 +936,7 @@ export class ChatManagerUi {
 
     /**
      * 读取并校验静态模板中的挂载点
-     * @template {Element} T
+     * @template {Element} T 元素类型
      * @param {ParentNode} root 查询根节点
      * @param {string} selector 挂载点选择器
      * @param {{new(...args: any[]): T}} [type=HTMLElement] 期望的元素类型

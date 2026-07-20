@@ -1,14 +1,14 @@
 import { cloneJson, stripJsonl } from './utils.js';
 
-/** @param {unknown} value Value */
+/** @param {unknown} value 待判断的值 */
 function isObject(value) {
     return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
 /**
- * Validates a current or legacy chat header
- * @param {unknown} header Header
- * @returns {boolean} Whether valid
+ * 校验当前或旧版聊天头
+ * @param {unknown} header 聊天头
+ * @returns {boolean} 是否有效
  */
 export function isChatHeader(header) {
     return isObject(header) && (
@@ -19,11 +19,11 @@ export function isChatHeader(header) {
 }
 
 /**
- * Reads one source fingerprint
- * @param {import('./utils.js').ChatRecord} record Chat record
- * @param {import('./api.js').ChatManagerApi} api API
- * @param {AbortSignal} [signal] Abort signal
- * @returns {Promise<object>} Fingerprint
+ * 读取一份来源聊天指纹
+ * @param {import('./utils.js').ChatRecord} record 聊天记录
+ * @param {import('./api.js').ChatManagerApi} api 接口实例
+ * @param {AbortSignal} [signal] 取消信号
+ * @returns {Promise<object>} 来源指纹
  */
 export async function getSourceFingerprint(record, api, signal) {
     if (record.ownerType === 'character') {
@@ -52,10 +52,10 @@ export async function getSourceFingerprint(record, api, signal) {
 }
 
 /**
- * Compares source fingerprints
- * @param {object} left First fingerprint
- * @param {object} right Second fingerprint
- * @returns {boolean} Whether equal
+ * 比较两份来源指纹
+ * @param {object} left 第一份指纹
+ * @param {object} right 第二份指纹
+ * @returns {boolean} 是否相同
  */
 export function fingerprintsEqual(left, right) {
     const keys = ['ownerId', 'fileId', 'fileSize', 'messageCount', 'lastMessageAt'];
@@ -64,11 +64,11 @@ export function fingerprintsEqual(left, right) {
 }
 
 /**
- * Loads a stable, validated source chat snapshot
- * @param {import('./utils.js').ChatRecord} record Chat record
- * @param {import('./api.js').ChatManagerApi} api API
- * @param {AbortSignal} [signal] Abort signal
- * @returns {Promise<{header:object,messages:object[],fingerprint:object}>} Source snapshot
+ * 读取并校验稳定的来源聊天快照
+ * @param {import('./utils.js').ChatRecord} record 聊天记录
+ * @param {import('./api.js').ChatManagerApi} api 接口实例
+ * @param {AbortSignal} [signal] 取消信号
+ * @returns {Promise<{header:object,messages:object[],fingerprint:object}>} 来源快照
  */
 export async function loadStableSource(record, api, signal) {
     const before = await getSourceFingerprint(record, api, signal);

@@ -2,9 +2,9 @@ import { compressRequest } from '/scripts/request-compression.js';
 
 export class HttpError extends Error {
     /**
-     * @param {string} message Error message
-     * @param {number} status HTTP status
-     * @param {unknown} data Response data
+     * @param {string} message 错误信息
+     * @param {number} status HTTP 状态码
+     * @param {unknown} data 响应数据
      */
     constructor(message, status, data = null) {
         super(message);
@@ -15,22 +15,22 @@ export class HttpError extends Error {
 }
 
 export class ChatManagerApi {
-    /** @param {()=>any} getContext SillyTavern context provider */
+    /** @param {()=>any} getContext 酒馆上下文提供器 */
     constructor(getContext) {
         this.getContext = getContext;
     }
 
-    /** @returns {Record<string,string>} Native request headers */
+    /** @returns {Record<string,string>} 原生请求头 */
     headers(options = {}) {
         return this.getContext().getRequestHeaders(options);
     }
 
     /**
-     * Sends a JSON POST request
-     * @param {string} path Endpoint
-     * @param {object|undefined} body Request body
-     * @param {{signal?:AbortSignal,compress?:boolean,omitContentType?:boolean}} options Options
-     * @returns {Promise<any>} JSON response
+     * 发送 JSON POST 请求
+     * @param {string} path 接口路径
+     * @param {object|undefined} body 请求体
+     * @param {{signal?:AbortSignal,compress?:boolean,omitContentType?:boolean}} options 请求选项
+     * @returns {Promise<any>} JSON 响应
      */
     async post(path, body = undefined, options = {}) {
         let request = {
@@ -119,9 +119,9 @@ export class ChatManagerApi {
     }
 
     /**
-     * Checks whether a group chat file exists, including unregistered files
-     * @param {string} fileId Chat file ID
-     * @returns {Promise<boolean>} Whether occupied
+     * 检查群聊文件是否存在，包括尚未登记的文件
+     * @param {string} fileId 聊天文件 ID
+     * @returns {Promise<boolean>} 名称是否已占用
      */
     async groupChatExists(fileId) {
         const response = await fetch('/api/chats/export', {

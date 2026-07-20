@@ -1,9 +1,9 @@
 const textEncoder = new TextEncoder();
 
 /**
- * Deep-clones JSON-compatible SillyTavern data
- * @param {unknown} value Value to clone
- * @returns {any} Cloned value
+ * 深拷贝兼容 JSON 的酒馆数据
+ * @param {unknown} value 待拷贝的值
+ * @returns {any} 拷贝结果
  */
 export function cloneJson(value) {
     return typeof structuredClone === 'function'
@@ -12,9 +12,9 @@ export function cloneJson(value) {
 }
 
 /**
- * Removes a trailing JSONL extension
- * @param {string} name File name
- * @returns {string} File ID
+ * 移除文件名末尾的 JSONL 扩展名
+ * @param {string} name 文件名
+ * @returns {string} 文件 ID
  */
 export function stripJsonl(name) {
     return String(name ?? '').replace(/\.jsonl$/i, '');
@@ -40,18 +40,18 @@ export function isNewerVersion(candidate, current) {
 }
 
 /**
- * Returns the stable owner key for a chat record
- * @param {ChatRecord} record Chat record
- * @returns {string} Stable key
+ * 生成聊天记录的稳定所有者键
+ * @param {ChatRecord} record 聊天记录
+ * @returns {string} 稳定键
  */
 export function chatKey(record) {
     return `${record.ownerType}:${record.ownerId}:${record.fileId}`;
 }
 
 /**
- * Produces deterministic JSON by recursively sorting object keys
- * @param {unknown} value JSON value
- * @returns {string} Canonical JSON
+ * 递归排序对象键并生成确定性 JSON
+ * @param {unknown} value JSON 值
+ * @returns {string} 规范化 JSON
  */
 export function canonicalJson(value) {
     const normalize = (item) => {
@@ -68,9 +68,9 @@ export function canonicalJson(value) {
 }
 
 /**
- * Computes a SHA-256 byte digest
- * @param {BufferSource|string} value Input value
- * @returns {Promise<Uint8Array>} Digest bytes
+ * 计算 SHA-256 字节摘要
+ * @param {BufferSource|string} value 输入值
+ * @returns {Promise<Uint8Array>} 摘要字节
  */
 export async function sha256(value) {
     const bytes = typeof value === 'string' ? textEncoder.encode(value) : value;
@@ -78,27 +78,27 @@ export async function sha256(value) {
 }
 
 /**
- * Converts bytes to lowercase hexadecimal
- * @param {Uint8Array} bytes Bytes
- * @returns {string} Hex string
+ * 将字节转换为小写十六进制文本
+ * @param {Uint8Array} bytes 字节数组
+ * @returns {string} 十六进制文本
  */
 export function toHex(bytes) {
     return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
 /**
- * Computes one canonical message digest
- * @param {object} message Message object
- * @returns {Promise<Uint8Array>} Digest bytes
+ * 计算单条规范化消息摘要
+ * @param {object} message 消息对象
+ * @returns {Promise<Uint8Array>} 摘要字节
  */
 export function digestMessage(message) {
     return sha256(canonicalJson(message));
 }
 
 /**
- * Computes an ordered aggregate digest without joining all message JSON
- * @param {object[]} messages Messages
- * @returns {Promise<string>} Aggregate digest
+ * 不拼接全部消息 JSON，按顺序计算聚合摘要
+ * @param {object[]} messages 消息列表
+ * @returns {Promise<string>} 聚合摘要
  */
 export async function digestMessages(messages) {
     const aggregate = new Uint8Array(messages.length * 32);
@@ -109,10 +109,10 @@ export async function digestMessages(messages) {
 }
 
 /**
- * Calculates exact UTF-8 JSONL bytes for a chat payload
- * @param {object} header Chat header
- * @param {object[]} messages Messages
- * @returns {number} Byte count
+ * 计算聊天载荷准确的 UTF-8 JSONL 字节数
+ * @param {object} header 聊天头
+ * @param {object[]} messages 消息列表
+ * @returns {number} 字节数
  */
 export function jsonlByteSize(header, messages) {
     let size = textEncoder.encode(JSON.stringify(header)).byteLength;
@@ -123,9 +123,9 @@ export function jsonlByteSize(header, messages) {
 }
 
 /**
- * Formats a byte count for display
- * @param {number} bytes Bytes
- * @returns {string} Human-readable size
+ * 将字节数格式化为可读大小
+ * @param {number} bytes 字节数
+ * @returns {string} 可读大小
  */
 export function formatBytes(bytes) {
     if (!Number.isFinite(bytes) || bytes < 1) return '0 B';
@@ -136,11 +136,11 @@ export function formatBytes(bytes) {
 }
 
 /**
- * Builds inclusive split ranges
- * @param {number} start First floor
- * @param {number} end Last floor
- * @param {number|null} chunkSize Optional fixed floor count
- * @returns {{start:number,end:number,count:number}[]} Ranges
+ * 构建包含首尾楼层的分割范围
+ * @param {number} start 起始楼层
+ * @param {number} end 结束楼层
+ * @param {number|null} chunkSize 可选的固定楼层数
+ * @returns {{start:number,end:number,count:number}[]} 分割范围
  */
 export function buildRanges(start, end, chunkSize = null) {
     if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start) {
@@ -157,10 +157,10 @@ export function buildRanges(start, end, chunkSize = null) {
 }
 
 /**
- * Parses a JSONL response incrementally
- * @param {Response} response Fetch response
- * @param {{onHeader?:(header:object)=>Promise<void>|void,onMessage?:(message:object,index:number)=>Promise<void>|void,stopAfter?:number}} options Parse options
- * @returns {Promise<{header:object,messageCount:number}>} Parse result
+ * 增量解析 JSONL 响应
+ * @param {Response} response 网络响应
+ * @param {{onHeader?:(header:object)=>Promise<void>|void,onMessage?:(message:object,index:number)=>Promise<void>|void,stopAfter?:number}} options 解析参数
+ * @returns {Promise<{header:object,messageCount:number}>} 解析结果
  */
 export async function parseJsonlResponse(response, options = {}) {
     if (!response.body) throw new Error('响应不支持流式读取');
@@ -216,10 +216,10 @@ export async function parseJsonlResponse(response, options = {}) {
 }
 
 /**
- * Creates a DOM element without interpolating untrusted HTML
- * @param {string} tag Tag name
- * @param {{className?:string,text?:string,title?:string,type?:string,attrs?:Record<string,string>}} options Element options
- * @returns {HTMLElement} Element
+ * 创建 DOM 元素，不插入不可信 HTML
+ * @param {string} tag 标签名
+ * @param {{className?:string,text?:string,title?:string,type?:string,attrs?:Record<string,string>}} options 元素参数
+ * @returns {HTMLElement} 元素
  */
 export function element(tag, options = {}) {
     const node = document.createElement(tag);
@@ -233,15 +233,15 @@ export function element(tag, options = {}) {
 
 /**
  * @typedef {object} ChatRecord
- * @property {'character'|'group'} ownerType
- * @property {string} ownerId
- * @property {string} ownerName
- * @property {string} avatarUrl
- * @property {string} fileId
- * @property {string} fileName
- * @property {string} fileSize
- * @property {number} messageCount
- * @property {string|number} lastMessageAt
- * @property {string} preview
+ * @property {'character'|'group'} ownerType 所有者类型
+ * @property {string} ownerId 所有者 ID
+ * @property {string} ownerName 所有者名称
+ * @property {string} avatarUrl 头像地址
+ * @property {string} fileId 聊天文件 ID
+ * @property {string} fileName 聊天文件名
+ * @property {string} fileSize 文件大小
+ * @property {number} messageCount 消息数量
+ * @property {string|number} lastMessageAt 最后消息时间
+ * @property {string} preview 最后消息预览
  * @property {object|null} chatManager 插件写入聊天头的分卷元数据
  */
