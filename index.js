@@ -50,6 +50,8 @@ let extensionUpdateCheck;
  * @typedef {object} ChatManagerSettings
  * @property {boolean} [enabled] 是否启用插件功能
  * @property {'left'|'right'} [column] 首次选择并固定使用的扩展栏
+ * @property {boolean} [groupOwners] 是否按角色或群组合并聊天
+ * @property {boolean} [groupSplits] 是否合并分卷聊天
  */
 
 /**
@@ -376,6 +378,10 @@ export async function init() {
     const journal = new TaskJournal();
     const backups = new BackupService(api);
     const splitter = new SplitService(api, journal, () => getContext().uuidv4());
+    const settings = extension_settings.chatManager ??= {};
+    settings.enabled ??= true;
+    settings.groupOwners ??= false;
+    settings.groupSplits ??= false;
     const [metadata, panelTemplate, dialogTemplates, componentTemplates] = await Promise.all([
         loadExtensionMetadata(),
         renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/panel'),
@@ -394,12 +400,16 @@ export async function init() {
         dialogTemplates,
         componentTemplates,
         getAvatarUrl: record => record.ownerType === 'group' ? system_avatar : getThumbnailUrl('avatar', record.ownerId),
+        viewOptions: { groupOwners: settings.groupOwners, groupSplits: settings.groupSplits },
+        onViewOptionsChange: options => {
+            settings.groupOwners = options.groupOwners;
+            settings.groupSplits = options.groupSplits;
+            saveSettingsDebounced();
+        },
     });
     const nativePanel = new NativeChatPanel({ getContext, ui, isGenerating });
     const panelUpdateView = ui.getExtensionUpdateView();
     configureUpdateButton(panelUpdateView.button, panelUpdateView.version, metadata.version);
-    const settings = extension_settings.chatManager ??= {};
-    settings.enabled ??= true;
     let recoveryChecked = false;
     let backupWarmupScheduled = false;
 

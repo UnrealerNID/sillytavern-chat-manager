@@ -1,5 +1,6 @@
 import { chatKey, element, formatBytes, stripJsonl } from './utils.js';
 import { describePart } from './splitter.js';
+import { deriveIncrementalSplit, groupOwnerRecords, groupSplitRecords } from './grouping.js';
 
 const PAGE_SIZE = 50;
 
@@ -22,8 +23,10 @@ export class ChatManagerUi {
      * @param {string} dependencies.dialogTemplates 弹窗模板注册表
      * @param {string} dependencies.componentTemplates 重复内容组件模板注册表
      * @param {(record:object)=>string} dependencies.getAvatarUrl 头像地址生成器
+     * @param {{groupOwners?:boolean,groupSplits?:boolean}} dependencies.viewOptions 列表分组设置
+     * @param {(options:{groupOwners:boolean,groupSplits:boolean})=>void} dependencies.onViewOptionsChange 分组设置回调
      */
-    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, restoreBackup, template, dialogTemplates, componentTemplates, getAvatarUrl }) {
+    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, restoreBackup, template, dialogTemplates, componentTemplates, getAvatarUrl, viewOptions = {}, onViewOptionsChange = () => {} }) {
         this.getContext = getContext;
         this.api = api;
         this.backups = backups;
@@ -37,6 +40,11 @@ export class ChatManagerUi {
         this.page = 0;
         this.selectedKey = null;
         this.loading = false;
+        this.groupOwners = Boolean(viewOptions.groupOwners);
+        this.groupSplits = Boolean(viewOptions.groupSplits);
+        this.expandedOwners = new Set();
+        this.expandedSplits = new Set();
+        this.onViewOptionsChange = onViewOptionsChange;
         this.#build(template, dialogTemplates, componentTemplates);
     }
 
@@ -68,6 +76,8 @@ export class ChatManagerUi {
         this.pageLabel = required(root, '[data-cm-page]');
         this.version = required(root, '[data-cm-version]');
         this.updateButton = required(root, '[data-cm-update]', HTMLButtonElement);
+        this.groupOwnersButton = required(root, '[data-cm-group-owners]', HTMLButtonElement);
+        this.groupSplitsButton = required(root, '[data-cm-group-splits]', HTMLButtonElement);
         this.dialogTemplate = required(dialogRegistry, '[data-cm-dialog-shell]', HTMLTemplateElement);
         this.dialogContentTemplates = new Map(
             Array.from(dialogRegistry.querySelectorAll('[data-cm-dialog-content]'), templateNode => [
@@ -84,12 +94,15 @@ export class ChatManagerUi {
 
         required(root, '[data-cm-close]', HTMLButtonElement).addEventListener('click', () => this.close());
         required(root, '[data-cm-refresh]', HTMLButtonElement).addEventListener('click', () => this.refresh());
+        this.groupOwnersButton.addEventListener('click', () => this.#toggleGrouping('owners'));
+        this.groupSplitsButton.addEventListener('click', () => this.#toggleGrouping('splits'));
         this.search.addEventListener('input', () => { this.page = 0; this.#filter(); });
         this.previous.addEventListener('click', () => { this.page--; this.#render(); });
         this.next.addEventListener('click', () => { this.page++; this.#render(); });
         this.root.addEventListener('mousedown', event => {
             if (event.target === this.root) this.close();
         });
+        this.#syncGroupingButtons();
         document.body.append(this.root);
     }
 
@@ -150,6 +163,7 @@ export class ChatManagerUi {
                     messageCount: Number(item.chat_items ?? 0),
                     lastMessageAt: item.last_mes ?? '',
                     preview: String(item.mes ?? ''),
+                    chatManager: item.chat_metadata?.chat_manager ?? null,
                 };
                 record.avatarUrl = this.getAvatarUrl(record);
                 return record;
@@ -174,22 +188,126 @@ export class ChatManagerUi {
     #render() {
         if (!this.list) return;
         this.list.replaceChildren();
-        const totalPages = Math.max(1, Math.ceil(this.filtered.length / PAGE_SIZE));
+        const units = this.groupOwners
+            ? groupOwnerRecords(this.filtered, this.groupSplits, this.records ?? [])
+            : this.groupSplits
+                ? groupSplitRecords(this.filtered, this.records ?? [])
+                : this.filtered.map(record => ({ type: 'record', key: `record:${chatKey(record)}`, record }));
+        const totalPages = Math.max(1, Math.ceil(units.length / PAGE_SIZE));
         this.page = Math.max(0, Math.min(this.page, totalPages - 1));
-        const pageRecords = this.filtered.slice(this.page * PAGE_SIZE, (this.page + 1) * PAGE_SIZE);
-        for (const record of pageRecords) this.list.append(this.#chatRow(record));
-        if (!pageRecords.length && !this.loading) this.list.append(this.#state('没有可显示的聊天', { empty: true }));
-        this.pageLabel.textContent = `第 ${this.page + 1} / ${totalPages} 页 · ${this.filtered.length} 条`;
+        const pageUnits = units.slice(this.page * PAGE_SIZE, (this.page + 1) * PAGE_SIZE);
+        for (const unit of pageUnits) this.list.append(this.#renderUnit(unit));
+        if (!pageUnits.length && !this.loading) this.list.append(this.#state('没有可显示的聊天', { empty: true }));
+        const grouped = this.groupOwners || this.groupSplits ? ` · ${units.length} 组/项` : '';
+        this.pageLabel.textContent = `第 ${this.page + 1} / ${totalPages} 页 · ${this.filtered.length} 条${grouped}`;
         this.previous.disabled = this.page <= 0;
         this.next.disabled = this.page >= totalPages - 1;
     }
 
-    #chatRow(record) {
+    #renderUnit(unit) {
+        if (unit.type === 'owner-group') return this.#ownerGroup(unit);
+        if (unit.type === 'split-group') return this.#splitGroup(unit);
+        return this.#chatRow(unit.record);
+    }
+
+    /** @param {'owners'|'splits'} type 要切换的分组维度 */
+    #toggleGrouping(type) {
+        if (type === 'owners') this.groupOwners = !this.groupOwners;
+        if (type === 'splits') this.groupSplits = !this.groupSplits;
+        this.page = 0;
+        this.#syncGroupingButtons();
+        this.#render();
+        this.onViewOptionsChange({ groupOwners: this.groupOwners, groupSplits: this.groupSplits });
+    }
+
+    /** 同步分组按钮的可访问状态与视觉状态 */
+    #syncGroupingButtons() {
+        for (const [button, active] of [[this.groupOwnersButton, this.groupOwners], [this.groupSplitsButton, this.groupSplits]]) {
+            button.setAttribute('aria-pressed', String(active));
+            button.classList.toggle('cm-active', active);
+        }
+    }
+
+    /**
+     * 创建角色或群组的折叠显示单元
+     * @param {object} group 所有者分组
+     * @returns {HTMLElement} 分组节点
+     */
+    #ownerGroup(group) {
+        const root = this.#component('owner-group');
+        const image = this.#mount(root, '[data-cm-owner-avatar]', HTMLImageElement);
+        const toggle = this.#mount(root, '[data-cm-owner-toggle]', HTMLButtonElement);
+        const children = this.#mount(root, '[data-cm-owner-children]');
+        const expanded = this.expandedOwners.has(group.key);
+        image.src = group.avatarUrl;
+        image.alt = group.ownerName;
+        this.#mount(root, '[data-cm-owner-name]').textContent = group.ownerName;
+        const splitCount = group.children.filter(child => child.type === 'split-group').length;
+        this.#mount(root, '[data-cm-owner-summary]').textContent = `${group.records.length} 条聊天${splitCount ? ` · ${splitCount} 个分卷组` : ''}`;
+        this.#configureGroupToggle(toggle, expanded, () => {
+            expanded ? this.expandedOwners.delete(group.key) : this.expandedOwners.add(group.key);
+            this.#render();
+        });
+        if (expanded) {
+            children.classList.remove('cm-hidden');
+            group.children.forEach(child => children.append(this.#renderUnit(child)));
+        }
+        return root;
+    }
+
+    /**
+     * 创建分卷组显示单元并连接增量分卷入口
+     * @param {object} group 分卷组
+     * @returns {HTMLElement} 分组节点
+     */
+    #splitGroup(group) {
+        const root = this.#component('split-group');
+        const toggle = this.#mount(root, '[data-cm-split-toggle]', HTMLButtonElement);
+        const children = this.#mount(root, '[data-cm-split-children]');
+        const continueButton = this.#mount(root, '[data-cm-split-continue]', HTMLButtonElement);
+        const incremental = deriveIncrementalSplit(group);
+        const expanded = this.expandedSplits.has(group.key);
+        const first = group.records[0].split;
+        const last = group.records.at(-1).split;
+        this.#mount(root, '[data-cm-split-group-name]').textContent = group.rootChatId;
+        this.#mount(root, '[data-cm-split-group-summary]').textContent = `${group.records.length} 个分卷 · #${first.start}–#${last.end}${group.sourceRecord ? ' · 含源聊天' : ''}`;
+        this.#mount(root, '[data-cm-split-group-incremental]').textContent = incremental.reason;
+        continueButton.disabled = !incremental.available || this.isGenerating() || this.splitter.running;
+        continueButton.title = incremental.available ? incremental.reason : `暂不可增量分卷：${incremental.reason}`;
+        this.#bindButton(continueButton, () => this.openSplit(incremental.sourceRecord, incremental.options));
+        this.#configureGroupToggle(toggle, expanded, () => {
+            expanded ? this.expandedSplits.delete(group.key) : this.expandedSplits.add(group.key);
+            this.#render();
+        });
+        if (expanded) {
+            children.classList.remove('cm-hidden');
+            if (group.sourceRecord) children.append(this.#chatRow(group.sourceRecord, { source: true }));
+            group.records.forEach(item => children.append(this.#chatRow(item.record)));
+        }
+        return root;
+    }
+
+    /**
+     * 配置折叠按钮并保持图标、文案和 aria 状态一致
+     * @param {HTMLButtonElement} button 按钮
+     * @param {boolean} expanded 是否展开
+     * @param {()=>void} handler 点击处理
+     */
+    #configureGroupToggle(button, expanded, handler) {
+        button.setAttribute('aria-expanded', String(expanded));
+        this.#mount(button, '[data-cm-group-toggle-text]').textContent = expanded ? '收起' : '展开';
+        this.#mount(button, '[data-cm-group-chevron]').classList.toggle('fa-chevron-up', expanded);
+        this.#mount(button, '[data-cm-group-chevron]').classList.toggle('fa-chevron-down', !expanded);
+        this.#bindButton(button, handler);
+    }
+
+    #chatRow(record, { source = false } = {}) {
         const row = this.#component('chat-row');
         const image = this.#mount(row, '[data-cm-chat-avatar]', HTMLImageElement);
         const name = this.#mount(row, '[data-cm-chat-name]');
         const owner = this.#mount(row, '[data-cm-chat-owner]');
         const file = this.#mount(row, '[data-cm-chat-file]');
+        const sourceBadge = this.#mount(row, '[data-cm-chat-source]');
         const date = this.#mount(row, '[data-cm-chat-date]', HTMLTimeElement);
         const preview = this.#mount(row, '[data-cm-chat-preview]');
         const countWrap = this.#mount(row, '[data-cm-chat-count-wrap]');
@@ -199,6 +317,8 @@ export class ChatManagerUi {
         const backup = this.#mount(row, '[data-cm-chat-backups]', HTMLButtonElement);
         const split = this.#mount(row, '[data-cm-chat-split]', HTMLButtonElement);
         row.classList.toggle('cm-selected', this.selectedKey === chatKey(record));
+        row.classList.toggle('cm-source-record', source);
+        sourceBadge.classList.toggle('cm-hidden', !source);
         row.title = `打开 ${record.ownerName} / ${record.fileId}`;
         image.src = record.avatarUrl;
         image.alt = record.ownerName;
@@ -354,15 +474,18 @@ export class ChatManagerUi {
         await load();
     }
 
-    async openSplit(record) {
+    async openSplit(record, initialOptions = {}) {
         if (this.isGenerating()) return notify('warning', '聊天正在生成，当前不能分割');
         this.activeSplitClose?.();
-        const dialog = this.#dialog(['分割聊天', record.ownerName, record.fileId], 'split');
+        const incremental = Boolean(initialOptions.incremental);
+        const dialog = this.#dialog([incremental ? '继续分卷' : '分割聊天', record.ownerName, initialOptions.outputRootChatId ?? record.fileId], 'split');
         this.activeSplitRoot = dialog.root;
         this.activeSplitClose = dialog.close;
         const summary = this.#mount(dialog.body, '[data-cm-split-summary]');
         const previewStatus = this.#mount(dialog.body, '[data-cm-split-preview-status]');
         const previewDetail = this.#mount(dialog.body, '[data-cm-split-preview-detail]');
+        const groupConfigField = this.#mount(dialog.body, '[data-cm-split-group-config-field]');
+        const groupConfig = this.#mount(dialog.body, '[data-cm-split-group-config]', HTMLSelectElement);
         const mode = this.#mount(dialog.body, '[data-cm-split-mode]', HTMLSelectElement);
         const start = this.#mount(dialog.body, '[data-cm-split-start]', HTMLInputElement);
         const end = this.#mount(dialog.body, '[data-cm-split-end]', HTMLInputElement);
@@ -374,10 +497,25 @@ export class ChatManagerUi {
         const confirm = this.#mount(dialog.body, '[data-cm-split-confirm]', HTMLButtonElement);
         const stop = this.#mount(dialog.body, '[data-cm-split-stop]', HTMLButtonElement);
         const maxFloor = Math.max(0, record.messageCount - 1);
-        summary.textContent = `原聊天 ${record.fileSize} · ${record.messageCount} 层 · 可用范围 #0–#${maxFloor}`;
-        this.#configureNumberInput(start, 0, 0, maxFloor);
-        this.#configureNumberInput(end, maxFloor, 0, maxFloor);
-        this.#configureNumberInput(chunk, Math.min(500, Math.max(1, record.messageCount)), 1, Math.max(1, record.messageCount));
+        mode.value = initialOptions.mode ?? 'range';
+        const initialStart = Number(initialOptions.start ?? 0);
+        const initialEnd = Number(initialOptions.end ?? maxFloor);
+        const initialChunk = Number(initialOptions.chunkSize ?? Math.min(500, Math.max(1, record.messageCount)));
+        summary.textContent = incremental
+            ? `增量来源：最后一卷新增楼层 · 本地 #${initialStart}–#${initialEnd}${mode.value === 'fixed' ? ` · 每卷 ${initialChunk} 层` : ''}`
+            : `原聊天 ${record.fileSize} · ${record.messageCount} 层 · 可用范围 #0–#${maxFloor}`;
+        this.#configureNumberInput(start, initialStart, 0, maxFloor);
+        this.#configureNumberInput(end, initialEnd, 0, maxFloor);
+        this.#configureNumberInput(chunk, initialChunk, 1, Math.max(1, record.messageCount));
+        chunkRow.classList.toggle('cm-hidden', mode.value !== 'fixed');
+        const groupConfigs = Array.isArray(initialOptions.groupConfigs) ? initialOptions.groupConfigs : [];
+        if (incremental) {
+            groupConfigField.classList.remove('cm-hidden');
+            groupConfigs.forEach((config, index) => {
+                const label = `固定楼层 · 每卷 ${config.chunkSize} 层`;
+                groupConfig.append(new Option(label, String(index)));
+            });
+        }
 
         let plan = null;
         let stableSource = null;
@@ -386,6 +524,21 @@ export class ChatManagerUi {
         let previewRevision = 0;
         let previewing = false;
         let executing = false;
+
+        const syncGroupConfig = () => {
+            if (!incremental) return;
+            const index = groupConfigs.findIndex(config => config.mode === mode.value && Number(config.chunkSize) === Number(chunk.value));
+            if (index >= 0) {
+                groupConfig.value = String(index);
+                return;
+            }
+            let custom = groupConfig.querySelector('option[value="custom"]');
+            if (!custom) {
+                custom = new Option('自定义配置', 'custom');
+                groupConfig.append(custom);
+            }
+            groupConfig.value = 'custom';
+        };
 
         const setPreviewStatus = (text, state = '') => {
             previewStatus.textContent = text;
@@ -398,12 +551,17 @@ export class ChatManagerUi {
                 mode: mode.value,
                 start: Number(start.value),
                 end: Number(end.value),
-                chunkSize: Number(chunk.value),
+                chunkSize: mode.value === 'fixed' ? Number(chunk.value) : undefined,
+                sequenceStart: initialOptions.sequenceStart,
+                incremental,
+                outputRootChatId: initialOptions.outputRootChatId,
+                rangeOffset: initialOptions.rangeOffset,
             };
         };
         const syncControls = () => {
             const blocked = executing || this.isGenerating() || this.splitter.running;
-            for (const input of [mode, start, end, chunk, acknowledge]) input.disabled = blocked;
+            for (const input of [mode, start, end, chunk, groupConfig]) input.disabled = blocked;
+            acknowledge.disabled = blocked;
             confirm.disabled = blocked || previewing || !plan || !acknowledge.checked;
         };
         const runPreview = async (revision) => {
@@ -517,14 +675,29 @@ export class ChatManagerUi {
         acknowledge.addEventListener('change', () => syncControls());
         mode.addEventListener('change', () => {
             chunkRow.classList.toggle('cm-hidden', mode.value !== 'fixed');
+            syncGroupConfig();
             schedulePreview();
         });
-        for (const input of [start, end, chunk]) input.addEventListener('input', () => schedulePreview());
+        for (const input of [start, end]) input.addEventListener('input', () => schedulePreview());
+        chunk.addEventListener('input', () => {
+            syncGroupConfig();
+            schedulePreview();
+        });
+        groupConfig.addEventListener('change', () => {
+            if (groupConfig.value === 'custom') return;
+            const config = groupConfigs[Number(groupConfig.value)];
+            if (!config) return;
+            mode.value = config.mode;
+            chunk.value = String(config.chunkSize);
+            chunkRow.classList.toggle('cm-hidden', mode.value !== 'fixed');
+            schedulePreview();
+        });
         dialog.signal.addEventListener('abort', () => {
             if (previewTimer !== null) clearTimeout(previewTimer);
             previewController?.abort();
         }, { once: true });
         this.activeSplitSync = syncControls;
+        syncGroupConfig();
         syncControls();
         schedulePreview(0);
     }

@@ -7,6 +7,8 @@ test('panel template exposes all stable UI mounts', async () => {
     for (const marker of [
         'data-cm-search',
         'data-cm-refresh',
+        'data-cm-group-owners',
+        'data-cm-group-splits',
         'data-cm-state',
         'data-cm-list',
         'data-cm-version',
@@ -32,6 +34,7 @@ test('dialog templates expose every static dialog and dynamic mount', async () =
         'data-cm-split-preview',
         'data-cm-split-preview-status',
         'data-cm-split-preview-detail',
+        'data-cm-split-group-config',
         'data-cm-dialog-content="recovery"',
         'data-cm-recovery-list',
     ]) {
@@ -45,6 +48,11 @@ test('component templates expose every repeated card and action mount', async ()
     for (const marker of [
         'data-cm-component="chat-row"',
         'data-cm-chat-open',
+        'data-cm-chat-source',
+        'data-cm-component="owner-group"',
+        'data-cm-owner-toggle',
+        'data-cm-component="split-group"',
+        'data-cm-split-continue',
         'data-cm-component="backup-row"',
         'data-cm-backup-view',
         'data-cm-backup-download',

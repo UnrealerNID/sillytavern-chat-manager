@@ -22,7 +22,7 @@ export class SplitService {
     /**
      * Creates a read-only split plan
      * @param {import('./utils.js').ChatRecord} record Chat record
-     * @param {{mode:'range'|'fixed',start:number,end:number,chunkSize?:number}} options Options
+     * @param {{mode:'range'|'fixed',start:number,end:number,chunkSize?:number,incremental?:boolean,sequenceStart?:number,outputRootChatId?:string,rangeOffset?:number}} options Options
      * @param {AbortSignal} [signal] Abort signal
      * @param {object} [stableSource] 已读取并校验过的来源快照
      * @returns {Promise<object>} Split plan
@@ -36,24 +36,47 @@ export class SplitService {
         const occupied = await this.#occupiedNames(record);
         const reserved = new Set();
         const parts = [];
-        const width = Math.max(3, String(ranges.length).length);
+        const sequenceStart = Number(options.sequenceStart ?? 1);
+        const width = Math.max(3, String(sequenceStart + ranges.length - 1).length);
+        const rangeOffset = Number(options.rangeOffset ?? 0);
+        const outputRootChatId = String(options.outputRootChatId ?? record.fileId);
+        const chunkSize = options.mode === 'fixed' ? options.chunkSize : null;
 
         for (let index = 0; index < ranges.length; index++) {
             const range = ranges[index];
-            const suffix = ranges.length === 1
+            const logicalRange = { ...range, start: range.start + rangeOffset, end: range.end + rangeOffset };
+            const sequence = sequenceStart + index;
+            const suffix = options.incremental
+                ? ` [分卷 ${String(sequence).padStart(width, '0')}] [#${logicalRange.start}-#${logicalRange.end}]`
+                : ranges.length === 1
                 ? ` [#${range.start}-#${range.end}]`
                 : ` [分卷 ${String(index + 1).padStart(width, '0')}-of-${String(ranges.length).padStart(width, '0')}] [#${range.start}-#${range.end}]`;
-            const fileId = await this.#uniqueName(record, suffix, occupied, reserved);
+            const fileId = await this.#uniqueName(record, suffix, occupied, reserved, outputRootChatId);
             reserved.add(fileId);
             const messages = source.messages.slice(range.start, range.end + 1);
             const digest = await digestMessages(messages);
             const integrity = this.uuid();
-            const header = this.#makeHeader(source.header, record, range, digest, integrity);
+            const header = this.#makeHeader(source.header, record, logicalRange, digest, integrity, {
+                mode: options.mode,
+                chunkSize,
+                sequence,
+                incremental: Boolean(options.incremental),
+                rootChatId: outputRootChatId,
+            });
             parts.push({
-                ...range,
+                ...logicalRange,
+                sourceStart: range.start,
+                sourceEnd: range.end,
                 fileId,
                 messages,
                 header,
+                splitConfig: {
+                    mode: options.mode,
+                    chunkSize,
+                    sequence,
+                    incremental: Boolean(options.incremental),
+                    rootChatId: outputRootChatId,
+                },
                 digest,
                 integrity,
                 estimatedBytes: jsonlByteSize(header, messages),
@@ -194,17 +217,22 @@ export class SplitService {
         if (!fingerprintsEqual(task.fingerprint, source.fingerprint)) throw new Error('原聊天已变化，不能继续旧任务');
         const parts = [];
         for (const saved of task.parts) {
-            const messages = source.messages.slice(saved.start, saved.end + 1);
+            const sourceStart = saved.sourceStart ?? saved.start;
+            const sourceEnd = saved.sourceEnd ?? saved.end;
+            const messages = source.messages.slice(sourceStart, sourceEnd + 1);
             const digest = await digestMessages(messages);
             if (digest !== saved.digest) throw new Error(`来源范围摘要已变化：${saved.fileId}`);
             const range = { start: saved.start, end: saved.end, count: saved.count };
             parts.push({
                 ...range,
+                sourceStart,
+                sourceEnd,
                 fileId: saved.fileId,
                 digest,
                 integrity: saved.integrity,
                 messages,
-                header: this.#makeHeader(source.header, task.record, range, digest, saved.integrity),
+                header: this.#makeHeader(source.header, task.record, range, digest, saved.integrity, saved.splitConfig),
+                splitConfig: saved.splitConfig,
             });
         }
         return { id: task.id, record: task.record, fingerprint: task.fingerprint, source, parts };
@@ -221,16 +249,19 @@ export class SplitService {
                 fileId: part.fileId,
                 start: part.start,
                 end: part.end,
+                sourceStart: part.sourceStart,
+                sourceEnd: part.sourceEnd,
                 count: part.count,
                 digest: part.digest,
                 integrity: part.integrity,
+                splitConfig: part.splitConfig,
                 status: 'planned',
                 error: null,
             })),
         };
     }
 
-    #makeHeader(sourceHeader, record, range, digest, integrity) {
+    #makeHeader(sourceHeader, record, range, digest, integrity, splitConfig = {}) {
         const header = cloneJson(sourceHeader);
         const metadata = cloneJson(header.chat_metadata ?? {});
         const previous = metadata.chat_manager;
@@ -242,11 +273,15 @@ export class SplitService {
         metadata.chat_manager = {
             schema: 1,
             sourceChatId: record.fileId,
-            rootChatId: previous?.rootChatId ?? previous?.sourceChatId ?? record.fileId,
+            rootChatId: splitConfig.rootChatId ?? previous?.rootChatId ?? previous?.sourceChatId ?? record.fileId,
             sourceIntegrity: sourceHeader.chat_metadata?.integrity ?? null,
             sourceStart: range.start,
             sourceEnd: range.end,
             messageDigest: digest,
+            splitMode: splitConfig.mode ?? null,
+            chunkSize: splitConfig.chunkSize ?? null,
+            sequence: splitConfig.sequence ?? null,
+            incremental: Boolean(splitConfig.incremental),
             createdAt: new Date().toISOString(),
         };
         header.chat_metadata = metadata;
@@ -266,8 +301,8 @@ export class SplitService {
         return new Set(group?.chats ?? []);
     }
 
-    async #uniqueName(record, suffix, occupied, reserved) {
-        const codePoints = Array.from(record.fileId);
+    async #uniqueName(record, suffix, occupied, reserved, baseFileId = record.fileId) {
+        const codePoints = Array.from(baseFileId);
         for (let collision = 1; collision <= 9999; collision++) {
             const numeric = collision === 1 ? '' : `-${collision}`;
             const tail = `${suffix}${numeric}`;

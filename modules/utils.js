@@ -243,4 +243,5 @@ export function element(tag, options = {}) {
  * @property {number} messageCount
  * @property {string|number} lastMessageAt
  * @property {string} preview
+ * @property {object|null} chatManager 插件写入聊天头的分卷元数据
  */

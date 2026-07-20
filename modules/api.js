@@ -53,7 +53,7 @@ export class ChatManagerApi {
     }
 
     getRecentChats(signal) {
-        return this.post('/api/chats/recent', {}, { signal });
+        return this.post('/api/chats/recent', { metadata: true }, { signal });
     }
 
     getCharacterChats(avatar, options = {}) {

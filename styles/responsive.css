@@ -20,6 +20,27 @@
         padding-inline: 10px;
     }
 
+    .cm-toolbar {
+        flex-wrap: wrap;
+    }
+
+    .cm-search-wrap {
+        flex-basis: 100%;
+    }
+
+    .cm-view-controls {
+        flex: 1;
+    }
+
+    .cm-group-header {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .cm-group-header > .cm-actions {
+        width: 100%;
+    }
+
     .cm-backup-row,
     .cm-recovery {
         align-items: stretch;

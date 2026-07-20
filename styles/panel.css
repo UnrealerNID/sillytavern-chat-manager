@@ -26,6 +26,23 @@
     border-bottom: 1px solid var(--SmartThemeBorderColor);
 }
 
+.cm-view-controls {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 6px;
+}
+
+.cm-view-controls .menu_button {
+    gap: 5px;
+    margin: 0;
+}
+
+.cm-view-controls .cm-active {
+    border-color: var(--SmartThemeQuoteColor);
+    color: var(--SmartThemeQuoteColor);
+    background: rgb(255 255 255 / 8%);
+}
+
 .cm-search-wrap {
     position: relative;
     display: flex;

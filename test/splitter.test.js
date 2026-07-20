@@ -82,6 +82,27 @@ test('reuses a stable source snapshot for automatic preview updates', async () =
     assert.deepEqual(second.parts.map(part => [part.start, part.end]), [[1, 3]]);
 });
 
+test('continues a split group with logical ranges and sequence numbers', async () => {
+    const { splitter, record } = fixture();
+    const plan = await splitter.prepare(record, {
+        mode: 'fixed',
+        start: 3,
+        end: 4,
+        chunkSize: 1,
+        incremental: true,
+        sequenceStart: 3,
+        outputRootChatId: '逻辑分卷组',
+        rangeOffset: 100,
+    });
+
+    assert.deepEqual(plan.parts.map(part => [part.sourceStart, part.sourceEnd, part.start, part.end]), [
+        [3, 3, 103, 103],
+        [4, 4, 104, 104],
+    ]);
+    assert.match(plan.parts[0].fileId, /^逻辑分卷组 \[分卷 003\] \[#103-#103\]$/);
+    assert.equal(plan.parts[0].header.chat_metadata.chat_manager.rootChatId, '逻辑分卷组');
+});
+
 test('registers a verified group split only after saving it', async () => {
     const sourceId = '群聊原记录';
     const header = { chat_metadata: { integrity: 'group-source' }, user_name: 'unused', character_name: 'unused' };

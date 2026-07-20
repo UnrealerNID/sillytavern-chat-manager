@@ -8,6 +8,7 @@
                 <div class="cm-chat-heading">
                     <div class="cm-chat-name" data-cm-chat-name>
                         <strong data-cm-chat-owner></strong>
+                        <span class="cm-source-badge cm-hidden" data-cm-chat-source>源</span>
                         <span aria-hidden="true">–</span>
                         <span class="cm-file-name" data-cm-chat-file></span>
                     </div>
@@ -38,6 +39,51 @@
                     </div>
                 </div>
             </div>
+        </article>
+    </template>
+
+    <template data-cm-component="owner-group">
+        <article class="cm-record-group cm-owner-group">
+            <header class="cm-group-header">
+                <div class="avatar cm-group-avatar">
+                    <img loading="lazy" data-cm-owner-avatar>
+                </div>
+                <div class="cm-group-info">
+                    <strong data-cm-owner-name></strong>
+                    <span data-cm-owner-summary></span>
+                </div>
+                <button class="menu_button cm-group-toggle" type="button" aria-expanded="false" data-cm-owner-toggle>
+                    <i class="fa-solid fa-chevron-down" aria-hidden="true" data-cm-group-chevron></i>
+                    <span data-cm-group-toggle-text>展开</span>
+                </button>
+            </header>
+            <div class="cm-group-children cm-hidden" data-cm-owner-children></div>
+        </article>
+    </template>
+
+    <template data-cm-component="split-group">
+        <article class="cm-record-group cm-split-group">
+            <header class="cm-group-header">
+                <div class="cm-group-icon" aria-hidden="true">
+                    <i class="fa-solid fa-layer-group"></i>
+                </div>
+                <div class="cm-group-info">
+                    <strong data-cm-split-group-name></strong>
+                    <span data-cm-split-group-summary></span>
+                    <small data-cm-split-group-incremental></small>
+                </div>
+                <div class="cm-actions">
+                    <button class="menu_button" type="button" data-cm-split-continue>
+                        <i class="fa-solid fa-forward-step" aria-hidden="true"></i>
+                        <span>增量分卷</span>
+                    </button>
+                    <button class="menu_button cm-group-toggle" type="button" aria-expanded="false" data-cm-split-toggle>
+                        <i class="fa-solid fa-chevron-down" aria-hidden="true" data-cm-group-chevron></i>
+                        <span data-cm-group-toggle-text>展开</span>
+                    </button>
+                </div>
+            </header>
+            <div class="cm-group-children cm-hidden" data-cm-split-children></div>
         </article>
     </template>
 
