@@ -1,4 +1,4 @@
-import { chatKey, element, formatBytes, stripJsonl } from './utils.js';
+import { chatKey, element, formatBytes, parseBytes, stripJsonl } from './utils.js';
 import { describePart } from './splitter.js';
 import { deriveIncrementalSplit, filterChatRecords, getCurrentOwner, groupOwnerRecords, groupSplitRecords } from './grouping.js';
 
@@ -281,7 +281,17 @@ export class ChatManagerUi {
         image.alt = group.ownerName;
         this.#mount(root, '[data-cm-owner-name]').textContent = group.ownerName;
         const splitCount = group.children.filter(child => child.type === 'split-group').length;
-        this.#mount(root, '[data-cm-owner-summary]').textContent = `${group.records.length} 条聊天${splitCount ? ` · ${splitCount} 个分卷组` : ''}`;
+        const aggregate = this.#recordAggregate(group.records);
+        const summary = `${group.records.length} 条聊天${splitCount ? ` · ${splitCount} 个分卷组` : ''} · 文件合计 ${aggregate.messageCount} 层 / ${formatBytes(aggregate.bytes)}`;
+        const latest = aggregate.latest
+            ? `最近：${aggregate.latest.fileId} · ${this.#formatDate(aggregate.latest.lastMessageAt)}`
+            : '没有可用的聊天记录';
+        const summaryNode = this.#mount(root, '[data-cm-owner-summary]');
+        const latestNode = this.#mount(root, '[data-cm-owner-latest]');
+        summaryNode.textContent = summary;
+        summaryNode.title = summary;
+        latestNode.textContent = latest;
+        latestNode.title = latest;
         this.#configureGroupToggle(toggle, expanded, () => {
             expanded ? this.expandedOwners.delete(group.key) : this.expandedOwners.add(group.key);
             this.#render();
@@ -307,9 +317,21 @@ export class ChatManagerUi {
         const expanded = this.expandedSplits.has(group.key);
         const first = group.records[0].split;
         const last = group.records.at(-1).split;
+        const aggregate = this.#recordAggregate(group.records.map(item => item.record));
         this.#mount(root, '[data-cm-split-group-name]').textContent = group.rootChatId;
-        this.#mount(root, '[data-cm-split-group-summary]').textContent = `${group.records.length} 个分卷 · #${first.start}–#${last.end}${group.sourceRecord ? ' · 含源聊天' : ''}`;
-        this.#mount(root, '[data-cm-split-group-incremental]').textContent = incremental.reason;
+        const summary = `${group.records.length} 个分卷 · 覆盖 #${first.start}–#${last.end} · 分卷合计 ${aggregate.messageCount} 层 / ${formatBytes(aggregate.bytes)} · ${group.sourceRecord ? '源聊天存在' : '仅保留分卷'}`;
+        const latest = aggregate.latest
+            ? `最近：${aggregate.latest.fileId} · ${this.#formatDate(aggregate.latest.lastMessageAt)}`
+            : '没有可用的分卷记录';
+        const summaryNode = this.#mount(root, '[data-cm-split-group-summary]');
+        const latestNode = this.#mount(root, '[data-cm-split-group-latest]');
+        const incrementalNode = this.#mount(root, '[data-cm-split-group-incremental]');
+        summaryNode.textContent = summary;
+        summaryNode.title = summary;
+        latestNode.textContent = latest;
+        latestNode.title = latest;
+        incrementalNode.textContent = `增量：${incremental.reason}`;
+        incrementalNode.title = incrementalNode.textContent;
         continueButton.disabled = !incremental.available || this.isGenerating() || this.splitter.running;
         continueButton.title = incremental.available ? incremental.reason : `暂不可增量分卷：${incremental.reason}`;
         this.#bindButton(continueButton, () => this.openSplit(incremental.sourceRecord, incremental.options));
@@ -323,6 +345,28 @@ export class ChatManagerUi {
             group.records.forEach(item => children.append(this.#chatRow(item.record)));
         }
         return root;
+    }
+
+    /**
+     * 汇总一组聊天文件的规模与最近记录
+     * @param {object[]} records 聊天记录
+     * @returns {{messageCount:number,bytes:number,latest:object|null}} 聚合信息
+     */
+    #recordAggregate(records) {
+        let messageCount = 0;
+        let bytes = 0;
+        let latest = null;
+        let latestTime = Number.NEGATIVE_INFINITY;
+        for (const record of records) {
+            messageCount += Number(record.messageCount) || 0;
+            bytes += parseBytes(record.fileSize);
+            const time = new Date(record.lastMessageAt).valueOf();
+            if (Number.isFinite(time) && time > latestTime) {
+                latest = record;
+                latestTime = time;
+            }
+        }
+        return { messageCount, bytes, latest };
     }
 
     /**

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildRanges, canonicalJson, isNewerVersion, parseJsonlResponse, stripJsonl } from '../modules/utils.js';
+import { buildRanges, canonicalJson, isNewerVersion, parseBytes, parseJsonlResponse, stripJsonl } from '../modules/utils.js';
 
 test('buildRanges keeps inclusive floors and the remainder', () => {
     assert.deepEqual(buildRanges(100, 349, 100), [
@@ -22,6 +22,12 @@ test('canonicalJson ignores object key insertion order', () => {
 test('stripJsonl removes only a trailing extension', () => {
     assert.equal(stripJsonl('聊天.jsonl'), '聊天');
     assert.equal(stripJsonl('聊天.jsonl.copy'), '聊天.jsonl.copy');
+});
+
+test('parseBytes accepts SillyTavern decimal and binary unit labels', () => {
+    assert.equal(parseBytes('690.95KB'), 690.95 * 1024);
+    assert.equal(parseBytes('1.5 MiB'), 1.5 * 1024 * 1024);
+    assert.equal(parseBytes('unknown'), 0);
 });
 
 test('JSONL parser stops immediately after the header when requested', async () => {

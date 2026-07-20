@@ -136,6 +136,20 @@ export function formatBytes(bytes) {
 }
 
 /**
+ * 将酒馆返回的可读文件大小转换为字节数
+ * @param {string|number} value 文件大小
+ * @returns {number} 字节数，无法识别时返回零
+ */
+export function parseBytes(value) {
+    if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? value : 0;
+    const match = String(value ?? '').trim().match(/^([\d.]+)\s*(B|KB|KIB|MB|MIB|GB|GIB)$/i);
+    if (!match) return 0;
+    const amount = Number(match[1]);
+    const units = { B: 0, KB: 1, KIB: 1, MB: 2, MIB: 2, GB: 3, GIB: 3 };
+    return Number.isFinite(amount) ? amount * (1024 ** units[match[2].toUpperCase()]) : 0;
+}
+
+/**
  * 构建包含首尾楼层的分割范围
  * @param {number} start 起始楼层
  * @param {number} end 结束楼层
