@@ -236,6 +236,7 @@ export function element(tag, options = {}) {
  * @property {'character'|'group'} ownerType
  * @property {string} ownerId
  * @property {string} ownerName
+ * @property {string} avatarUrl
  * @property {string} fileId
  * @property {string} fileName
  * @property {string} fileSize

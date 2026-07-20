@@ -18,14 +18,16 @@ export class ChatManagerUi {
      * @param {()=>boolean} dependencies.isGenerating Generation state
      * @param {(record:object)=>Promise<void>} dependencies.openRecord Open callback
      * @param {string} dependencies.template 稳定面板模板
+     * @param {(record:object)=>string} dependencies.getAvatarUrl 头像地址生成器
      */
-    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, template }) {
+    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, template, getAvatarUrl }) {
         this.getContext = getContext;
         this.api = api;
         this.backups = backups;
         this.splitter = splitter;
         this.isGenerating = isGenerating;
         this.openRecord = openRecord;
+        this.getAvatarUrl = getAvatarUrl;
         this.records = null;
         this.filtered = [];
         this.page = 0;
@@ -114,7 +116,7 @@ export class ChatManagerUi {
                     ? context.groups.find(group => String(group.id) === String(item.group))
                     : context.characters.find(character => character.avatar === item.avatar);
                 if (!owner) return null;
-                return {
+                const record = {
                     ownerType: isGroup ? 'group' : 'character',
                     ownerId: String(isGroup ? item.group : item.avatar),
                     ownerName: String(owner.name ?? item.char_name ?? item.group ?? item.avatar),
@@ -125,6 +127,8 @@ export class ChatManagerUi {
                     lastMessageAt: item.last_mes ?? '',
                     preview: String(item.mes ?? ''),
                 };
+                record.avatarUrl = this.getAvatarUrl(record);
+                return record;
             }).filter(Boolean).sort((a, b) => new Date(b.lastMessageAt).valueOf() - new Date(a.lastMessageAt).valueOf());
             this.page = 0;
             this.#filter();
@@ -158,31 +162,58 @@ export class ChatManagerUi {
 
     #chatRow(record) {
         const row = element('article', { className: `cm-chat-row${this.selectedKey === chatKey(record) ? ' cm-selected' : ''}` });
+        row.title = `打开 ${record.ownerName} / ${record.fileId}`;
+        const avatar = element('div', { className: 'avatar cm-chat-avatar' });
+        const image = element('img', {
+            attrs: {
+                src: record.avatarUrl,
+                alt: record.ownerName,
+                loading: 'lazy',
+            },
+        });
+        avatar.append(image);
+
         const info = element('div', { className: 'cm-chat-info' });
-        info.append(
+        const heading = element('div', { className: 'cm-chat-heading' });
+        const name = element('div', { className: 'cm-chat-name', title: `${record.ownerName} - ${record.fileId}` });
+        name.append(
             element('strong', { text: record.ownerName }),
+            element('span', { text: '–' }),
             element('span', { className: 'cm-file-name', text: record.fileId }),
-            element('small', { text: `${record.fileSize} · ${record.messageCount} 层 · ${this.#formatDate(record.lastMessageAt)}` }),
-            element('p', { text: record.preview }),
         );
-        const actions = element('div', { className: 'cm-actions' });
-        const open = this.#button('打开', async () => {
+        const date = element('time', { className: 'cm-chat-date', text: this.#formatDate(record.lastMessageAt) });
+        const actions = element('div', { className: 'cm-actions cm-chat-actions' });
+        const openRecord = async () => {
             this.selectedKey = chatKey(record);
             this.#render();
             await this.openRecord(record);
             this.close();
-        });
-        const backup = this.#button('备份', () => this.openBackups(record));
-        const split = this.#button('分割', () => this.openSplit(record));
+        };
+        const open = this.#iconButton('fa-arrow-up-right-from-square', '进入聊天', '切换到该聊天记录', openRecord);
+        const backup = this.#iconButton('fa-box-archive', '查找备份', '匹配该聊天对应的酒馆原生备份', () => this.openBackups(record));
+        const split = this.#iconButton('fa-scissors', '创建分卷', '基于原记录生成新的分卷聊天', () => this.openSplit(record));
         open.disabled = this.isGenerating() || this.splitter.running;
         split.disabled = this.isGenerating() || this.splitter.running || record.messageCount < 1;
         actions.append(open, backup, split);
+        heading.append(name, date, actions);
+
+        const message = element('div', { className: 'cm-chat-message-row' });
+        const preview = element('p', { className: 'cm-chat-preview', text: record.preview, title: record.preview });
+        const stats = element('div', { className: 'cm-chat-stats' });
+        const count = element('span', { title: `${record.messageCount} 层消息` });
+        count.append(
+            element('i', { className: 'fa-solid fa-comment fa-xs', attrs: { 'aria-hidden': 'true' } }),
+            element('small', { text: String(record.messageCount) }),
+        );
+        stats.append(count, element('small', { className: 'cm-chat-size', text: record.fileSize }));
+        message.append(preview, stats);
+        info.append(heading, message);
+
         row.addEventListener('click', event => {
             if (event.target.closest('button')) return;
-            this.selectedKey = chatKey(record);
-            this.#render();
+            void openRecord().catch(error => notify('error', error.message));
         });
-        row.append(info, actions);
+        row.append(avatar, info);
         return row;
     }
 
@@ -441,6 +472,17 @@ export class ChatManagerUi {
                 notify('error', error.message);
             });
         });
+        return button;
+    }
+
+    #iconButton(icon, label, title, handler) {
+        const button = this.#button('', handler, title);
+        button.classList.add('menu_button_icon', 'cm-row-action');
+        button.setAttribute('aria-label', label);
+        button.append(
+            element('i', { className: `fa-solid ${icon} fa-fw`, attrs: { 'aria-hidden': 'true' } }),
+            element('span', { text: label }),
+        );
         return button;
     }
 

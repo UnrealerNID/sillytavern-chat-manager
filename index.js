@@ -1,4 +1,12 @@
-import { getRequestHeaders, isGenerating, saveSettingsDebounced, setActiveCharacter, setActiveGroup } from '/script.js';
+import {
+    getRequestHeaders,
+    getThumbnailUrl,
+    isGenerating,
+    saveSettingsDebounced,
+    setActiveCharacter,
+    setActiveGroup,
+    system_avatar,
+} from '/script.js';
 import { openGroupById } from '/scripts/group-chats.js';
 import {
     extension_settings,
@@ -339,7 +347,16 @@ export async function init() {
         loadExtensionMetadata(),
         renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'panel'),
     ]);
-    const ui = new ChatManagerUi({ getContext, api, backups, splitter, isGenerating, openRecord, template: panelTemplate });
+    const ui = new ChatManagerUi({
+        getContext,
+        api,
+        backups,
+        splitter,
+        isGenerating,
+        openRecord,
+        template: panelTemplate,
+        getAvatarUrl: record => record.ownerType === 'group' ? system_avatar : getThumbnailUrl('avatar', record.ownerId),
+    });
     const nativePanel = new NativeChatPanel({ getContext, ui, isGenerating });
     const panelUpdateView = ui.getExtensionUpdateView();
     configureUpdateButton(panelUpdateView.button, panelUpdateView.version, metadata.version);
