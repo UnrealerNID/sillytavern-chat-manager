@@ -120,30 +120,42 @@
 }
 
 .cm-chat-heading {
-    gap: 7px;
+    align-items: flex-start;
+    gap: 8px;
 }
 
 .cm-chat-name {
     display: flex;
     min-width: 0;
     flex: 1;
-    gap: 5px;
+    flex-direction: column;
+    gap: 2px;
     overflow: hidden;
+}
+
+.cm-chat-owner-line {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 6px;
+}
+
+.cm-chat-owner-line strong,
+.cm-chat-name .cm-file-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.cm-chat-name > * {
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.cm-chat-name strong {
-    flex: 0 0 auto;
-    max-width: 38%;
+.cm-chat-owner-line strong {
+    min-width: 0;
 }
 
 .cm-chat-name .cm-file-name {
-    flex: 1;
+    display: block;
+    width: 100%;
+    color: var(--grey70);
+    font-size: calc(var(--mainFontSize) * 0.86);
 }
 
 .cm-chat-date {

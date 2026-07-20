@@ -48,6 +48,7 @@ test('component templates expose every repeated card and action mount', async ()
     for (const marker of [
         'data-cm-component="chat-row"',
         'data-cm-chat-open',
+        'cm-chat-owner-line',
         'data-cm-chat-source',
         'data-cm-component="owner-group"',
         'data-cm-owner-toggle',
