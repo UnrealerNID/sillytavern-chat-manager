@@ -11,6 +11,7 @@ export class NativeChatPanel {
         this.getContext = getContext;
         this.ui = ui;
         this.isGenerating = isGenerating;
+        this.enabled = true;
     }
 
     init() {
@@ -23,8 +24,25 @@ export class NativeChatPanel {
         return true;
     }
 
+    /**
+     * 即时切换聊天文件行内操作
+     * @param {boolean} enabled 是否启用
+     * @returns {void}
+     */
+    setEnabled(enabled) {
+        this.enabled = enabled;
+        if (enabled) {
+            this.enhance();
+            return;
+        }
+        this.container?.querySelectorAll('[data-chat-manager-action]').forEach(button => button.remove());
+        this.container?.querySelectorAll('[data-chat-manager-enhanced]').forEach(wrapper => {
+            delete wrapper.dataset.chatManagerEnhanced;
+        });
+    }
+
     enhance() {
-        if (!this.container) return;
+        if (!this.container || !this.enabled) return;
         for (const wrapper of this.container.querySelectorAll('.select_chat_block_wrapper:not([data-chat-manager-enhanced])')) {
             const actions = wrapper.querySelector('.select_chat_actions');
             if (!actions) continue;
@@ -79,6 +97,7 @@ export class NativeChatPanel {
     }
 
     #onClick(event) {
+        if (!this.enabled) return;
         const button = event.target.closest('[data-chat-manager-action]');
         if (!button || !this.container.contains(button)) return;
         event.preventDefault();

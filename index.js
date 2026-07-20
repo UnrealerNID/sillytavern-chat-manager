@@ -1,11 +1,8 @@
 import { getRequestHeaders, isGenerating, saveSettingsDebounced, setActiveCharacter, setActiveGroup } from '/script.js';
 import { openGroupById } from '/scripts/group-chats.js';
 import {
-    disableExtension,
-    enableExtension,
     extension_settings,
     extensionTypes,
-    findExtension,
     renderExtensionTemplateAsync,
 } from '/scripts/extensions.js';
 import { isAdmin } from '/scripts/user.js';
@@ -32,6 +29,7 @@ const remoteManifestUrl = 'https://raw.githubusercontent.com/UnrealerNID/sillyta
 /**
  * 插件功能设置
  * @typedef {object} ChatManagerSettings
+ * @property {boolean} [enabled] 是否启用插件功能
  * @property {'left'|'right'} [column] 首次选择并固定使用的扩展栏
  */
 
@@ -156,32 +154,18 @@ async function configureUpdateButton(button, version, semanticVersion) {
 }
 
 /**
- * 将复选框绑定到酒馆原生扩展启用状态
+ * 将复选框绑定到插件自身的功能状态
  * @param {HTMLInputElement} toggle 启用复选框
+ * @param {ChatManagerSettings} settings 插件设置
+ * @param {(enabled:boolean)=>void} applyEnabledState 应用状态
  */
-function configureEnabledToggle(toggle) {
-    const extension = findExtension(extensionFolder);
-    if (!extension) {
-        toggle.checked = false;
-        toggle.disabled = true;
-        return;
-    }
-
-    toggle.checked = extension.enabled;
-    toggle.addEventListener('change', async () => {
-        const enabled = toggle.checked;
-        toggle.disabled = true;
-        try {
-            const current = findExtension(extensionFolder);
-            if (!current) throw new Error('酒馆未找到当前扩展');
-            if (enabled) await enableExtension(current.name);
-            else await disableExtension(current.name);
-        } catch (error) {
-            console.error('[聊天文件管理] 切换扩展状态失败', error);
-            globalThis.toastr?.error?.(`切换扩展状态失败：${error.message}`);
-            toggle.checked = findExtension(extensionFolder)?.enabled ?? !enabled;
-            toggle.disabled = false;
-        }
+function configureEnabledToggle(toggle, settings, applyEnabledState) {
+    toggle.checked = settings.enabled !== false;
+    toggle.addEventListener('change', () => {
+        settings.enabled = toggle.checked;
+        saveSettingsDebounced();
+        applyEnabledState(toggle.checked);
+        globalThis.toastr?.success?.(`聊天文件管理已${toggle.checked ? '启用' : '停用'}`);
     });
 }
 
@@ -217,9 +201,10 @@ function selectExtensionColumn(savedColumn) {
  * 向酒馆原生扩展程序抽屉添加状态卡片
  * @param {ExtensionMetadata} metadata 扩展元数据
  * @param {ChatManagerSettings} settings 插件功能设置
+ * @param {(enabled:boolean)=>void} applyEnabledState 应用状态
  * @returns {Promise<boolean>} 是否已找到原生容器并完成插入
  */
-async function insertExtensionStatus(metadata, settings) {
+async function insertExtensionStatus(metadata, settings, applyEnabledState) {
     if (document.querySelector('#chat_manager_extension_status')) return true;
     const container = selectExtensionColumn(settings.column);
     if (!container) return false;
@@ -244,7 +229,7 @@ async function insertExtensionStatus(metadata, settings) {
     }
 
     version.textContent = `version ${metadata.version}`;
-    configureEnabledToggle(enabledToggle);
+    configureEnabledToggle(enabledToggle, settings, applyEnabledState);
     container.append(drawer);
     configureUpdateButton(updateButton, version, metadata.version);
     return true;
@@ -299,9 +284,33 @@ export async function init() {
     const nativePanel = new NativeChatPanel({ getContext, ui, isGenerating });
     const metadata = await loadExtensionMetadata();
     const settings = extension_settings.chatManager ??= {};
+    settings.enabled ??= true;
+    let recoveryChecked = false;
+
+    const recoverPendingTasks = async () => {
+        if (recoveryChecked) return;
+        recoveryChecked = true;
+        try {
+            const tasks = await splitter.reconcile();
+            if (settings.enabled && tasks.length) await ui.showRecovery(tasks);
+        } catch (error) {
+            console.error('[聊天文件管理] 恢复未完成任务失败', error);
+        }
+    };
+
+    const applyEnabledState = (enabled) => {
+        document.querySelector('#chat_manager_open')?.classList.toggle('displayNone', !enabled);
+        if (!enabled) ui.close();
+        nativePanel.setEnabled(enabled);
+        if (enabled) void recoverPendingTasks();
+    };
 
     const insertEntry = () => {
-        if (document.querySelector('#chat_manager_open')) return true;
+        const existing = document.querySelector('#chat_manager_open');
+        if (existing) {
+            existing.classList.toggle('displayNone', !settings.enabled);
+            return true;
+        }
         const anchor = document.querySelector('#option_select_chat');
         if (!anchor) return false;
         const entry = element('a', { attrs: { id: 'chat_manager_open' } });
@@ -314,6 +323,7 @@ export async function init() {
             const options = document.querySelector('#options');
             if (options instanceof HTMLElement) options.style.display = 'none';
         });
+        entry.classList.toggle('displayNone', !settings.enabled);
         anchor.insertAdjacentElement('afterend', entry);
         return true;
     };
@@ -322,9 +332,9 @@ export async function init() {
         if (!insertEntry()) globalThis.toastr?.error?.('聊天管理无法找到原生聊天文件入口');
     }, 1000);
     try {
-        if (!await insertExtensionStatus(metadata, settings)) {
+        if (!await insertExtensionStatus(metadata, settings, applyEnabledState)) {
             setTimeout(() => {
-                insertExtensionStatus(metadata, settings).catch(error => {
+                insertExtensionStatus(metadata, settings, applyEnabledState).catch(error => {
                     console.error('[聊天文件管理] 插入扩展设置失败', error);
                 });
             }, 1000);
@@ -332,6 +342,7 @@ export async function init() {
     } catch (error) {
         console.error('[聊天文件管理] 插入扩展设置失败', error);
     }
+    applyEnabledState(settings.enabled);
     if (!nativePanel.init()) setTimeout(() => nativePanel.init(), 1000);
 
     const updateState = () => {
@@ -342,10 +353,4 @@ export async function init() {
     context.eventSource.on(context.eventTypes.GENERATION_ENDED, updateState);
     context.eventSource.on(context.eventTypes.GENERATION_STOPPED, updateState);
 
-    try {
-        const tasks = await splitter.reconcile();
-        if (tasks.length) await ui.showRecovery(tasks);
-    } catch (error) {
-        console.error('[聊天文件管理] 恢复未完成任务失败', error);
-    }
 }
