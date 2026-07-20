@@ -1,0 +1,32 @@
+.chat-manager-extension-status .inline-drawer-header {
+    align-items: center;
+}
+
+.chat-manager-extension-status .chat-manager-extension-meta {
+    justify-content: space-between;
+    margin-bottom: 5px;
+}
+
+.chat-manager-extension-version {
+    color: var(--grey50);
+    font-size: calc(var(--mainFontSize) * 0.8);
+    font-variant-numeric: tabular-nums;
+}
+
+.chat-manager-update-action {
+    padding: 0;
+    border: 0;
+    color: var(--SmartThemeQuoteColor);
+    background: transparent;
+    font-size: calc(var(--mainFontSize) * 0.8);
+    cursor: pointer;
+}
+
+.chat-manager-update-action:not(:disabled):hover {
+    text-decoration: underline;
+}
+
+.chat-manager-update-action:disabled {
+    color: var(--grey50);
+    cursor: default;
+}

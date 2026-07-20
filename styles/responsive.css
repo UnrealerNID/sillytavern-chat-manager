@@ -1,0 +1,97 @@
+@media (max-width: 700px) {
+    .cm-overlay {
+        padding: 0;
+    }
+
+    .cm-panel,
+    .cm-dialog {
+        width: 100vw;
+        max-height: 100dvh;
+        height: 100dvh;
+        border-radius: 0;
+    }
+
+    .cm-panel-header {
+        padding: 14px;
+    }
+
+    .cm-toolbar,
+    .cm-chat-list {
+        padding-inline: 10px;
+    }
+
+    .cm-backup-row,
+    .cm-recovery {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .cm-chat-date {
+        display: none;
+    }
+
+    .cm-row-action {
+        width: 30px;
+        min-width: 30px;
+        flex-basis: 30px;
+        padding: 3px;
+    }
+
+    .cm-row-action span {
+        display: none;
+    }
+
+    .cm-chat-name strong {
+        max-width: 48%;
+    }
+
+    .cm-chat-message-row {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .cm-actions {
+        justify-content: flex-end;
+    }
+
+    .cm-panel-footer {
+        align-items: stretch;
+        flex-direction: column-reverse;
+        gap: 8px;
+    }
+
+    .chat-manager-extension-meta,
+    .cm-pagination {
+        justify-content: center;
+    }
+
+    .cm-pagination {
+        width: 100%;
+    }
+
+    .cm-page-label {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .cm-split-form {
+        grid-template-columns: 1fr;
+    }
+
+    .cm-dialog-actions {
+        flex-wrap: wrap;
+    }
+
+    .cm-message-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 3px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cm-loading-spinner,
+    .cm-loading-progress-indeterminate > span {
+        animation-duration: 2s;
+    }
+}

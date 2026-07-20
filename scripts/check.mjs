@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 
 const root = new URL('..', import.meta.url).pathname.replace(/^\/(.:)/, '$1');
 
@@ -38,5 +38,13 @@ for (const referenced of [
     ...Object.values(manifest.i18n ?? {}),
 ]) {
     if (!existsSync(join(root, referenced))) throw new Error(`插件引用了不存在的文件：${referenced}`);
+}
+
+// 样式入口中的相对导入必须随插件一起发布
+const cssEntryPath = join(root, manifest.css);
+const cssEntry = readFileSync(cssEntryPath, 'utf8');
+for (const match of cssEntry.matchAll(/@import\s+url\(["']?([^"')]+)["']?\)\s*;/g)) {
+    const importedPath = resolve(dirname(cssEntryPath), match[1]);
+    if (!existsSync(importedPath)) throw new Error(`样式入口引用了不存在的文件：${match[1]}`);
 }
 console.log('checked manifest.json');

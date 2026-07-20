@@ -108,7 +108,6 @@ document
 .
 ├─ manifest.json
 ├─ index.js
-├─ style.css
 ├─ modules/
 │  ├─ api.js
 │  ├─ backups.js
@@ -118,6 +117,19 @@ document
 │  ├─ task-journal.js
 │  ├─ ui.js
 │  └─ utils.js
+├─ styles/
+│  ├─ index.css
+│  ├─ base.css
+│  ├─ components.css
+│  ├─ panel.css
+│  ├─ dialogs.css
+│  ├─ responsive.css
+│  └─ settings.css
+├─ templates/
+│  ├─ panel.html
+│  ├─ dialogs.html
+│  ├─ components.html
+│  └─ settings.html
 ├─ scripts/
 │  └─ check.mjs
 ├─ test/
@@ -137,7 +149,7 @@ document
   "requires": [],
   "optional": [],
   "js": "index.js",
-  "css": "style.css",
+  "css": "styles/index.css",
   "author": "Unrealer",
   "version": "0.1.0",
   "minimum_client_version": "1.18.0",
