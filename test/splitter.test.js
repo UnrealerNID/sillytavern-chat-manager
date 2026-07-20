@@ -56,7 +56,7 @@ test('prepare and execute fixed-size character splits without changing source', 
     const plan = await splitter.prepare(record, { mode: 'fixed', start: 0, end: 4, chunkSize: 2 });
 
     assert.equal(plan.parts.length, 3);
-    assert.match(plan.parts[0].fileId, /分卷 001-of-003/);
+    assert.deepEqual(plan.parts.map(part => part.fileId), [`${record.fileId} - 1`, `${record.fileId} - 2`, `${record.fileId} - 3`]);
     assert.deepEqual(plan.parts.map(part => part.count), [2, 2, 1]);
 
     const task = await splitter.execute(plan);
@@ -99,7 +99,8 @@ test('continues a split group with logical ranges and sequence numbers', async (
         [3, 3, 103, 103],
         [4, 4, 104, 104],
     ]);
-    assert.match(plan.parts[0].fileId, /^逻辑分卷组 \[分卷 003\] \[#103-#103\]$/);
+    assert.equal(plan.parts[0].fileId, '逻辑分卷组 - 3');
+    assert.equal(plan.parts[1].fileId, '逻辑分卷组 - 4');
     assert.equal(plan.parts[0].header.chat_metadata.chat_manager.rootChatId, '逻辑分卷组');
 });
 

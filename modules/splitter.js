@@ -37,7 +37,6 @@ export class SplitService {
         const reserved = new Set();
         const parts = [];
         const sequenceStart = Number(options.sequenceStart ?? 1);
-        const width = Math.max(3, String(sequenceStart + ranges.length - 1).length);
         const rangeOffset = Number(options.rangeOffset ?? 0);
         const outputRootChatId = String(options.outputRootChatId ?? record.fileId);
         const chunkSize = options.mode === 'fixed' ? options.chunkSize : null;
@@ -46,11 +45,8 @@ export class SplitService {
             const range = ranges[index];
             const logicalRange = { ...range, start: range.start + rangeOffset, end: range.end + rangeOffset };
             const sequence = sequenceStart + index;
-            const suffix = options.incremental
-                ? ` [分卷 ${String(sequence).padStart(width, '0')}] [#${logicalRange.start}-#${logicalRange.end}]`
-                : ranges.length === 1
-                ? ` [#${range.start}-#${range.end}]`
-                : ` [分卷 ${String(index + 1).padStart(width, '0')}-of-${String(ranges.length).padStart(width, '0')}] [#${range.start}-#${range.end}]`;
+            // 楼层范围和分卷配置已写入聊天头，文件名只保留便于辨认的顺序号
+            const suffix = ` - ${sequence}`;
             const fileId = await this.#uniqueName(record, suffix, occupied, reserved, outputRootChatId);
             reserved.add(fileId);
             const messages = source.messages.slice(range.start, range.end + 1);
