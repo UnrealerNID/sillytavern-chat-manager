@@ -12,8 +12,16 @@ import { element } from './modules/utils.js';
 let initialized = false;
 
 /**
- * Reads the installed manifest so displayed metadata has one source of truth
- * @returns {Promise<{display_name:string, version:string, auto_update:boolean}>} Extension metadata
+ * 扩展清单中用于界面展示的元数据
+ * @typedef {object} ExtensionMetadata
+ * @property {string} display_name 扩展显示名称
+ * @property {string} version 当前扩展版本
+ * @property {boolean} auto_update 是否启用酒馆原生更新检测
+ */
+
+/**
+ * 读取已安装的扩展清单，确保界面展示信息只有一个数据来源
+ * @returns {Promise<ExtensionMetadata>} 扩展元数据
  */
 async function loadExtensionMetadata() {
     try {
@@ -21,15 +29,15 @@ async function loadExtensionMetadata() {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return await response.json();
     } catch (error) {
-        console.warn('[Chat Manager] Failed to read extension metadata', error);
+        console.warn('[聊天文件管理] 读取扩展元数据失败', error);
         return { display_name: '聊天文件管理', version: '未知', auto_update: false };
     }
 }
 
 /**
- * Adds a status-only card to the native extensions drawer
- * @param {{display_name:string, version:string, auto_update:boolean}} metadata Extension metadata
- * @returns {boolean} Whether the native container was available
+ * 向酒馆原生扩展程序抽屉添加状态卡片
+ * @param {ExtensionMetadata} metadata 扩展元数据
+ * @returns {boolean} 是否已找到原生容器并完成插入
  */
 function insertExtensionStatus(metadata) {
     if (document.querySelector('#chat_manager_extension_status')) return true;
@@ -72,7 +80,11 @@ function getContext() {
     return SillyTavern.getContext();
 }
 
-/** @param {import('./modules/utils.js').ChatRecord} record Chat record */
+/**
+ * 打开指定聊天记录
+ * @param {import('./modules/utils.js').ChatRecord} record 待打开的聊天记录
+ * @returns {Promise<void>}
+ */
 async function openRecord(record) {
     if (isGenerating()) throw new Error('聊天正在生成，当前不能切换聊天');
     let context = getContext();
@@ -98,7 +110,7 @@ async function openRecord(record) {
 }
 
 /**
- * Activates the extension through the SillyTavern manifest hook
+ * 通过酒馆扩展清单钩子激活插件
  * @returns {Promise<void>}
  */
 export async function init() {
@@ -149,6 +161,6 @@ export async function init() {
         const tasks = await splitter.reconcile();
         if (tasks.length) await ui.showRecovery(tasks);
     } catch (error) {
-        console.error('[Chat Manager] Failed to reconcile tasks', error);
+        console.error('[聊天文件管理] 恢复未完成任务失败', error);
     }
 }
