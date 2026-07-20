@@ -4,16 +4,18 @@
         <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
     </div>
     <div class="inline-drawer-content">
-        <div class="chat-manager-extension-meta">
-            <span class="chat-manager-extension-version"></span>
-            <button id="chat_manager_update" class="menu_button menu_button_icon" type="button" hidden>
-                <i class="fa-solid fa-download"></i>
-                <span>更新</span>
-            </button>
+        <div class="chat-manager-settings-row">
+            <label class="checkbox_label" for="chat_manager_enabled">
+                <input id="chat_manager_enabled" class="checkbox" type="checkbox">
+                <span>启用扩展</span>
+            </label>
+            <div class="chat-manager-extension-meta">
+                <span class="chat-manager-extension-version"></span>
+                <button id="chat_manager_update" class="menu_button menu_button_icon" type="button" hidden>
+                    <i class="fa-solid fa-download"></i>
+                    <span>更新</span>
+                </button>
+            </div>
         </div>
-        <label class="chat-manager-setting-row checkbox_label" for="chat_manager_enabled">
-            <span>启用扩展</span>
-            <input id="chat_manager_enabled" class="checkbox" type="checkbox">
-        </label>
     </div>
 </div>

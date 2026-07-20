@@ -271,26 +271,18 @@
     align-items: center;
 }
 
-.chat-manager-extension-status .inline-drawer-content {
-    position: relative;
-    padding-top: 2.75rem;
-}
-
-.chat-manager-extension-meta {
-    position: absolute;
-    top: 0;
-    right: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.chat-manager-setting-row {
+.chat-manager-settings-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    padding: 0.35rem 0;
+    gap: 0.5rem;
+}
+
+.chat-manager-extension-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
 }
 
 .chat-manager-extension-version {
