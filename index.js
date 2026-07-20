@@ -363,6 +363,18 @@ export async function init() {
     const settings = extension_settings.chatManager ??= {};
     settings.enabled ??= true;
     let recoveryChecked = false;
+    let backupWarmupScheduled = false;
+
+    const scheduleBackupWarmup = () => {
+        if (backupWarmupScheduled) return;
+        backupWarmupScheduled = true;
+        const run = () => void backups.warmup();
+        if (typeof globalThis.requestIdleCallback === 'function') {
+            globalThis.requestIdleCallback(run, { timeout: 2_000 });
+        } else {
+            setTimeout(run, 1_000);
+        }
+    };
 
     const recoverPendingTasks = async () => {
         if (recoveryChecked) return;
@@ -379,7 +391,10 @@ export async function init() {
         document.querySelector('#chat_manager_open')?.classList.toggle('displayNone', !enabled);
         if (!enabled) ui.close();
         nativePanel.setEnabled(enabled);
-        if (enabled) void recoverPendingTasks();
+        if (enabled) {
+            void recoverPendingTasks();
+            scheduleBackupWarmup();
+        }
     };
 
     const insertEntry = () => {

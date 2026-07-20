@@ -218,12 +218,17 @@ export class ChatManagerUi {
     }
 
     async openBackups(record) {
-        const dialog = this.#dialog(`对应备份 · ${record.ownerName} / ${record.fileId}`);
-        const status = element('div', { className: 'cm-state', text: '正在读取并匹配备份…' });
+        const dialog = this.#dialog(['对应备份', record.ownerName, record.fileId]);
+        const status = element('div', { className: 'cm-state cm-loading-state' });
+        const statusText = element('span', { text: '正在读取备份列表…' });
+        status.append(
+            element('i', { className: 'fa-solid fa-spinner fa-spin', attrs: { 'aria-hidden': 'true' } }),
+            statusText,
+        );
         dialog.body.append(status);
         try {
             const matches = await this.backups.find(record, (done, total) => {
-                status.textContent = `正在匹配备份 ${done}/${total}`;
+                statusText.textContent = `正在验证候选备份 ${done} / ${total}`;
             }, dialog.signal);
             dialog.body.replaceChildren();
             if (!matches.length) {
@@ -248,7 +253,8 @@ export class ChatManagerUi {
             }
         } catch (error) {
             if (dialog.signal.aborted) return;
-            status.textContent = error.message;
+            status.classList.remove('cm-loading-state');
+            status.replaceChildren(element('span', { text: error.message }));
             notify('error', error.message);
         }
     }
@@ -450,7 +456,13 @@ export class ChatManagerUi {
             || !(body instanceof HTMLElement)) {
             throw new Error('聊天管理弹窗模板无效');
         }
-        heading.textContent = title;
+        if (Array.isArray(title)) {
+            heading.classList.add('cm-dialog-title-lines');
+            heading.title = title.join(' / ');
+            heading.append(...title.map(text => element('span', { text })));
+        } else {
+            heading.textContent = title;
+        }
         const remove = () => {
             controller.abort();
             root.remove();
