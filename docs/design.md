@@ -201,8 +201,10 @@ document
 | `POST /api/chats/group/get` | 读取指定群聊 | 否 |
 | `POST /api/chats/group/info` | 读取指定群聊的大小、楼层数和更新时间 | 否 |
 | `POST /api/chats/export` | 精确探测未登记群聊文件名是否已占用 | 否 |
-| `POST /api/backups/chat/get` | 获取原生备份列表 | 否 |
-| `POST /api/backups/chat/download` | 按实际文件名读取备份 | 否 |
+| `POST /api/data-maid/report` | 生成包含聊天备份的临时文件报告 | 否 |
+| `GET /api/data-maid/view` | 按令牌与文件摘要读取备份 | 否 |
+| `POST /api/data-maid/delete` | 按令牌与文件摘要删除已确认的备份 | 是 |
+| `POST /api/data-maid/finalize` | 释放临时文件报告 | 是 |
 | `POST /api/files/sanitize-filename` | 复现服务端文件名清理 | 否 |
 | `POST /api/chats/save` | 创建单聊分卷 | 是 |
 | `POST /api/chats/group/save` | 创建群聊分卷 | 是 |
@@ -216,8 +218,8 @@ document
 - 全部聊天接口：[`SillyTavern/src/endpoints/chats.js`](../../SillyTavern/src/endpoints/chats.js)
 - 角色聊天接口：[`SillyTavern/src/endpoints/characters.js`](../../SillyTavern/src/endpoints/characters.js)
 - 群组接口：[`SillyTavern/src/endpoints/groups.js`](../../SillyTavern/src/endpoints/groups.js)
-- 备份接口：[`SillyTavern/src/endpoints/backups.js`](../../SillyTavern/src/endpoints/backups.js)
-- 原生备份浏览器：[`SillyTavern/public/scripts/chat-backups.js`](../../SillyTavern/public/scripts/chat-backups.js)
+- 数据清理接口：[`SillyTavern/src/endpoints/data-maid.js`](../../SillyTavern/src/endpoints/data-maid.js)
+- 原生数据清理面板：[`SillyTavern/public/scripts/data-maid.js`](../../SillyTavern/public/scripts/data-maid.js)
 - 最近聊天界面：[`SillyTavern/public/scripts/welcome-screen.js`](../../SillyTavern/public/scripts/welcome-screen.js)
 - 原生聊天行模板：[`SillyTavern/public/index.html`](../../SillyTavern/public/index.html)
 
@@ -346,11 +348,11 @@ sanitize(name).replace(/[^a-z0-9]/gi, '_').toLowerCase()
 
 ### 7.2 读取方式
 
-1. 调用 `/api/backups/chat/get` 获取服务器实际文件名
-2. 将实际文件名原样传给 `/api/backups/chat/download`
-3. 解析 JSONL 聊天头和消息
+1. 调用 `/api/data-maid/report` 获取临时令牌和备份文件摘要
+2. 将令牌与摘要传给 `/api/data-maid/view`，不再按可能变化的备份文件名读取
+3. 解析 JSONL 聊天头和消息，操作结束后调用 `/api/data-maid/finalize` 释放报告
 
-下划线不影响读取；它只导致文件名无法直接辨认。
+下划线不影响读取；它只导致文件名无法直接辨认。摘要读取同时规避备份轮换发生在枚举与读取之间时产生的文件名竞态。
 
 ### 7.3 匹配顺序
 

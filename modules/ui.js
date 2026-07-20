@@ -20,7 +20,7 @@ export class ChatManagerUi {
      * @param {(record:object)=>Promise<void>} dependencies.openRecord 打开聊天回调
      * @param {(record:object)=>Promise<void>} dependencies.deleteRecord 删除聊天回调
      * @param {(record:object,backup:object)=>Promise<string[]>} dependencies.restoreBackup 原生备份恢复回调
-     * @param {()=>Promise<void>} dependencies.openInventory 打开文件清单二级页面
+     * @param {()=>Promise<void>} dependencies.openDataMaid 打开酒馆原生数据清理面板
      * @param {string} dependencies.template 稳定面板模板
      * @param {string} dependencies.dialogTemplates 弹窗模板注册表
      * @param {string} dependencies.componentTemplates 重复内容组件模板注册表
@@ -28,7 +28,7 @@ export class ChatManagerUi {
      * @param {{groupOwners?:boolean,groupSplits?:boolean}} dependencies.viewOptions 列表分组设置
      * @param {(options:{groupOwners:boolean,groupSplits:boolean})=>void} dependencies.onViewOptionsChange 分组设置回调
      */
-    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, deleteRecord, restoreBackup, openInventory, template, dialogTemplates, componentTemplates, getAvatarUrl, viewOptions = {}, onViewOptionsChange = () => {} }) {
+    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, deleteRecord, restoreBackup, openDataMaid, template, dialogTemplates, componentTemplates, getAvatarUrl, viewOptions = {}, onViewOptionsChange = () => {} }) {
         this.getContext = getContext;
         this.api = api;
         this.backups = backups;
@@ -37,7 +37,7 @@ export class ChatManagerUi {
         this.openRecord = openRecord;
         this.deleteRecord = deleteRecord;
         this.restoreBackup = restoreBackup;
-        this.openInventory = openInventory;
+        this.openDataMaid = openDataMaid;
         this.getAvatarUrl = getAvatarUrl;
         this.records = null;
         this.filtered = [];
@@ -112,10 +112,9 @@ export class ChatManagerUi {
 
         required(root, '[data-cm-close]', HTMLButtonElement).addEventListener('click', () => this.close());
         required(root, '[data-cm-refresh]', HTMLButtonElement).addEventListener('click', () => this.refresh());
-        required(root, '[data-cm-inventory-open]', HTMLButtonElement).addEventListener('click', () => {
-            if (this.isGenerating()) return notify('warning', '聊天正在生成，结束后才能读取文件清单');
-            if (this.splitter.running) return notify('warning', '分割任务正在写入聊天，完成后才能读取文件清单');
-            void this.openInventory();
+        required(root, '[data-cm-data-maid-open]', HTMLButtonElement).addEventListener('click', () => {
+            this.close();
+            void this.openDataMaid();
         });
         this.scopeCurrentButton.addEventListener('click', () => void this.#setScope('current'));
         this.scopeAllButton.addEventListener('click', () => void this.#setScope('all'));

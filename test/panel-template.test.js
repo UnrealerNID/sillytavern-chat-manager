@@ -16,7 +16,7 @@ test('panel template exposes all stable UI mounts', async () => {
         'data-cm-batch-cancel',
         'data-cm-batch-confirm',
         'data-cm-batch-count',
-        'data-cm-inventory-open',
+        'data-cm-data-maid-open',
         'data-cm-state',
         'data-cm-list',
         'data-cm-version',
@@ -28,38 +28,32 @@ test('panel template exposes all stable UI mounts', async () => {
     }
 });
 
-test('file inventory delegates chat cleanup and scans only orphan backups', async () => {
+test('data maid enhancement mounts after either native or plugin-triggered scans', async () => {
     const [html, source] = await Promise.all([
-        readFile(new URL('../templates/inventory.html', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/file-inventory.js', import.meta.url), 'utf8'),
+        readFile(new URL('../templates/data-maid-enhancer.html', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/data-maid-enhancer.js', import.meta.url), 'utf8'),
     ]);
     for (const marker of [
-        'chat_manager_inventory_overlay',
-        'data-cm-inventory-mode="all"',
-        'data-cm-inventory-mode="orphan"',
-        'data-cm-inventory-open-cleanup',
-        'data-cm-inventory-scan-backups',
-        'data-cm-inventory-select-all',
-        'data-cm-inventory-delete-selected',
-        'data-cm-inventory-viewer',
-        'data-cm-inventory-delete-dialog',
-        'data-cm-inventory-tab="backups"',
-        'data-cm-inventory-tab="orphanBackups"',
-        'data-cm-inventory-row-template',
-        'data-cm-inventory-previous',
-        'data-cm-inventory-next',
+        'chat_manager_data_maid_enhancer',
+        'data-cm-maid-scan',
+        'data-cm-maid-search',
+        'data-cm-maid-sort',
+        'data-cm-maid-filter',
+        'data-cm-maid-select-all',
+        'data-cm-maid-delete-selected',
+        'data-cm-maid-viewer',
+        'data-cm-maid-delete-dialog',
+        'data-cm-maid-controls-template',
     ]) {
         assert.match(html, new RegExp(marker));
     }
-    assert.match(html, /清理孤立聊天/);
     assert.match(html, /检查孤立备份/);
-    assert.doesNotMatch(html, /data-cm-inventory-tab="chats"|data-cm-inventory-enter/);
-    assert.doesNotMatch(html, /data-cm-inventory-tab="orphans"/);
     assert.match(html, /type="checkbox"/);
-    assert.doesNotMatch(html, /打开酒馆数据清理/);
     assert.match(source, /document\.querySelector\('#data_maid_button'\)/);
-    assert.match(source, /await this\.backups\.dispose\(\);\s*button\.click\(\)/);
-    assert.doesNotMatch(source, /dataMaidReport\.chats|dataMaidReport\.groupChats/);
+    assert.match(source, /document\.addEventListener\('click', this\.documentClick, true\)/);
+    assert.match(source, /closest\('\.dataMaidStartButton'\)/);
+    assert.match(source, /#captureNextReport\(\)/);
+    assert.doesNotMatch(source, /start\.click\(\)/);
 });
 
 test('dialog templates expose every static dialog and dynamic mount', async () => {

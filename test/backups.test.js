@@ -11,7 +11,7 @@ test('backup features never call the race-prone native backup name endpoints', a
     const sources = await Promise.all([
         readFile(new URL('../modules/api.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/backups.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/file-inventory.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/data-maid-enhancer.js', import.meta.url), 'utf8'),
         readFile(new URL('../index.js', import.meta.url), 'utf8'),
     ]);
     const source = sources.join('\n');

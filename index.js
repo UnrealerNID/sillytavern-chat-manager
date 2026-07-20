@@ -20,7 +20,7 @@ import { isAdmin } from '/scripts/user.js';
 
 import { ChatManagerApi } from './modules/api.js';
 import { BackupService } from './modules/backups.js';
-import { FileInventoryUi } from './modules/file-inventory.js';
+import { DataMaidEnhancer } from './modules/data-maid-enhancer.js';
 import { openChatRecord } from './modules/chat-opener.js';
 import { NativeChatPanel } from './modules/native-chat-panel.js';
 import { SplitService } from './modules/splitter.js';
@@ -378,14 +378,14 @@ export async function init() {
     settings.enabled ??= true;
     settings.groupOwners ??= false;
     settings.groupSplits ??= false;
-    const [metadata, panelTemplate, inventoryTemplate, dialogTemplates, componentTemplates] = await Promise.all([
+    const [metadata, panelTemplate, dataMaidTemplate, dialogTemplates, componentTemplates] = await Promise.all([
         loadExtensionMetadata(),
         renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/panel'),
-        renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/inventory'),
+        renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/data-maid-enhancer'),
         renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/dialogs'),
         renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/components'),
     ]);
-    const inventory = new FileInventoryUi({ api, backups, template: inventoryTemplate });
+    const dataMaid = new DataMaidEnhancer({ api, template: dataMaidTemplate });
     const ui = new ChatManagerUi({
         getContext,
         api,
@@ -395,7 +395,7 @@ export async function init() {
         openRecord,
         deleteRecord,
         restoreBackup: (record, backup) => restoreBackup(record, backup, backups),
-        openInventory: () => inventory.open(),
+        openDataMaid: () => dataMaid.open(),
         template: panelTemplate,
         dialogTemplates,
         componentTemplates,
@@ -427,9 +427,9 @@ export async function init() {
         document.querySelector('#chat_manager_open')?.classList.toggle('displayNone', !enabled);
         if (!enabled) {
             ui.close();
-            inventory.close();
             void backups.dispose();
         }
+        dataMaid.setEnabled(enabled);
         nativePanel.setEnabled(enabled);
         if (enabled) {
             void recoverPendingTasks();

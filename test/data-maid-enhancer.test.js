@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyBackupIntegrity } from '../modules/file-inventory.js';
+import { classifyBackupIntegrity } from '../modules/data-maid-enhancer.js';
 
 test('backup integrity distinguishes linked, orphan and uncertain files without using names', () => {
     const active = new Set(['current-chat-id']);

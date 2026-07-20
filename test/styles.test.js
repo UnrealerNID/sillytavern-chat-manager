@@ -12,20 +12,16 @@ test('style entry imports every responsibility module', async () => {
         './components.css',
         './panel.css',
         './dialogs.css',
-        './inventory.css',
+        './data-maid-enhancer.css',
         './responsive.css',
         './settings.css',
     ]);
     await Promise.all(imports.map(path => access(new URL(path, entryUrl))));
 });
 
-test('file inventory stays above the manager panel and below dialogs', async () => {
-    const [base, inventory] = await Promise.all([
-        readFile(new URL('../styles/base.css', import.meta.url), 'utf8'),
-        readFile(new URL('../styles/inventory.css', import.meta.url), 'utf8'),
-    ]);
+test('data maid enhancement dialogs use the shared dialog layer', async () => {
+    const base = await readFile(new URL('../styles/base.css', import.meta.url), 'utf8');
     assert.match(base, /\.cm-overlay\s*\{[^}]*z-index:\s*31000/s);
-    assert.match(inventory, /#chat_manager_inventory_overlay\s*\{[^}]*z-index:\s*31500/s);
     assert.match(base, /\.cm-dialog-overlay\s*\{[^}]*z-index:\s*32000/s);
 });
 
@@ -34,5 +30,8 @@ test('all plugin panels use the same readable disabled button style', async () =
     assert.match(css, /\.cm-panel \.menu_button,[\s\S]*\.cm-dialog \.menu_button\s*{\s*font-weight:\s*600/);
     assert.match(css, /\.cm-panel :is\(\.menu_button, \.cm-icon-button\):disabled/);
     assert.match(css, /\.cm-dialog :is\(\.menu_button, \.cm-icon-button\):disabled/);
-    assert.match(css, /opacity:\s*0\.72\s*!important/);
+    assert.match(css, /\.cm-data-maid-enhanced :is\(\.menu_button, \.cm-icon-button\):disabled/);
+    assert.match(css, /color:\s*var\(--SmartThemeBodyColor\)\s*!important/);
+    assert.match(css, /opacity:\s*0\.7\s*!important/);
+    assert.match(css, /filter:\s*grayscale\(1\)\s*!important/);
 });
