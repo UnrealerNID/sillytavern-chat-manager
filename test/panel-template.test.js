@@ -103,3 +103,16 @@ test('panels and dialogs do not close from backdrop clicks', async () => {
     assert.doesNotMatch(source, /event\.target\s*===\s*root/);
     assert.doesNotMatch(source, /event\.target\s*===\s*this\.root/);
 });
+
+test('backup listing is only requested explicitly while chat files are stable', async () => {
+    const [entry, backups, ui] = await Promise.all([
+        readFile(new URL('../index.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/backups.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/ui.js', import.meta.url), 'utf8'),
+    ]);
+    assert.doesNotMatch(entry, /scheduleBackupWarmup|backups\.warmup/);
+    assert.doesNotMatch(backups, /async warmup\s*\(/);
+    assert.match(ui, /backup\.disabled\s*=\s*this\.isGenerating\(\)\s*\|\|\s*this\.splitter\.running/);
+    assert.match(ui, /async openBackups\(record\)\s*{\s*if \(this\.isGenerating\(\)\)/);
+    assert.match(ui, /if \(this\.splitter\.running\) return notify\('warning', '分割任务正在写入聊天/);
+});

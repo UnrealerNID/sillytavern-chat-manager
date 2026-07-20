@@ -142,7 +142,7 @@ export class ChatManagerUi {
     updateRuntimeState() {
         const generating = this.isGenerating();
         this.#setState(generating
-            ? '聊天正在生成：当前仅允许浏览和查看备份'
+            ? '聊天正在生成：当前仅允许浏览'
             : this.splitter.running ? '分割任务正在执行' : '');
         if (this.activeSplitRoot?.isConnected) this.activeSplitSync?.();
         this.#render();
@@ -387,6 +387,7 @@ export class ChatManagerUi {
         this.#bindButton(backup, () => this.openBackups(record));
         this.#bindButton(split, () => this.openSplit(record));
         open.disabled = this.isGenerating() || this.splitter.running;
+        backup.disabled = this.isGenerating() || this.splitter.running;
         split.disabled = this.isGenerating() || this.splitter.running || record.messageCount < 1;
 
         row.addEventListener('click', event => {
@@ -397,6 +398,8 @@ export class ChatManagerUi {
     }
 
     async openBackups(record) {
+        if (this.isGenerating()) return notify('warning', '聊天正在生成，结束后才能读取备份');
+        if (this.splitter.running) return notify('warning', '分割任务正在写入聊天，完成后才能读取备份');
         const dialog = this.#dialog(['对应备份', record.ownerName, record.fileId], 'backups');
         const status = this.#mount(dialog.body, '[data-cm-backup-status]');
         const statusText = this.#mount(dialog.body, '[data-cm-backup-status-text]');

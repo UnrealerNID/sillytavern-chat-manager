@@ -392,18 +392,6 @@ export async function init() {
     const panelUpdateView = ui.getExtensionUpdateView();
     configureUpdateButton(panelUpdateView.button, panelUpdateView.version, metadata.version);
     let recoveryChecked = false;
-    let backupWarmupScheduled = false;
-
-    const scheduleBackupWarmup = () => {
-        if (backupWarmupScheduled) return;
-        backupWarmupScheduled = true;
-        const run = () => void backups.warmup();
-        if (typeof globalThis.requestIdleCallback === 'function') {
-            globalThis.requestIdleCallback(run, { timeout: 2_000 });
-        } else {
-            setTimeout(run, 1_000);
-        }
-    };
 
     const recoverPendingTasks = async () => {
         if (recoveryChecked) return;
@@ -422,7 +410,6 @@ export async function init() {
         nativePanel.setEnabled(enabled);
         if (enabled) {
             void recoverPendingTasks();
-            scheduleBackupWarmup();
         }
     };
 

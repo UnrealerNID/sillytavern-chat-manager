@@ -15,18 +15,6 @@ export class BackupService {
     }
 
     /**
-     * 提前填充原生备份列表缓存
-     * @returns {Promise<void>}
-     */
-    async warmup() {
-        try {
-            await this.#listBackups();
-        } catch (error) {
-            console.warn('[聊天文件管理] 预读取备份列表失败', error);
-        }
-    }
-
-    /**
      * 查找与指定聊天相关的备份
      * @param {import('./utils.js').ChatRecord} record 聊天记录
      * @param {object} callbacks 扫描阶段回调
