@@ -31,13 +31,15 @@ export class BackupService {
      * @param {import('./utils.js').ChatRecord} record Chat record
      * @param {(done:number,total:number)=>void} onProgress Progress callback
      * @param {AbortSignal} [signal] Abort signal
+     * @param {(match:object)=>void} onMatch 增量匹配回调
      * @returns {Promise<object[]>} Matches
      */
-    async find(record, onProgress = () => {}, signal) {
+    async find(record, onProgress = () => {}, signal, onMatch = () => {}) {
         const resultKey = `${chatKey(record)}:${record.messageCount ?? ''}`;
         const cached = this.resultCache.get(resultKey);
         if (cached?.expiresAt > Date.now()) {
             onProgress(cached.total, cached.total);
+            cached.matches.forEach(onMatch);
             return cached.matches;
         }
 
@@ -79,7 +81,7 @@ export class BackupService {
                 if (signal?.aborted) throw error;
                 return { ...candidate, status: 'error', reason: error.message };
             }
-        }, onProgress);
+        }, onProgress, onMatch);
         const sorted = matches.sort((a, b) => new Date(b.last_mes).valueOf() - new Date(a.last_mes).valueOf());
         this.resultCache.set(resultKey, {
             expiresAt: Date.now() + MATCH_RESULT_CACHE_MS,
@@ -157,9 +159,10 @@ export class BackupService {
      * @param {object[]} candidates 候选备份
      * @param {(candidate:object)=>Promise<object|null>} worker 匹配任务
      * @param {(done:number,total:number)=>void} onProgress 进度回调
+     * @param {(match:object)=>void} onMatch 增量匹配回调
      * @returns {Promise<object[]>} 有效结果
      */
-    async #mapCandidates(candidates, worker, onProgress) {
+    async #mapCandidates(candidates, worker, onProgress, onMatch) {
         const results = new Array(candidates.length);
         let cursor = 0;
         let done = 0;
@@ -167,6 +170,7 @@ export class BackupService {
             while (cursor < candidates.length) {
                 const index = cursor++;
                 results[index] = await worker(candidates[index]);
+                if (results[index]) onMatch(results[index]);
                 done++;
                 onProgress(done, candidates.length);
             }

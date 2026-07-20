@@ -47,7 +47,7 @@ function fixture() {
         lastMessageAt: '2026-01-01T00:00:00.000Z',
         preview: '',
     };
-    return { splitter, files, record };
+    return { splitter, files, record, api };
 }
 
 test('prepare and execute fixed-size character splits without changing source', async () => {
@@ -64,6 +64,22 @@ test('prepare and execute fixed-size character splits without changing source', 
     assert.deepEqual(files.get(record.fileId), original);
     assert.equal(files.get(plan.parts[0].fileId).length, 3);
     assert.notEqual(files.get(plan.parts[0].fileId)[0].chat_metadata.integrity, 'source-integrity');
+});
+
+test('reuses a stable source snapshot for automatic preview updates', async () => {
+    const { splitter, record, api } = fixture();
+    let reads = 0;
+    const readSource = api.getCharacterChat;
+    api.getCharacterChat = async (...args) => {
+        reads++;
+        return readSource(...args);
+    };
+
+    const first = await splitter.prepare(record, { mode: 'range', start: 0, end: 4 });
+    const second = await splitter.prepare(record, { mode: 'range', start: 1, end: 3 }, undefined, first.source);
+
+    assert.equal(reads, 1);
+    assert.deepEqual(second.parts.map(part => [part.start, part.end]), [[1, 3]]);
 });
 
 test('registers a verified group split only after saving it', async () => {

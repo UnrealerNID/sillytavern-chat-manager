@@ -44,11 +44,32 @@
     <template data-cm-component="backup-row">
         <article class="cm-backup-row">
             <div class="cm-chat-info">
-                <strong data-cm-backup-name></strong>
-                <small data-cm-backup-meta></small>
+                <div class="cm-backup-heading">
+                    <strong data-cm-backup-name></strong>
+                    <span class="cm-status-badge" data-cm-backup-status></span>
+                </div>
+                <dl class="cm-backup-facts">
+                    <div>
+                        <dt>备份时间</dt>
+                        <dd data-cm-backup-created></dd>
+                    </div>
+                    <div>
+                        <dt>最后消息</dt>
+                        <dd data-cm-backup-last-message></dd>
+                    </div>
+                    <div>
+                        <dt>记录规模</dt>
+                        <dd data-cm-backup-size></dd>
+                    </div>
+                </dl>
                 <span class="cm-backup-reason" data-cm-backup-reason></span>
+                <p class="cm-backup-preview" data-cm-backup-preview></p>
             </div>
             <div class="cm-actions">
+                <button class="menu_button cm-primary-action" type="button" title="通过酒馆原生导入链路创建一份新聊天，不覆盖原记录" data-cm-backup-restore>
+                    <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+                    <span>恢复为新聊天</span>
+                </button>
                 <button class="menu_button" type="button" data-cm-backup-view>
                     <i class="fa-solid fa-eye" aria-hidden="true"></i>
                     <span>查看内容</span>

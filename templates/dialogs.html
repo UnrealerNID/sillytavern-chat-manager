@@ -24,6 +24,7 @@
                 <span data-cm-backup-progress-value></span>
             </div>
         </div>
+        <div class="cm-result-summary cm-hidden" data-cm-backup-summary></div>
         <div class="cm-result-list" data-cm-backup-results></div>
     </template>
 
@@ -37,6 +38,13 @@
     </template>
 
     <template data-cm-dialog-content="split">
+        <div class="cm-split-section-header">
+            <div>
+                <strong>分割参数</strong>
+                <small>修改参数后会自动更新预览</small>
+            </div>
+            <span class="cm-status-badge" data-cm-split-preview-status>等待预览</span>
+        </div>
         <div class="cm-split-form">
             <div class="cm-source-summary" data-cm-split-summary></div>
             <label class="cm-field">
@@ -59,14 +67,20 @@
                 <input class="text_pole" type="number" step="1" data-cm-split-chunk>
             </label>
         </div>
+        <div class="cm-split-preview-header">
+            <strong>分卷预览</strong>
+            <small data-cm-split-preview-detail></small>
+        </div>
         <div class="cm-preview" aria-live="polite" data-cm-split-preview></div>
         <label class="cm-confirm-notice cm-hidden" data-cm-split-notice>
             <input type="checkbox" data-cm-split-acknowledge>
             <span>我了解：创建分卷会触发酒馆原生备份及轮换规则</span>
         </label>
         <div class="cm-dialog-actions">
-            <button class="menu_button" type="button" data-cm-split-generate>生成预览</button>
-            <button class="menu_button" type="button" data-cm-split-confirm>确认分割</button>
+            <button class="menu_button cm-primary-action" type="button" data-cm-split-confirm>
+                <i class="fa-solid fa-scissors" aria-hidden="true"></i>
+                <span>确认创建分卷</span>
+            </button>
             <button class="menu_button cm-hidden" type="button" data-cm-split-stop>完成当前卷后停止</button>
         </div>
     </template>

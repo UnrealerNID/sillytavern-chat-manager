@@ -30,11 +30,14 @@ test('dialog templates expose every static dialog and dynamic mount', async () =
         'data-cm-message-list',
         'data-cm-dialog-content="split"',
         'data-cm-split-preview',
+        'data-cm-split-preview-status',
+        'data-cm-split-preview-detail',
         'data-cm-dialog-content="recovery"',
         'data-cm-recovery-list',
     ]) {
         assert.match(html, new RegExp(marker));
     }
+    assert.doesNotMatch(html, /data-cm-split-generate/);
 });
 
 test('component templates expose every repeated card and action mount', async () => {
@@ -45,6 +48,9 @@ test('component templates expose every repeated card and action mount', async ()
         'data-cm-component="backup-row"',
         'data-cm-backup-view',
         'data-cm-backup-download',
+        'data-cm-backup-restore',
+        'data-cm-backup-created',
+        'data-cm-backup-preview',
         'data-cm-component="message"',
         'data-cm-message-content',
         'data-cm-component="split-part"',

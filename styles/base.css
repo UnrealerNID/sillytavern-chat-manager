@@ -215,6 +215,44 @@
     margin: 0;
 }
 
+.cm-status-badge {
+    display: inline-flex;
+    width: max-content;
+    flex: 0 0 auto;
+    align-items: center;
+    padding: 3px 8px;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 999px;
+    color: var(--grey70);
+    background: rgb(0 0 0 / 12%);
+    font-size: calc(var(--mainFontSize) * 0.78);
+    white-space: nowrap;
+}
+
+.cm-status-badge[data-state="loading"] {
+    color: var(--SmartThemeQuoteColor);
+}
+
+.cm-status-badge[data-state="ready"] {
+    color: #74c77a;
+    border-color: #58a65c;
+}
+
+.cm-status-badge[data-state="warning"] {
+    color: #e4b352;
+    border-color: #d99b28;
+}
+
+.cm-status-badge[data-state="error"] {
+    color: var(--fullred);
+    border-color: var(--fullred);
+}
+
+.cm-primary-action {
+    border-color: var(--SmartThemeQuoteColor) !important;
+    background: rgb(255 255 255 / 8%) !important;
+}
+
 .cm-native-action {
     padding: 0;
 }

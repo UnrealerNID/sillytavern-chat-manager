@@ -17,18 +17,20 @@ export class ChatManagerUi {
      * @param {import('./splitter.js').SplitService} dependencies.splitter Split service
      * @param {()=>boolean} dependencies.isGenerating Generation state
      * @param {(record:object)=>Promise<void>} dependencies.openRecord Open callback
+     * @param {(record:object,backup:object)=>Promise<string[]>} dependencies.restoreBackup 原生备份恢复回调
      * @param {string} dependencies.template 稳定面板模板
      * @param {string} dependencies.dialogTemplates 弹窗模板注册表
      * @param {string} dependencies.componentTemplates 重复内容组件模板注册表
      * @param {(record:object)=>string} dependencies.getAvatarUrl 头像地址生成器
      */
-    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, template, dialogTemplates, componentTemplates, getAvatarUrl }) {
+    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, restoreBackup, template, dialogTemplates, componentTemplates, getAvatarUrl }) {
         this.getContext = getContext;
         this.api = api;
         this.backups = backups;
         this.splitter = splitter;
         this.isGenerating = isGenerating;
         this.openRecord = openRecord;
+        this.restoreBackup = restoreBackup;
         this.getAvatarUrl = getAvatarUrl;
         this.records = null;
         this.filtered = [];
@@ -235,6 +237,7 @@ export class ChatManagerUi {
         const elapsed = this.#mount(dialog.body, '[data-cm-backup-elapsed]');
         const progress = this.#mount(dialog.body, '[data-cm-backup-progress]');
         const progressValue = this.#mount(dialog.body, '[data-cm-backup-progress-value]');
+        const summary = this.#mount(dialog.body, '[data-cm-backup-summary]');
         const results = this.#mount(dialog.body, '[data-cm-backup-results]');
         const startedAt = Date.now();
         const updateElapsed = () => {
@@ -243,9 +246,10 @@ export class ChatManagerUi {
         const timer = setInterval(updateElapsed, 250);
         const stopLoading = () => clearInterval(timer);
         dialog.signal.addEventListener('abort', stopLoading, { once: true });
+        let found = 0;
         try {
             const matches = await this.backups.find(record, (done, total) => {
-                statusText.textContent = `正在验证候选备份 ${done} / ${total}`;
+                statusText.textContent = `正在扫描备份 · 已找到 ${found} · 已检查 ${done} / ${total}`;
                 if (total > 0) {
                     progress.classList.remove('cm-loading-progress-indeterminate');
                     progress.setAttribute('aria-valuemin', '0');
@@ -253,22 +257,26 @@ export class ChatManagerUi {
                     progress.setAttribute('aria-valuenow', String(done));
                     progressValue.style.width = `${Math.min(100, (done / total) * 100)}%`;
                 }
-            }, dialog.signal);
+            }, dialog.signal, (backup) => {
+                found++;
+                summary.textContent = `已找到 ${found} 个对应备份，仍在扫描剩余候选…`;
+                summary.classList.remove('cm-hidden');
+                const row = this.#backupRow(record, backup, () => {
+                    dialog.close();
+                    this.close();
+                });
+                const time = new Date(backup.last_mes).valueOf() || 0;
+                row.dataset.backupTime = String(time);
+                const before = Array.from(results.children).find(item => Number(item.dataset.backupTime) < time);
+                results.insertBefore(row, before ?? null);
+            });
             stopLoading();
             status.remove();
-            results.replaceChildren();
+            summary.textContent = `找到 ${matches.length} 个对应备份 · 原聊天 ${record.fileSize} · ${record.messageCount} 层`;
+            summary.classList.remove('cm-hidden');
             if (!matches.length) {
                 results.append(this.#state('没有找到能够关联到该聊天的备份', { empty: true }));
                 return;
-            }
-            for (const backup of matches) {
-                const row = this.#component('backup-row');
-                this.#mount(row, '[data-cm-backup-name]').textContent = backup.file_name;
-                this.#mount(row, '[data-cm-backup-meta]').textContent = `${backup.file_size} · ${backup.chat_items} 层 · ${backup.status === 'matched' ? '已匹配' : backup.status === 'confirm' ? '需要确认' : '读取失败'}`;
-                this.#mount(row, '[data-cm-backup-reason]').textContent = backup.reason ?? '';
-                this.#bindButton(this.#mount(row, '[data-cm-backup-view]', HTMLButtonElement), () => this.#viewBackup(backup));
-                this.#bindButton(this.#mount(row, '[data-cm-backup-download]', HTMLButtonElement), () => this.backups.download(backup.file_name));
-                results.append(row);
             }
         } catch (error) {
             if (dialog.signal.aborted) return;
@@ -276,6 +284,40 @@ export class ChatManagerUi {
             status.replaceWith(this.#state(error.message, { error: true }));
             notify('error', error.message);
         }
+    }
+
+    /**
+     * 填充单个备份结果卡片
+     * @param {object} record 原聊天记录
+     * @param {object} backup 备份信息
+     * @param {()=>void} onRestored 恢复完成回调
+     * @returns {HTMLElement}
+     */
+    #backupRow(record, backup, onRestored) {
+        const row = this.#component('backup-row');
+        this.#mount(row, '[data-cm-backup-name]').textContent = backup.file_name;
+        const status = this.#mount(row, '[data-cm-backup-status]');
+        status.textContent = backup.status === 'matched' ? '完整匹配' : backup.status === 'confirm' ? '部分相关' : '读取异常';
+        status.dataset.state = backup.status === 'matched' ? 'ready' : backup.status === 'confirm' ? 'warning' : 'error';
+        this.#mount(row, '[data-cm-backup-created]').textContent = this.#formatBackupDate(backup.file_name);
+        this.#mount(row, '[data-cm-backup-last-message]').textContent = this.#formatDate(backup.last_mes);
+        this.#mount(row, '[data-cm-backup-size]').textContent = `${backup.file_size} · ${backup.chat_items} / ${record.messageCount} 层`;
+        this.#mount(row, '[data-cm-backup-reason]').textContent = `匹配依据：${backup.reason ?? '未提供'}`;
+        this.#mount(row, '[data-cm-backup-preview]').textContent = String(backup.mes ?? '没有可显示的最后消息');
+        const restore = this.#mount(row, '[data-cm-backup-restore]', HTMLButtonElement);
+        this.#bindButton(restore, async () => {
+            restore.disabled = true;
+            try {
+                await this.restoreBackup(record, backup);
+                notify('success', '备份已恢复为一份新聊天');
+                onRestored();
+            } finally {
+                restore.disabled = false;
+            }
+        });
+        this.#bindButton(this.#mount(row, '[data-cm-backup-view]', HTMLButtonElement), () => this.#viewBackup(backup));
+        this.#bindButton(this.#mount(row, '[data-cm-backup-download]', HTMLButtonElement), () => this.backups.download(backup.file_name));
+        return row;
     }
 
     async #viewBackup(backup) {
@@ -315,10 +357,12 @@ export class ChatManagerUi {
     async openSplit(record) {
         if (this.isGenerating()) return notify('warning', '聊天正在生成，当前不能分割');
         this.activeSplitClose?.();
-        const dialog = this.#dialog(`分割聊天 · ${record.ownerName} / ${record.fileId}`, 'split');
+        const dialog = this.#dialog(['分割聊天', record.ownerName, record.fileId], 'split');
         this.activeSplitRoot = dialog.root;
         this.activeSplitClose = dialog.close;
         const summary = this.#mount(dialog.body, '[data-cm-split-summary]');
+        const previewStatus = this.#mount(dialog.body, '[data-cm-split-preview-status]');
+        const previewDetail = this.#mount(dialog.body, '[data-cm-split-preview-detail]');
         const mode = this.#mount(dialog.body, '[data-cm-split-mode]', HTMLSelectElement);
         const start = this.#mount(dialog.body, '[data-cm-split-start]', HTMLInputElement);
         const end = this.#mount(dialog.body, '[data-cm-split-end]', HTMLInputElement);
@@ -327,46 +371,117 @@ export class ChatManagerUi {
         const preview = this.#mount(dialog.body, '[data-cm-split-preview]');
         const notice = this.#mount(dialog.body, '[data-cm-split-notice]');
         const acknowledge = this.#mount(dialog.body, '[data-cm-split-acknowledge]', HTMLInputElement);
-        const generate = this.#mount(dialog.body, '[data-cm-split-generate]', HTMLButtonElement);
         const confirm = this.#mount(dialog.body, '[data-cm-split-confirm]', HTMLButtonElement);
         const stop = this.#mount(dialog.body, '[data-cm-split-stop]', HTMLButtonElement);
         const maxFloor = Math.max(0, record.messageCount - 1);
-        summary.textContent = `${record.fileSize} · ${record.messageCount} 层`;
+        summary.textContent = `原聊天 ${record.fileSize} · ${record.messageCount} 层 · 可用范围 #0–#${maxFloor}`;
         this.#configureNumberInput(start, 0, 0, maxFloor);
         this.#configureNumberInput(end, maxFloor, 0, maxFloor);
-        this.#configureNumberInput(chunk, 500, 1, Math.max(1, record.messageCount));
-        mode.addEventListener('change', () => chunkRow.classList.toggle('cm-hidden', mode.value !== 'fixed'));
-        this.#bindButton(generate, async () => {
-            if (this.isGenerating()) return notify('warning', '聊天正在生成，不能生成预览');
-            busy = true;
-            syncControls();
-            preview.replaceChildren(this.#state('正在读取原聊天并计算预览…'));
+        this.#configureNumberInput(chunk, Math.min(500, Math.max(1, record.messageCount)), 1, Math.max(1, record.messageCount));
+
+        let plan = null;
+        let stableSource = null;
+        let previewTimer = null;
+        let previewController = null;
+        let previewRevision = 0;
+        let previewing = false;
+        let executing = false;
+
+        const setPreviewStatus = (text, state = '') => {
+            previewStatus.textContent = text;
+            previewStatus.dataset.state = state;
+        };
+        const readOptions = () => {
+            const required = mode.value === 'fixed' ? [start, end, chunk] : [start, end];
+            if (required.some(input => input.value === '' || !input.checkValidity())) throw new Error('请输入有效的楼层范围');
+            return {
+                mode: mode.value,
+                start: Number(start.value),
+                end: Number(end.value),
+                chunkSize: Number(chunk.value),
+            };
+        };
+        const syncControls = () => {
+            const blocked = executing || this.isGenerating() || this.splitter.running;
+            for (const input of [mode, start, end, chunk, acknowledge]) input.disabled = blocked;
+            confirm.disabled = blocked || previewing || !plan || !acknowledge.checked;
+        };
+        const runPreview = async (revision) => {
+            if (revision !== previewRevision || executing) return;
+            let options;
             try {
-                plan = await this.splitter.prepare(record, {
-                    mode: mode.value,
-                    start: Number(start.value),
-                    end: Number(end.value),
-                    chunkSize: Number(chunk.value),
-                }, dialog.signal);
-                preview.replaceChildren();
-                plan.parts.forEach(part => preview.append(this.#splitPart(describePart(part))));
-                notice.classList.remove('cm-hidden');
-                syncControls();
+                options = readOptions();
             } catch (error) {
                 plan = null;
-                if (dialog.signal.aborted) return;
+                setPreviewStatus('参数有误', 'error');
+                preview.replaceChildren(this.#state(error.message, { error: true }));
+                syncControls();
+                return;
+            }
+            const controller = new AbortController();
+            previewController = controller;
+            const abortPreview = () => controller.abort();
+            dialog.signal.addEventListener('abort', abortPreview, { once: true });
+            previewing = true;
+            setPreviewStatus('正在更新', 'loading');
+            preview.replaceChildren(this.#state(stableSource ? '正在计算新的分卷方案…' : '正在读取原聊天并计算预览…'));
+            syncControls();
+            try {
+                const nextPlan = await this.splitter.prepare(record, options, controller.signal, stableSource);
+                if (revision !== previewRevision || controller.signal.aborted) return;
+                plan = nextPlan;
+                stableSource ??= nextPlan.source;
+                preview.replaceChildren();
+                plan.parts.forEach(part => preview.append(this.#splitPart(describePart(part))));
+                const totalMessages = plan.parts.reduce((sum, part) => sum + part.messages.length, 0);
+                previewDetail.textContent = `${plan.parts.length} 个分卷 · 共 ${totalMessages} 层`;
+                setPreviewStatus('预览已更新', 'ready');
+                notice.classList.remove('cm-hidden');
+            } catch (error) {
+                if (controller.signal.aborted || dialog.signal.aborted || revision !== previewRevision) return;
+                plan = null;
+                previewDetail.textContent = '';
+                setPreviewStatus('无法预览', 'error');
                 preview.replaceChildren(this.#state(error.message, { error: true }));
                 notice.classList.add('cm-hidden');
-                syncControls();
             } finally {
-                busy = false;
-                syncControls();
+                dialog.signal.removeEventListener('abort', abortPreview);
+                if (revision === previewRevision) {
+                    previewing = false;
+                    previewController = null;
+                    syncControls();
+                }
             }
-        });
+        };
+        const schedulePreview = (delay = 300) => {
+            if (executing) return;
+            previewRevision++;
+            const revision = previewRevision;
+            if (previewTimer !== null) clearTimeout(previewTimer);
+            previewController?.abort();
+            previewController = null;
+            previewing = false;
+            plan = null;
+            acknowledge.checked = false;
+            notice.classList.add('cm-hidden');
+            previewDetail.textContent = '';
+            setPreviewStatus(delay ? '等待更新' : '正在更新', 'loading');
+            preview.replaceChildren(this.#state(delay ? '参数修改中，稍后自动更新预览…' : '正在准备预览…'));
+            syncControls();
+            previewTimer = setTimeout(() => {
+                previewTimer = null;
+                void runPreview(revision);
+            }, delay);
+        };
+
         this.#bindButton(confirm, async () => {
             if (!plan || !acknowledge.checked) return;
             if (this.isGenerating()) return notify('warning', '聊天正在生成，不能写入分卷');
-            busy = true;
+            let refreshSource = false;
+            executing = true;
+            if (previewTimer !== null) clearTimeout(previewTimer);
+            previewController?.abort();
+            setPreviewStatus('正在创建', 'loading');
             syncControls();
             stop.classList.remove('cm-hidden');
             dialog.setClosable(false);
@@ -376,35 +491,42 @@ export class ChatManagerUi {
                     onUpdate: current => this.#renderTask(preview, current),
                 });
                 this.#renderTask(preview, task);
+                plan = null;
+                notice.classList.add('cm-hidden');
+                setPreviewStatus(task.status === 'complete' ? '创建完成' : '任务已暂停', task.status === 'complete' ? 'ready' : 'warning');
+                previewDetail.textContent = task.status === 'complete' ? '所有分卷均已写入并校验' : '可以从恢复任务继续执行';
                 notify(task.status === 'complete' ? 'success' : 'warning', task.status === 'complete' ? '分割完成' : '任务已安全暂停');
                 await this.refresh();
             } catch (error) {
+                setPreviewStatus('创建失败', 'error');
                 notify('error', error.message);
                 if (error.task) this.#renderTask(preview, error.task);
+                refreshSource = error.message.includes('原聊天在预览后发生变化');
             } finally {
                 dialog.setClosable(true);
                 stop.classList.add('cm-hidden');
-                busy = false;
+                executing = false;
                 syncControls();
+                if (refreshSource) {
+                    stableSource = null;
+                    schedulePreview(0);
+                }
             }
         });
         this.#bindButton(stop, () => this.splitter.requestStop());
         acknowledge.addEventListener('change', () => syncControls());
-        for (const input of [mode, start, end, chunk]) input.addEventListener('change', () => {
-            plan = null;
-            preview.replaceChildren();
-            notice.classList.add('cm-hidden');
-            syncControls();
+        mode.addEventListener('change', () => {
+            chunkRow.classList.toggle('cm-hidden', mode.value !== 'fixed');
+            schedulePreview();
         });
-        let plan = null;
-        let busy = false;
-        const syncControls = () => {
-            const blocked = busy || this.isGenerating() || this.splitter.running;
-            generate.disabled = blocked;
-            confirm.disabled = blocked || !plan || !acknowledge.checked;
-        };
+        for (const input of [start, end, chunk]) input.addEventListener('input', () => schedulePreview());
+        dialog.signal.addEventListener('abort', () => {
+            if (previewTimer !== null) clearTimeout(previewTimer);
+            previewController?.abort();
+        }, { once: true });
         this.activeSplitSync = syncControls;
         syncControls();
+        schedulePreview(0);
     }
 
     async showRecovery(tasks) {
@@ -576,6 +698,18 @@ export class ChatManagerUi {
         input.min = String(min);
         input.max = String(max);
         input.step = '1';
+    }
+
+    /**
+     * 从酒馆原生备份文件名末尾解析创建时间
+     * @param {string} fileName 备份文件名
+     * @returns {string}
+     */
+    #formatBackupDate(fileName) {
+        const match = String(fileName).match(/(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})\.jsonl$/i);
+        if (!match) return '无法识别';
+        const [, year, month, day, hour, minute, second] = match;
+        return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second)).toLocaleString();
     }
 
     #formatDate(value) {

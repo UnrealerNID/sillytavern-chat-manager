@@ -94,3 +94,48 @@ test('falls back to message comparison for legacy backups without integrity', as
     assert.equal(matches[0].status, 'matched');
     assert.equal(matches[0].reason, '消息完整匹配');
 });
+
+test('emits each matched backup before the whole scan completes', async () => {
+    const header = { chat_metadata: { integrity: 'same-chat' } };
+    const message = { name: '角色', mes: '测试消息' };
+    const jsonl = [header, message].map(value => JSON.stringify(value)).join('\n');
+    let releaseSlow;
+    const slow = new Promise(resolve => { releaseSlow = resolve; });
+    const api = {
+        sanitizeFileName: async value => value,
+        getCharacterChats: async () => [{ file_name: '聊天.jsonl', chat_items: 1, chat_metadata: header.chat_metadata }],
+        getCharacterChat: async () => [header, message],
+        listBackups: async () => [
+            { file_name: 'chat____20260101-000000.jsonl', chat_items: 1, last_mes: '2026-01-01T00:00:00.000Z' },
+            { file_name: 'chat____20260101-000001.jsonl', chat_items: 1, last_mes: '2026-01-01T00:00:01.000Z' },
+        ],
+        downloadBackup: async name => {
+            if (name.endsWith('000001.jsonl')) await slow;
+            return new Response(jsonl);
+        },
+    };
+    const emitted = [];
+    let resolveFirstMatch;
+    const firstMatch = new Promise(resolve => { resolveFirstMatch = resolve; });
+    let completed = false;
+    const finding = new BackupService(api).find({
+        ownerType: 'character',
+        ownerId: '角色.png',
+        ownerName: '角色',
+        fileId: '聊天',
+        messageCount: 1,
+    }, () => {}, undefined, match => {
+        emitted.push(match.file_name);
+        resolveFirstMatch();
+    });
+    finding.then(() => { completed = true; });
+
+    await firstMatch;
+    assert.deepEqual(emitted, ['chat____20260101-000000.jsonl']);
+    assert.equal(completed, false);
+
+    releaseSlow();
+    const matches = await finding;
+    assert.equal(matches.length, 2);
+    assert.equal(emitted.length, 2);
+});

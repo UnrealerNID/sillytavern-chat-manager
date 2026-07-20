@@ -1,13 +1,15 @@
 import {
+    displayPastChats,
     getRequestHeaders,
     getThumbnailUrl,
+    importCharacterChat,
     isGenerating,
     saveSettingsDebounced,
     setActiveCharacter,
     setActiveGroup,
     system_avatar,
 } from '/script.js';
-import { openGroupById } from '/scripts/group-chats.js';
+import { importGroupChat, openGroupById } from '/scripts/group-chats.js';
 import {
     extension_settings,
     extensionTypes,
@@ -332,6 +334,37 @@ async function openRecord(record) {
 }
 
 /**
+ * 复用酒馆原生导入链路，将备份恢复为一份新聊天
+ * @param {import('./modules/utils.js').ChatRecord} record 备份所属聊天
+ * @param {object} backup 原生备份信息
+ * @returns {Promise<string[]>} 新聊天文件名
+ */
+async function restoreBackup(record, backup) {
+    if (isGenerating()) throw new Error('聊天正在生成，当前不能恢复备份');
+    await openRecord(record);
+    const response = await fetch('/api/backups/chat/download', {
+        method: 'POST',
+        headers: getRequestHeaders(),
+        body: JSON.stringify({ name: backup.file_name }),
+    });
+    if (!response.ok) throw new Error('读取备份失败');
+
+    const context = getContext();
+    const file = new File([await response.blob()], backup.file_name, { type: 'application/octet-stream' });
+    const formData = new FormData();
+    formData.set('file_type', 'jsonl');
+    formData.set('avatar', file);
+    formData.set('avatar_url', record.ownerType === 'character' ? record.ownerId : '');
+    formData.set('user_name', context.name1);
+    formData.set('character_name', record.ownerName);
+    const importFn = record.ownerType === 'group' ? importGroupChat : importCharacterChat;
+    const restored = await importFn(formData, { refresh: false });
+    if (!restored.length) throw new Error('酒馆未能导入该备份');
+    await displayPastChats(restored);
+    return restored;
+}
+
+/**
  * 通过酒馆扩展清单钩子激活插件
  * @returns {Promise<void>}
  */
@@ -356,6 +389,7 @@ export async function init() {
         splitter,
         isGenerating,
         openRecord,
+        restoreBackup,
         template: panelTemplate,
         dialogTemplates,
         componentTemplates,

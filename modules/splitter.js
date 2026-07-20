@@ -24,11 +24,12 @@ export class SplitService {
      * @param {import('./utils.js').ChatRecord} record Chat record
      * @param {{mode:'range'|'fixed',start:number,end:number,chunkSize?:number}} options Options
      * @param {AbortSignal} [signal] Abort signal
+     * @param {object} [stableSource] 已读取并校验过的来源快照
      * @returns {Promise<object>} Split plan
      */
-    async prepare(record, options, signal) {
+    async prepare(record, options, signal, stableSource = null) {
         if (this.running) throw new Error('已有分割任务正在运行');
-        const source = await loadStableSource(record, this.api, signal);
+        const source = stableSource ?? await loadStableSource(record, this.api, signal);
         if (source.messages.length === 0) throw new Error('空聊天不能分割');
         const ranges = buildRanges(options.start, options.end, options.mode === 'fixed' ? options.chunkSize : null);
         if (options.end >= source.messages.length) throw new Error('楼层范围超出聊天长度');
@@ -83,7 +84,7 @@ export class SplitService {
             return navigator.locks.request(lockName, { mode: 'exclusive' }, () => this.execute(plan, { ...options, lockAcquired: true }));
         }
         const current = await getSourceFingerprint(plan.record, this.api);
-        if (!fingerprintsEqual(plan.fingerprint, current)) throw new Error('原聊天在预览后发生变化，请重新生成预览');
+        if (!fingerprintsEqual(plan.fingerprint, current)) throw new Error('原聊天在预览后发生变化，正在重新读取并更新预览');
         this.running = true;
         this.stopRequested = false;
         const task = options.resumeTask ?? this.#taskFromPlan(plan);

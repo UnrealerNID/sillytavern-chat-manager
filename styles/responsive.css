@@ -26,6 +26,26 @@
         flex-direction: column;
     }
 
+    .cm-backup-row {
+        display: flex;
+    }
+
+    .cm-backup-row > .cm-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .cm-backup-facts {
+        grid-template-columns: 1fr;
+    }
+
+    .cm-backup-heading,
+    .cm-split-section-header,
+    .cm-split-preview-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
     .cm-chat-date {
         display: none;
     }
