@@ -271,18 +271,12 @@
     align-items: center;
 }
 
-.chat-manager-settings-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-}
-
 .chat-manager-extension-meta {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 0.5rem;
-    margin-left: auto;
+    margin-bottom: 0.5rem;
 }
 
 .chat-manager-extension-version {
