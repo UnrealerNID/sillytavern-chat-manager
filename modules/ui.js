@@ -99,9 +99,6 @@ export class ChatManagerUi {
         this.search.addEventListener('input', () => { this.page = 0; this.#filter(); });
         this.previous.addEventListener('click', () => { this.page--; this.#render(); });
         this.next.addEventListener('click', () => { this.page++; this.#render(); });
-        this.root.addEventListener('mousedown', event => {
-            if (event.target === this.root) this.close();
-        });
         this.#syncGroupingButtons();
         document.body.append(this.root);
     }
@@ -367,32 +364,59 @@ export class ChatManagerUi {
         const stopLoading = () => clearInterval(timer);
         dialog.signal.addEventListener('abort', stopLoading, { once: true });
         let found = 0;
+        let checked = 0;
+        let candidateCount = 0;
+        const rows = new Map();
+        const refreshSummary = () => {
+            summary.textContent = `候选 ${candidateCount} 个 · 已检查 ${checked} 个 · 已确认 ${found} 个`;
+            summary.classList.remove('cm-hidden');
+        };
         try {
-            const matches = await this.backups.find(record, (done, total) => {
-                statusText.textContent = `正在扫描备份 · 已找到 ${found} · 已检查 ${done} / ${total}`;
-                if (total > 0) {
-                    progress.classList.remove('cm-loading-progress-indeterminate');
-                    progress.setAttribute('aria-valuemin', '0');
-                    progress.setAttribute('aria-valuemax', String(total));
-                    progress.setAttribute('aria-valuenow', String(done));
-                    progressValue.style.width = `${Math.min(100, (done / total) * 100)}%`;
-                }
-            }, dialog.signal, (backup) => {
-                found++;
-                summary.textContent = `已找到 ${found} 个对应备份，仍在扫描剩余候选…`;
-                summary.classList.remove('cm-hidden');
-                const row = this.#backupRow(record, backup, () => {
-                    dialog.close();
-                    this.close();
-                });
-                const time = new Date(backup.last_mes).valueOf() || 0;
-                row.dataset.backupTime = String(time);
-                const before = Array.from(results.children).find(item => Number(item.dataset.backupTime) < time);
-                results.insertBefore(row, before ?? null);
-            });
+            const matches = await this.backups.find(record, {
+                onCandidates: candidates => {
+                    candidateCount = candidates.length;
+                    statusText.textContent = candidates.length ? '备份列表已载入，正在检查文件内容…' : '备份列表已载入';
+                    for (const candidate of candidates) {
+                        const backup = { ...candidate, status: 'pending', reason: '等待读取并匹配' };
+                        const row = this.#backupRow(record, backup, () => {
+                            dialog.close();
+                            this.close();
+                        });
+                        rows.set(candidate.file_name, { row, backup });
+                        results.append(row);
+                    }
+                    refreshSummary();
+                },
+                onProgress: (done, total) => {
+                    checked = done;
+                    statusText.textContent = `正在检查备份文件 · ${done} / ${total}`;
+                    if (total > 0) {
+                        progress.classList.remove('cm-loading-progress-indeterminate');
+                        progress.setAttribute('aria-valuemin', '0');
+                        progress.setAttribute('aria-valuemax', String(total));
+                        progress.setAttribute('aria-valuenow', String(done));
+                        progressValue.style.width = `${Math.min(100, (done / total) * 100)}%`;
+                    }
+                    refreshSummary();
+                },
+                onResult: (candidate, match) => {
+                    const entry = rows.get(candidate.file_name);
+                    if (!entry) return;
+                    if (!match) {
+                        entry.row.remove();
+                        rows.delete(candidate.file_name);
+                        refreshSummary();
+                        return;
+                    }
+                    if (['matched', 'confirm'].includes(match.status)) found++;
+                    Object.assign(entry.backup, match);
+                    this.#updateBackupRow(entry.row, record, entry.backup);
+                    refreshSummary();
+                },
+            }, dialog.signal);
             stopLoading();
             status.remove();
-            summary.textContent = `找到 ${matches.length} 个对应备份 · 原聊天 ${record.fileSize} · ${record.messageCount} 层`;
+            summary.textContent = `显示 ${matches.length} 个候选结果 · 原聊天 ${record.fileSize} · ${record.messageCount} 层`;
             summary.classList.remove('cm-hidden');
             if (!matches.length) {
                 results.append(this.#state('没有找到能够关联到该聊天的备份', { empty: true }));
@@ -401,6 +425,12 @@ export class ChatManagerUi {
         } catch (error) {
             if (dialog.signal.aborted) return;
             stopLoading();
+            for (const { row, backup } of rows.values()) {
+                if (backup.status !== 'pending') continue;
+                backup.status = 'error';
+                backup.reason = `扫描中断：${error.message}`;
+                this.#updateBackupRow(row, record, backup);
+            }
             status.replaceWith(this.#state(error.message, { error: true }));
             notify('error', error.message);
         }
@@ -415,29 +445,42 @@ export class ChatManagerUi {
      */
     #backupRow(record, backup, onRestored) {
         const row = this.#component('backup-row');
-        this.#mount(row, '[data-cm-backup-name]').textContent = backup.file_name;
-        const status = this.#mount(row, '[data-cm-backup-status]');
-        status.textContent = backup.status === 'matched' ? '完整匹配' : backup.status === 'confirm' ? '部分相关' : '读取异常';
-        status.dataset.state = backup.status === 'matched' ? 'ready' : backup.status === 'confirm' ? 'warning' : 'error';
-        this.#mount(row, '[data-cm-backup-created]').textContent = this.#formatBackupDate(backup.file_name);
-        this.#mount(row, '[data-cm-backup-last-message]').textContent = this.#formatDate(backup.last_mes);
-        this.#mount(row, '[data-cm-backup-size]').textContent = `${backup.file_size} · ${backup.chat_items} / ${record.messageCount} 层`;
-        this.#mount(row, '[data-cm-backup-reason]').textContent = `匹配依据：${backup.reason ?? '未提供'}`;
-        this.#mount(row, '[data-cm-backup-preview]').textContent = String(backup.mes ?? '没有可显示的最后消息');
+        this.#updateBackupRow(row, record, backup);
         const restore = this.#mount(row, '[data-cm-backup-restore]', HTMLButtonElement);
         this.#bindButton(restore, async () => {
+            if (!['matched', 'confirm'].includes(backup.status)) return;
             restore.disabled = true;
             try {
                 await this.restoreBackup(record, backup);
                 notify('success', '备份已恢复为一份新聊天');
                 onRestored();
             } finally {
-                restore.disabled = false;
+                restore.disabled = !['matched', 'confirm'].includes(backup.status);
             }
         });
         this.#bindButton(this.#mount(row, '[data-cm-backup-view]', HTMLButtonElement), () => this.#viewBackup(backup));
         this.#bindButton(this.#mount(row, '[data-cm-backup-download]', HTMLButtonElement), () => this.backups.download(backup.file_name));
         return row;
+    }
+
+    /**
+     * 原位刷新候选备份卡片的匹配状态
+     * @param {HTMLElement} row 备份卡片
+     * @param {object} record 原聊天记录
+     * @param {object} backup 当前备份状态
+     */
+    #updateBackupRow(row, record, backup) {
+        this.#mount(row, '[data-cm-backup-name]').textContent = backup.file_name;
+        const status = this.#mount(row, '[data-cm-backup-status]');
+        status.textContent = backup.status === 'pending' ? '等待检查' : backup.status === 'matched' ? '完整匹配' : backup.status === 'confirm' ? '部分相关' : '读取异常';
+        status.dataset.state = backup.status === 'pending' ? 'loading' : backup.status === 'matched' ? 'ready' : backup.status === 'confirm' ? 'warning' : 'error';
+        this.#mount(row, '[data-cm-backup-created]').textContent = this.#formatBackupDate(backup.file_name);
+        this.#mount(row, '[data-cm-backup-last-message]').textContent = this.#formatDate(backup.last_mes);
+        this.#mount(row, '[data-cm-backup-size]').textContent = `${backup.file_size} · ${backup.chat_items} / ${record.messageCount} 层`;
+        this.#mount(row, '[data-cm-backup-reason]').textContent = `匹配依据：${backup.reason ?? '未提供'}`;
+        this.#mount(row, '[data-cm-backup-preview]').textContent = String(backup.mes ?? '没有可显示的最后消息');
+        const restore = this.#mount(row, '[data-cm-backup-restore]', HTMLButtonElement);
+        restore.disabled = !['matched', 'confirm'].includes(backup.status);
     }
 
     async #viewBackup(backup) {
@@ -771,7 +814,7 @@ export class ChatManagerUi {
     }
 
     /**
-     * 从静态外壳和内容模板创建一个可叠加弹窗
+     * 从静态外壳和内容模板创建一个只能显式关闭的可叠加弹窗
      * @param {string | string[]} title 标题或分层标题
      * @param {string} contentId 内容模板名称
      * @returns {{root:HTMLElement,body:HTMLElement,signal:AbortSignal,close:()=>void,setClosable:(value:boolean)=>void}}
@@ -810,9 +853,6 @@ export class ChatManagerUi {
             root.remove();
         };
         closeButton.addEventListener('click', remove);
-        root.addEventListener('mousedown', event => {
-            if (event.target === root && !closeButton.disabled) remove();
-        });
         document.body.append(root);
         return { root, body, signal: controller.signal, close: remove, setClosable: value => { closeButton.disabled = !value; } };
     }

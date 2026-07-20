@@ -87,3 +87,9 @@ test('panel and settings share the same version update controls', async () => {
         assert.match(settings, new RegExp(`\\b${className}\\b`));
     }
 });
+
+test('panels and dialogs do not close from backdrop clicks', async () => {
+    const source = await readFile(new URL('../modules/ui.js', import.meta.url), 'utf8');
+    assert.doesNotMatch(source, /event\.target\s*===\s*root/);
+    assert.doesNotMatch(source, /event\.target\s*===\s*this\.root/);
+});

@@ -95,16 +95,21 @@ test('falls back to message comparison for legacy backups without integrity', as
     assert.equal(matches[0].reason, '消息完整匹配');
 });
 
-test('emits each matched backup before the whole scan completes', async () => {
+test('emits candidate rows before loading the source or scanning backup files', async () => {
     const header = { chat_metadata: { integrity: 'same-chat' } };
     const message = { name: '角色', mes: '测试消息' };
     const jsonl = [header, message].map(value => JSON.stringify(value)).join('\n');
     let releaseSlow;
     const slow = new Promise(resolve => { releaseSlow = resolve; });
+    let releaseSource;
+    const source = new Promise(resolve => { releaseSource = resolve; });
     const api = {
         sanitizeFileName: async value => value,
         getCharacterChats: async () => [{ file_name: '聊天.jsonl', chat_items: 1, chat_metadata: header.chat_metadata }],
-        getCharacterChat: async () => [header, message],
+        getCharacterChat: async () => {
+            await source;
+            return [header, message];
+        },
         listBackups: async () => [
             { file_name: 'chat____20260101-000000.jsonl', chat_items: 1, last_mes: '2026-01-01T00:00:00.000Z' },
             { file_name: 'chat____20260101-000001.jsonl', chat_items: 1, last_mes: '2026-01-01T00:00:01.000Z' },
@@ -118,18 +123,30 @@ test('emits each matched backup before the whole scan completes', async () => {
     let resolveFirstMatch;
     const firstMatch = new Promise(resolve => { resolveFirstMatch = resolve; });
     let completed = false;
+    let resolveCandidates;
+    const candidatesReady = new Promise(resolve => { resolveCandidates = resolve; });
     const finding = new BackupService(api).find({
         ownerType: 'character',
         ownerId: '角色.png',
         ownerName: '角色',
         fileId: '聊天',
         messageCount: 1,
-    }, () => {}, undefined, match => {
-        emitted.push(match.file_name);
-        resolveFirstMatch();
+    }, {
+        onCandidates: candidates => resolveCandidates(candidates.map(item => item.file_name)),
+        onResult: (_candidate, match) => {
+            if (!match) return;
+            emitted.push(match.file_name);
+            resolveFirstMatch();
+        },
     });
     finding.then(() => { completed = true; });
 
+    assert.deepEqual(await candidatesReady, [
+        'chat____20260101-000001.jsonl',
+        'chat____20260101-000000.jsonl',
+    ]);
+    assert.equal(completed, false);
+    releaseSource();
     await firstMatch;
     assert.deepEqual(emitted, ['chat____20260101-000000.jsonl']);
     assert.equal(completed, false);

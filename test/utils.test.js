@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildRanges, canonicalJson, isNewerVersion, stripJsonl } from '../modules/utils.js';
+import { buildRanges, canonicalJson, isNewerVersion, parseJsonlResponse, stripJsonl } from '../modules/utils.js';
 
 test('buildRanges keeps inclusive floors and the remainder', () => {
     assert.deepEqual(buildRanges(100, 349, 100), [
@@ -22,6 +22,13 @@ test('canonicalJson ignores object key insertion order', () => {
 test('stripJsonl removes only a trailing extension', () => {
     assert.equal(stripJsonl('聊天.jsonl'), '聊天');
     assert.equal(stripJsonl('聊天.jsonl.copy'), '聊天.jsonl.copy');
+});
+
+test('JSONL parser stops immediately after the header when requested', async () => {
+    const response = new Response('{"chat_metadata":{"integrity":"id"}}\n{"mes":"正文"}\n');
+    const parsed = await parseJsonlResponse(response, { stopAfter: 0 });
+    assert.equal(parsed.header.chat_metadata.integrity, 'id');
+    assert.equal(parsed.messageCount, 0);
 });
 
 test('isNewerVersion only accepts a higher remote release', () => {

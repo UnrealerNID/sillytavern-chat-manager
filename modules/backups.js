@@ -29,25 +29,28 @@ export class BackupService {
     /**
      * Finds backups related to one exact chat
      * @param {import('./utils.js').ChatRecord} record Chat record
-     * @param {(done:number,total:number)=>void} onProgress Progress callback
+     * @param {object} callbacks 扫描阶段回调
+     * @param {(done:number,total:number)=>void} [callbacks.onProgress] 进度回调
+     * @param {(candidates:object[])=>void} [callbacks.onCandidates] 候选列表就绪回调
+     * @param {(candidate:object,result:object|null)=>void} [callbacks.onResult] 单个候选完成回调
      * @param {AbortSignal} [signal] Abort signal
-     * @param {(match:object)=>void} onMatch 增量匹配回调
      * @returns {Promise<object[]>} Matches
      */
-    async find(record, onProgress = () => {}, signal, onMatch = () => {}) {
+    async find(record, callbacks = {}, signal) {
+        const { onProgress = () => {}, onCandidates = () => {}, onResult = () => {} } = callbacks;
         const resultKey = `${chatKey(record)}:${record.messageCount ?? ''}`;
         const cached = this.resultCache.get(resultKey);
         if (cached?.expiresAt > Date.now()) {
-            onProgress(cached.total, cached.total);
-            cached.matches.forEach(onMatch);
+            onCandidates(cached.matches);
+            onProgress(cached.matches.length, cached.matches.length);
+            cached.matches.forEach(match => onResult(match, match));
             return cached.matches;
         }
 
         const rawOwner = record.ownerType === 'character'
             ? record.ownerId.replace(/\.png$/i, '')
             : record.fileId;
-        const [source, sanitized, allBackups] = await Promise.all([
-            loadStableSource(record, this.api, signal),
+        const [sanitized, allBackups] = await Promise.all([
             this.api.sanitizeFileName(rawOwner),
             this.#listBackups(signal),
         ]);
@@ -56,19 +59,23 @@ export class BackupService {
         const timestampPattern = /^\d{8}-\d{6}\.jsonl$/;
         const candidates = allBackups.filter(item => {
             const name = String(item.file_name);
-            const count = Number(item.chat_items);
             return name.startsWith(prefix)
-                && timestampPattern.test(name.slice(prefix.length))
-                && (!Number.isFinite(count) || count <= source.messages.length);
-        });
+                && timestampPattern.test(name.slice(prefix.length));
+        }).sort((a, b) => new Date(b.last_mes).valueOf() - new Date(a.last_mes).valueOf());
+        onCandidates(candidates);
+        onProgress(0, candidates.length);
+        if (!candidates.length) return [];
+
+        const source = await loadStableSource(record, this.api, signal);
         const sourceIntegrity = source.header.chat_metadata?.integrity ?? null;
         let sourceHashesPromise;
         const getSourceHashes = () => sourceHashesPromise ??= Promise.all(
             source.messages.map(async message => toHex(await digestMessage(message))),
         );
-        onProgress(0, candidates.length);
         const matches = await this.#mapCandidates(candidates, async (candidate) => {
             try {
+                const count = Number(candidate.chat_items);
+                if (Number.isFinite(count) && count > source.messages.length) return null;
                 if (sourceIntegrity) {
                     const candidateIntegrity = await this.#readIntegrity(candidate.file_name, signal);
                     if (candidateIntegrity === sourceIntegrity) {
@@ -81,12 +88,11 @@ export class BackupService {
                 if (signal?.aborted) throw error;
                 return { ...candidate, status: 'error', reason: error.message };
             }
-        }, onProgress, onMatch);
+        }, onProgress, onResult);
         const sorted = matches.sort((a, b) => new Date(b.last_mes).valueOf() - new Date(a.last_mes).valueOf());
         this.resultCache.set(resultKey, {
             expiresAt: Date.now() + MATCH_RESULT_CACHE_MS,
             matches: sorted,
-            total: candidates.length,
         });
         return sorted;
     }
@@ -159,10 +165,10 @@ export class BackupService {
      * @param {object[]} candidates 候选备份
      * @param {(candidate:object)=>Promise<object|null>} worker 匹配任务
      * @param {(done:number,total:number)=>void} onProgress 进度回调
-     * @param {(match:object)=>void} onMatch 增量匹配回调
+     * @param {(candidate:object,result:object|null)=>void} onResult 单个候选完成回调
      * @returns {Promise<object[]>} 有效结果
      */
-    async #mapCandidates(candidates, worker, onProgress, onMatch) {
+    async #mapCandidates(candidates, worker, onProgress, onResult) {
         const results = new Array(candidates.length);
         let cursor = 0;
         let done = 0;
@@ -170,7 +176,7 @@ export class BackupService {
             while (cursor < candidates.length) {
                 const index = cursor++;
                 results[index] = await worker(candidates[index]);
-                if (results[index]) onMatch(results[index]);
+                onResult(candidates[index], results[index]);
                 done++;
                 onProgress(done, candidates.length);
             }

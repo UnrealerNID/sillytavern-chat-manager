@@ -185,7 +185,7 @@ export async function parseJsonlResponse(response, options = {}) {
         if (lineNumber === 1) {
             header = value;
             await options.onHeader?.(value);
-            return false;
+            return options.stopAfter === 0;
         }
         const index = messageCount++;
         await options.onMessage?.(value, index);
