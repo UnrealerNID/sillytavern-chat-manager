@@ -1,6 +1,6 @@
-# SillyTavern Chat Archive Optimizer
+# SillyTavern Chat Manager
 
-面向 SillyTavern 的纯前端聊天归档优化扩展。
+面向 SillyTavern 的纯前端聊天文件管理扩展。
 
 ## 目标
 
