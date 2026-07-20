@@ -54,7 +54,7 @@ https://github.com/UnrealerNID/sillytavern-chat-manager
 
 ## 更新
 
-在 SillyTavern 的扩展管理中点击“检查更新”，发现新版本后执行更新并刷新页面。
+插件设置会自动检查远程更新。发现新版本时，版本号旁会显示“更新”按钮；点击后由 SillyTavern 完成更新并自动刷新页面。也可以在酒馆的扩展管理中手动检查更新。
 
 ## 使用限制
 

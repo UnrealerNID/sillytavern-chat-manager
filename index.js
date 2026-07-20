@@ -1,6 +1,7 @@
-import { isGenerating, saveSettingsDebounced, setActiveCharacter, setActiveGroup } from '/script.js';
+import { getRequestHeaders, isGenerating, saveSettingsDebounced, setActiveCharacter, setActiveGroup } from '/script.js';
 import { openGroupById } from '/scripts/group-chats.js';
-import { extension_settings, renderExtensionTemplateAsync } from '/scripts/extensions.js';
+import { extension_settings, extensionTypes, renderExtensionTemplateAsync } from '/scripts/extensions.js';
+import { isAdmin } from '/scripts/user.js';
 
 import { ChatManagerApi } from './modules/api.js';
 import { BackupService } from './modules/backups.js';
@@ -11,6 +12,8 @@ import { ChatManagerUi } from './modules/ui.js';
 import { element } from './modules/utils.js';
 
 let initialized = false;
+const extensionId = 'third-party/sillytavern-chat-manager';
+const extensionFolder = 'sillytavern-chat-manager';
 
 /**
  * 扩展清单中用于界面展示的元数据
@@ -38,6 +41,80 @@ async function loadExtensionMetadata() {
         console.warn('[聊天文件管理] 读取扩展元数据失败', error);
         return { version: '未知' };
     }
+}
+
+/**
+ * 判断当前插件是否安装在酒馆全局扩展目录
+ * @returns {boolean} 是否为全局扩展
+ */
+function isGlobalExtension() {
+    return extensionTypes[extensionId] === 'global';
+}
+
+/**
+ * 使用酒馆原生版本接口检查插件更新
+ * @returns {Promise<boolean>} 是否存在远程更新
+ */
+async function hasExtensionUpdate() {
+    const response = await fetch('/api/extensions/version', {
+        method: 'POST',
+        headers: getRequestHeaders(),
+        body: JSON.stringify({ extensionName: extensionFolder, global: isGlobalExtension() }),
+    });
+    if (!response.ok) throw new Error(await response.text() || response.statusText);
+    const data = await response.json();
+    return data.isUpToDate === false;
+}
+
+/**
+ * 使用酒馆原生更新接口拉取插件远程提交
+ * @returns {Promise<{isUpToDate:boolean, shortCommitHash?:string}>} 更新结果
+ */
+async function updateExtension() {
+    const response = await fetch('/api/extensions/update', {
+        method: 'POST',
+        headers: getRequestHeaders(),
+        body: JSON.stringify({ extensionName: extensionFolder, global: isGlobalExtension() }),
+    });
+    if (!response.ok) throw new Error(await response.text() || response.statusText);
+    return response.json();
+}
+
+/**
+ * 根据酒馆返回的版本状态控制更新按钮
+ * @param {HTMLButtonElement} button 更新按钮
+ * @returns {Promise<void>}
+ */
+async function configureUpdateButton(button) {
+    if (isGlobalExtension() && !isAdmin()) return;
+    try {
+        button.hidden = !await hasExtensionUpdate();
+    } catch (error) {
+        console.warn('[聊天文件管理] 检查扩展更新失败', error);
+        return;
+    }
+
+    button.addEventListener('click', async () => {
+        const icon = button.querySelector('i');
+        button.disabled = true;
+        icon?.classList.add('fa-spin');
+        try {
+            const result = await updateExtension();
+            if (result.isUpToDate) {
+                button.hidden = true;
+                globalThis.toastr?.info?.('插件已经是最新版本');
+                return;
+            }
+            globalThis.toastr?.success?.('插件更新完成，正在刷新页面');
+            setTimeout(() => location.reload(), 500);
+        } catch (error) {
+            console.error('[聊天文件管理] 更新扩展失败', error);
+            globalThis.toastr?.error?.(`插件更新失败：${error.message}`);
+        } finally {
+            button.disabled = false;
+            icon?.classList.remove('fa-spin');
+        }
+    });
 }
 
 /**
@@ -91,7 +168,11 @@ async function insertExtensionStatus(metadata, settings, onEnabledChange) {
     const drawer = template.content.firstElementChild;
     const version = drawer?.querySelector('.chat-manager-extension-version');
     const enabledToggle = drawer?.querySelector('#chat_manager_enabled');
-    if (!(drawer instanceof HTMLElement) || !(version instanceof HTMLElement) || !(enabledToggle instanceof HTMLInputElement)) {
+    const updateButton = drawer?.querySelector('#chat_manager_update');
+    if (!(drawer instanceof HTMLElement)
+        || !(version instanceof HTMLElement)
+        || !(enabledToggle instanceof HTMLInputElement)
+        || !(updateButton instanceof HTMLButtonElement)) {
         throw new Error('扩展设置模板结构无效');
     }
 
@@ -99,6 +180,7 @@ async function insertExtensionStatus(metadata, settings, onEnabledChange) {
     enabledToggle.checked = settings.enabled;
     enabledToggle.addEventListener('change', () => onEnabledChange(enabledToggle.checked));
     container.append(drawer);
+    configureUpdateButton(updateButton);
     return true;
 }
 
