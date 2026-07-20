@@ -1,7 +1,7 @@
 <div data-cm-dialog-registry>
     <template data-cm-dialog-shell>
         <div class="cm-overlay cm-dialog-overlay" role="presentation" data-cm-dialog-overlay>
-            <section class="cm-dialog" role="dialog" aria-modal="true">
+            <section class="cm-dialog" role="dialog" aria-modal="true" data-cm-dialog-panel>
                 <header class="cm-header">
                     <h3 data-cm-dialog-title></h3>
                     <button class="cm-icon-button" type="button" title="关闭" aria-label="关闭" data-cm-dialog-close>
@@ -24,12 +24,12 @@
                 <span data-cm-backup-progress-value></span>
             </div>
         </div>
-        <div data-cm-backup-results></div>
+        <div class="cm-result-list" data-cm-backup-results></div>
     </template>
 
     <template data-cm-dialog-content="backup-viewer">
         <div class="cm-message-list" data-cm-message-list></div>
-        <div class="cm-footer">
+        <div class="cm-footer cm-dialog-pagination">
             <button class="menu_button" type="button" data-cm-message-previous>上一页</button>
             <span data-cm-message-page></span>
             <button class="menu_button" type="button" data-cm-message-next>下一页</button>
@@ -59,7 +59,7 @@
                 <input class="text_pole" type="number" step="1" data-cm-split-chunk>
             </label>
         </div>
-        <div class="cm-preview" data-cm-split-preview></div>
+        <div class="cm-preview" aria-live="polite" data-cm-split-preview></div>
         <label class="cm-confirm-notice cm-hidden" data-cm-split-notice>
             <input type="checkbox" data-cm-split-acknowledge>
             <span>我了解：创建分卷会触发酒馆原生备份及轮换规则</span>

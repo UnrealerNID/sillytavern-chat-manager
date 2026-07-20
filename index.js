@@ -343,10 +343,11 @@ export async function init() {
     const journal = new TaskJournal();
     const backups = new BackupService(api);
     const splitter = new SplitService(api, journal, () => getContext().uuidv4());
-    const [metadata, panelTemplate, dialogTemplates] = await Promise.all([
+    const [metadata, panelTemplate, dialogTemplates, componentTemplates] = await Promise.all([
         loadExtensionMetadata(),
         renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/panel'),
         renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/dialogs'),
+        renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/components'),
     ]);
     const ui = new ChatManagerUi({
         getContext,
@@ -357,6 +358,7 @@ export async function init() {
         openRecord,
         template: panelTemplate,
         dialogTemplates,
+        componentTemplates,
         getAvatarUrl: record => record.ownerType === 'group' ? system_avatar : getThumbnailUrl('avatar', record.ownerId),
     });
     const nativePanel = new NativeChatPanel({ getContext, ui, isGenerating });

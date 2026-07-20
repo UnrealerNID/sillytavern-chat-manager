@@ -34,6 +34,7 @@ for (const referenced of [
     'templates/settings.html',
     'templates/panel.html',
     'templates/dialogs.html',
+    'templates/components.html',
     ...Object.values(manifest.i18n ?? {}),
 ]) {
     if (!existsSync(join(root, referenced))) throw new Error(`插件引用了不存在的文件：${referenced}`);

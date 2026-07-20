@@ -19,9 +19,10 @@ export class ChatManagerUi {
      * @param {(record:object)=>Promise<void>} dependencies.openRecord Open callback
      * @param {string} dependencies.template 稳定面板模板
      * @param {string} dependencies.dialogTemplates 弹窗模板注册表
+     * @param {string} dependencies.componentTemplates 重复内容组件模板注册表
      * @param {(record:object)=>string} dependencies.getAvatarUrl 头像地址生成器
      */
-    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, template, dialogTemplates, getAvatarUrl }) {
+    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, template, dialogTemplates, componentTemplates, getAvatarUrl }) {
         this.getContext = getContext;
         this.api = api;
         this.backups = backups;
@@ -34,10 +35,10 @@ export class ChatManagerUi {
         this.page = 0;
         this.selectedKey = null;
         this.loading = false;
-        this.#build(template, dialogTemplates);
+        this.#build(template, dialogTemplates, componentTemplates);
     }
 
-    #build(template, dialogTemplates) {
+    #build(template, dialogTemplates, componentTemplates) {
         const holder = document.createElement('template');
         holder.innerHTML = template.trim();
         const root = holder.content.firstElementChild;
@@ -51,6 +52,10 @@ export class ChatManagerUi {
         dialogHolder.innerHTML = dialogTemplates.trim();
         const dialogRegistry = dialogHolder.content.firstElementChild;
         if (!(dialogRegistry instanceof HTMLElement)) throw new Error('聊天管理弹窗模板无效');
+        const componentHolder = document.createElement('template');
+        componentHolder.innerHTML = componentTemplates.trim();
+        const componentRegistry = componentHolder.content.firstElementChild;
+        if (!(componentRegistry instanceof HTMLElement)) throw new Error('聊天管理组件模板无效');
 
         this.root = root;
         this.search = required(root, '[data-cm-search]', HTMLInputElement);
@@ -65,6 +70,12 @@ export class ChatManagerUi {
         this.dialogContentTemplates = new Map(
             Array.from(dialogRegistry.querySelectorAll('[data-cm-dialog-content]'), templateNode => [
                 templateNode.dataset.cmDialogContent,
+                templateNode,
+            ]),
+        );
+        this.componentTemplates = new Map(
+            Array.from(componentRegistry.querySelectorAll('[data-cm-component]'), templateNode => [
+                templateNode.dataset.cmComponent,
                 templateNode,
             ]),
         );
@@ -165,66 +176,55 @@ export class ChatManagerUi {
         this.page = Math.max(0, Math.min(this.page, totalPages - 1));
         const pageRecords = this.filtered.slice(this.page * PAGE_SIZE, (this.page + 1) * PAGE_SIZE);
         for (const record of pageRecords) this.list.append(this.#chatRow(record));
-        if (!pageRecords.length && !this.loading) this.list.append(element('div', { className: 'cm-empty', text: '没有可显示的聊天' }));
+        if (!pageRecords.length && !this.loading) this.list.append(this.#state('没有可显示的聊天', { empty: true }));
         this.pageLabel.textContent = `第 ${this.page + 1} / ${totalPages} 页 · ${this.filtered.length} 条`;
         this.previous.disabled = this.page <= 0;
         this.next.disabled = this.page >= totalPages - 1;
     }
 
     #chatRow(record) {
-        const row = element('article', { className: `cm-chat-row${this.selectedKey === chatKey(record) ? ' cm-selected' : ''}` });
+        const row = this.#component('chat-row');
+        const image = this.#mount(row, '[data-cm-chat-avatar]', HTMLImageElement);
+        const name = this.#mount(row, '[data-cm-chat-name]');
+        const owner = this.#mount(row, '[data-cm-chat-owner]');
+        const file = this.#mount(row, '[data-cm-chat-file]');
+        const date = this.#mount(row, '[data-cm-chat-date]', HTMLTimeElement);
+        const preview = this.#mount(row, '[data-cm-chat-preview]');
+        const countWrap = this.#mount(row, '[data-cm-chat-count-wrap]');
+        const count = this.#mount(row, '[data-cm-chat-count]');
+        const size = this.#mount(row, '[data-cm-chat-size]');
+        const open = this.#mount(row, '[data-cm-chat-open]', HTMLButtonElement);
+        const backup = this.#mount(row, '[data-cm-chat-backups]', HTMLButtonElement);
+        const split = this.#mount(row, '[data-cm-chat-split]', HTMLButtonElement);
+        row.classList.toggle('cm-selected', this.selectedKey === chatKey(record));
         row.title = `打开 ${record.ownerName} / ${record.fileId}`;
-        const avatar = element('div', { className: 'avatar cm-chat-avatar' });
-        const image = element('img', {
-            attrs: {
-                src: record.avatarUrl,
-                alt: record.ownerName,
-                loading: 'lazy',
-            },
-        });
-        avatar.append(image);
-
-        const info = element('div', { className: 'cm-chat-info' });
-        const heading = element('div', { className: 'cm-chat-heading' });
-        const name = element('div', { className: 'cm-chat-name', title: `${record.ownerName} - ${record.fileId}` });
-        name.append(
-            element('strong', { text: record.ownerName }),
-            element('span', { text: '–' }),
-            element('span', { className: 'cm-file-name', text: record.fileId }),
-        );
-        const date = element('time', { className: 'cm-chat-date', text: this.#formatDate(record.lastMessageAt) });
-        const actions = element('div', { className: 'cm-actions cm-chat-actions' });
+        image.src = record.avatarUrl;
+        image.alt = record.ownerName;
+        name.title = `${record.ownerName} - ${record.fileId}`;
+        owner.textContent = record.ownerName;
+        file.textContent = record.fileId;
+        date.textContent = this.#formatDate(record.lastMessageAt);
+        preview.textContent = record.preview;
+        preview.title = record.preview;
+        countWrap.title = `${record.messageCount} 层消息`;
+        count.textContent = String(record.messageCount);
+        size.textContent = record.fileSize;
         const openRecord = async () => {
             this.selectedKey = chatKey(record);
             this.#render();
             await this.openRecord(record);
             this.close();
         };
-        const open = this.#iconButton('fa-arrow-up-right-from-square', '进入聊天', '切换到该聊天记录', openRecord);
-        const backup = this.#iconButton('fa-box-archive', '查找备份', '匹配该聊天对应的酒馆原生备份', () => this.openBackups(record));
-        const split = this.#iconButton('fa-scissors', '创建分卷', '基于原记录生成新的分卷聊天', () => this.openSplit(record));
+        this.#bindButton(open, openRecord);
+        this.#bindButton(backup, () => this.openBackups(record));
+        this.#bindButton(split, () => this.openSplit(record));
         open.disabled = this.isGenerating() || this.splitter.running;
         split.disabled = this.isGenerating() || this.splitter.running || record.messageCount < 1;
-        actions.append(open, backup, split);
-        heading.append(name, date, actions);
-
-        const message = element('div', { className: 'cm-chat-message-row' });
-        const preview = element('p', { className: 'cm-chat-preview', text: record.preview, title: record.preview });
-        const stats = element('div', { className: 'cm-chat-stats' });
-        const count = element('span', { title: `${record.messageCount} 层消息` });
-        count.append(
-            element('i', { className: 'fa-solid fa-comment fa-xs', attrs: { 'aria-hidden': 'true' } }),
-            element('small', { text: String(record.messageCount) }),
-        );
-        stats.append(count, element('small', { className: 'cm-chat-size', text: record.fileSize }));
-        message.append(preview, stats);
-        info.append(heading, message);
 
         row.addEventListener('click', event => {
             if (event.target.closest('button')) return;
             void openRecord().catch(error => notify('error', error.message));
         });
-        row.append(avatar, info);
         return row;
     }
 
@@ -258,30 +258,22 @@ export class ChatManagerUi {
             status.remove();
             results.replaceChildren();
             if (!matches.length) {
-                results.append(element('div', { className: 'cm-empty', text: '没有找到能够关联到该聊天的备份' }));
+                results.append(this.#state('没有找到能够关联到该聊天的备份', { empty: true }));
                 return;
             }
             for (const backup of matches) {
-                const row = element('article', { className: 'cm-backup-row' });
-                const info = element('div', { className: 'cm-chat-info' });
-                info.append(
-                    element('strong', { text: backup.file_name }),
-                    element('small', { text: `${backup.file_size} · ${backup.chat_items} 层 · ${backup.status === 'matched' ? '已匹配' : backup.status === 'confirm' ? '需要确认' : '读取失败'}` }),
-                    element('span', { text: backup.reason ?? '' }),
-                );
-                const actions = element('div', { className: 'cm-actions' });
-                actions.append(
-                    this.#button('查看', () => this.#viewBackup(backup)),
-                    this.#button('下载', () => this.backups.download(backup.file_name)),
-                );
-                row.append(info, actions);
+                const row = this.#component('backup-row');
+                this.#mount(row, '[data-cm-backup-name]').textContent = backup.file_name;
+                this.#mount(row, '[data-cm-backup-meta]').textContent = `${backup.file_size} · ${backup.chat_items} 层 · ${backup.status === 'matched' ? '已匹配' : backup.status === 'confirm' ? '需要确认' : '读取失败'}`;
+                this.#mount(row, '[data-cm-backup-reason]').textContent = backup.reason ?? '';
+                this.#bindButton(this.#mount(row, '[data-cm-backup-view]', HTMLButtonElement), () => this.#viewBackup(backup));
+                this.#bindButton(this.#mount(row, '[data-cm-backup-download]', HTMLButtonElement), () => this.backups.download(backup.file_name));
                 results.append(row);
             }
         } catch (error) {
             if (dialog.signal.aborted) return;
             stopLoading();
-            status.classList.remove('cm-loading-state');
-            status.replaceChildren(element('span', { text: error.message }));
+            status.replaceWith(this.#state(error.message, { error: true }));
             notify('error', error.message);
         }
     }
@@ -297,17 +289,15 @@ export class ChatManagerUi {
         this.#bindButton(previous, () => { page--; return load(); });
         this.#bindButton(next, () => { page++; return load(); });
         const load = async () => {
-            content.replaceChildren(element('div', { className: 'cm-state', text: '正在读取该页…' }));
+            content.replaceChildren(this.#state('正在读取该页…'));
             try {
                 const messages = await this.backups.readPage(backup.file_name, page, pageSize, dialog.signal);
                 content.replaceChildren();
                 messages.forEach((message, index) => {
-                    const item = element('article', { className: 'cm-message' });
-                    item.append(
-                        element('strong', { text: `#${page * pageSize + index} ${message.name ?? ''}` }),
-                        element('small', { text: this.#formatDate(message.send_date) }),
-                        element('pre', { text: String(message.mes ?? '') }),
-                    );
+                    const item = this.#component('message');
+                    this.#mount(item, '[data-cm-message-name]').textContent = `#${page * pageSize + index} ${message.name ?? ''}`;
+                    this.#mount(item, '[data-cm-message-date]', HTMLTimeElement).textContent = this.#formatDate(message.send_date);
+                    this.#mount(item, '[data-cm-message-content]').textContent = String(message.mes ?? '');
                     content.append(item);
                 });
                 const pages = Math.max(1, Math.ceil(Number(backup.chat_items ?? 0) / pageSize));
@@ -316,7 +306,7 @@ export class ChatManagerUi {
                 next.disabled = page >= pages - 1;
             } catch (error) {
                 if (dialog.signal.aborted) return;
-                content.replaceChildren(element('div', { className: 'cm-state cm-error', text: error.message }));
+                content.replaceChildren(this.#state(error.message, { error: true }));
             }
         };
         await load();
@@ -350,7 +340,7 @@ export class ChatManagerUi {
             if (this.isGenerating()) return notify('warning', '聊天正在生成，不能生成预览');
             busy = true;
             syncControls();
-            preview.replaceChildren(element('div', { className: 'cm-state', text: '正在读取原聊天并计算预览…' }));
+            preview.replaceChildren(this.#state('正在读取原聊天并计算预览…'));
             try {
                 plan = await this.splitter.prepare(record, {
                     mode: mode.value,
@@ -359,13 +349,13 @@ export class ChatManagerUi {
                     chunkSize: Number(chunk.value),
                 }, dialog.signal);
                 preview.replaceChildren();
-                plan.parts.forEach(part => preview.append(element('div', { className: 'cm-preview-row', text: describePart(part) })));
+                plan.parts.forEach(part => preview.append(this.#splitPart(describePart(part))));
                 notice.classList.remove('cm-hidden');
                 syncControls();
             } catch (error) {
                 plan = null;
                 if (dialog.signal.aborted) return;
-                preview.replaceChildren(element('div', { className: 'cm-state cm-error', text: error.message }));
+                preview.replaceChildren(this.#state(error.message, { error: true }));
                 notice.classList.add('cm-hidden');
                 syncControls();
             } finally {
@@ -422,14 +412,12 @@ export class ChatManagerUi {
         const dialog = this.#dialog('检测到未完成的分割任务', 'recovery');
         const list = this.#mount(dialog.body, '[data-cm-recovery-list]');
         for (const task of tasks) {
-            const card = element('article', { className: 'cm-recovery' });
-            const details = element('div', { className: 'cm-chat-info' });
-            details.append(
-                element('strong', { text: `${task.record.ownerName} / ${task.record.fileId}` }),
-                element('span', { text: task.parts.map(part => `${part.fileId}：${part.status}`).join('；') }),
-            );
-            const actions = element('div', { className: 'cm-actions' });
-            const resume = this.#button('继续', async () => {
+            const card = this.#component('recovery-task');
+            this.#mount(card, '[data-cm-recovery-name]').textContent = `${task.record.ownerName} / ${task.record.fileId}`;
+            this.#mount(card, '[data-cm-recovery-parts]').textContent = task.parts.map(part => `${part.fileId}：${part.status}`).join('；');
+            const resume = this.#mount(card, '[data-cm-recovery-resume]', HTMLButtonElement);
+            const clear = this.#mount(card, '[data-cm-recovery-clear]', HTMLButtonElement);
+            this.#bindButton(resume, async () => {
                 if (this.isGenerating()) return notify('warning', '聊天正在生成，不能继续任务');
                 resume.disabled = true;
                 try {
@@ -444,37 +432,74 @@ export class ChatManagerUi {
                     resume.disabled = false;
                 }
             });
-            const clear = this.#button('仅清除记录', async () => {
+            this.#bindButton(clear, async () => {
                 await this.splitter.journal.remove(task.id);
                 card.remove();
             });
-            actions.append(resume, clear);
-            card.append(details, actions);
             list.append(card);
         }
     }
 
     #renderTask(container, task) {
         container.replaceChildren();
-        task.parts.forEach(part => container.append(element('div', {
-            className: `cm-preview-row cm-status-${part.status}`,
-            text: `${part.fileId}　${part.status}${part.error ? `：${part.error}` : ''}`,
-        })));
+        task.parts.forEach(part => container.append(this.#splitPart(
+            `${part.fileId}　${part.status}${part.error ? `：${part.error}` : ''}`,
+            part.status,
+        )));
     }
 
+    /**
+     * 创建分卷预览或执行状态行
+     * @param {string} text 展示文本
+     * @param {string} status 分卷状态
+     * @returns {HTMLElement}
+     */
+    #splitPart(text, status = '') {
+        const row = this.#component('split-part');
+        if (status) row.classList.add(`cm-status-${status}`);
+        this.#mount(row, '[data-cm-split-part-text]').textContent = text;
+        return row;
+    }
+
+    /**
+     * 创建统一的空白、加载或错误状态
+     * @param {string} text 状态文本
+     * @param {{error?:boolean,empty?:boolean}} options 状态样式
+     * @returns {HTMLElement}
+     */
+    #state(text, { error = false, empty = false } = {}) {
+        const state = this.#component('state');
+        state.classList.toggle('cm-error', error);
+        state.classList.toggle('cm-empty', empty);
+        this.#mount(state, '[data-cm-state-text]').textContent = text;
+        return state;
+    }
+
+    /**
+     * 从静态外壳和内容模板创建一个可叠加弹窗
+     * @param {string | string[]} title 标题或分层标题
+     * @param {string} contentId 内容模板名称
+     * @returns {{root:HTMLElement,body:HTMLElement,signal:AbortSignal,close:()=>void,setClosable:(value:boolean)=>void}}
+     */
     #dialog(title, contentId) {
         const controller = new AbortController();
         const fragment = this.dialogTemplate.content.cloneNode(true);
         const root = fragment.querySelector('[data-cm-dialog-overlay]');
+        const panel = fragment.querySelector('[data-cm-dialog-panel]');
         const heading = fragment.querySelector('[data-cm-dialog-title]');
         const closeButton = fragment.querySelector('[data-cm-dialog-close]');
         const body = fragment.querySelector('[data-cm-dialog-body]');
         if (!(root instanceof HTMLElement)
+            || !(panel instanceof HTMLElement)
             || !(heading instanceof HTMLElement)
             || !(closeButton instanceof HTMLButtonElement)
             || !(body instanceof HTMLElement)) {
             throw new Error('聊天管理弹窗模板无效');
         }
+        panel.classList.add(`cm-dialog-${contentId}`);
+        this.dialogSequence = (this.dialogSequence ?? 0) + 1;
+        heading.id = `cm_dialog_title_${this.dialogSequence}`;
+        panel.setAttribute('aria-labelledby', heading.id);
         if (Array.isArray(title)) {
             heading.classList.add('cm-dialog-title-lines');
             heading.title = title.join(' / ');
@@ -497,12 +522,6 @@ export class ChatManagerUi {
         return { root, body, signal: controller.signal, close: remove, setClosable: value => { closeButton.disabled = !value; } };
     }
 
-    #button(text, handler, title = '') {
-        const button = element('button', { className: 'menu_button', text, title, type: 'button' });
-        this.#bindButton(button, handler);
-        return button;
-    }
-
     /**
      * 将静态模板中的按钮接入统一的异步错误处理
      * @param {HTMLButtonElement} button 按钮元素
@@ -518,15 +537,17 @@ export class ChatManagerUi {
         });
     }
 
-    #iconButton(icon, label, title, handler) {
-        const button = this.#button('', handler, title);
-        button.classList.add('menu_button_icon', 'cm-row-action');
-        button.setAttribute('aria-label', label);
-        button.append(
-            element('i', { className: `fa-solid ${icon} fa-fw`, attrs: { 'aria-hidden': 'true' } }),
-            element('span', { text: label }),
-        );
-        return button;
+    /**
+     * 克隆一个静态组件模板
+     * @param {string} name 组件名称
+     * @returns {HTMLElement}
+     */
+    #component(name) {
+        const template = this.componentTemplates.get(name);
+        if (!(template instanceof HTMLTemplateElement)) throw new Error(`未找到组件模板 ${name}`);
+        const root = template.content.firstElementChild?.cloneNode(true);
+        if (!(root instanceof HTMLElement)) throw new Error(`组件模板 ${name} 无有效根节点`);
+        return root;
     }
 
     /**

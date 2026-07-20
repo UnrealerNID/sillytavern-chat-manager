@@ -37,6 +37,28 @@ test('dialog templates expose every static dialog and dynamic mount', async () =
     }
 });
 
+test('component templates expose every repeated card and action mount', async () => {
+    const html = await readFile(new URL('../templates/components.html', import.meta.url), 'utf8');
+    for (const marker of [
+        'data-cm-component="chat-row"',
+        'data-cm-chat-open',
+        'data-cm-component="backup-row"',
+        'data-cm-backup-view',
+        'data-cm-backup-download',
+        'data-cm-component="message"',
+        'data-cm-message-content',
+        'data-cm-component="split-part"',
+        'data-cm-split-part-text',
+        'data-cm-component="state"',
+        'data-cm-state-text',
+        'data-cm-component="recovery-task"',
+        'data-cm-recovery-resume',
+        'data-cm-recovery-clear',
+    ]) {
+        assert.match(html, new RegExp(marker));
+    }
+});
+
 test('panel and settings share the same version update controls', async () => {
     const [panel, settings] = await Promise.all([
         readFile(new URL('../templates/panel.html', import.meta.url), 'utf8'),

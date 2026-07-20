@@ -1,0 +1,104 @@
+<div data-cm-component-registry>
+    <template data-cm-component="chat-row">
+        <article class="cm-chat-row">
+            <div class="avatar cm-chat-avatar">
+                <img loading="lazy" data-cm-chat-avatar>
+            </div>
+            <div class="cm-chat-info">
+                <div class="cm-chat-heading">
+                    <div class="cm-chat-name" data-cm-chat-name>
+                        <strong data-cm-chat-owner></strong>
+                        <span aria-hidden="true">–</span>
+                        <span class="cm-file-name" data-cm-chat-file></span>
+                    </div>
+                    <time class="cm-chat-date" data-cm-chat-date></time>
+                    <div class="cm-actions cm-chat-actions">
+                        <button class="menu_button menu_button_icon cm-row-action" type="button" title="切换到该聊天记录" aria-label="进入聊天" data-cm-chat-open>
+                            <i class="fa-solid fa-arrow-up-right-from-square fa-fw" aria-hidden="true"></i>
+                            <span>进入聊天</span>
+                        </button>
+                        <button class="menu_button menu_button_icon cm-row-action" type="button" title="匹配该聊天对应的酒馆原生备份" aria-label="查找备份" data-cm-chat-backups>
+                            <i class="fa-solid fa-box-archive fa-fw" aria-hidden="true"></i>
+                            <span>查找备份</span>
+                        </button>
+                        <button class="menu_button menu_button_icon cm-row-action" type="button" title="基于原记录生成新的分卷聊天" aria-label="创建分卷" data-cm-chat-split>
+                            <i class="fa-solid fa-scissors fa-fw" aria-hidden="true"></i>
+                            <span>创建分卷</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="cm-chat-message-row">
+                    <p class="cm-chat-preview" data-cm-chat-preview></p>
+                    <div class="cm-chat-stats">
+                        <span data-cm-chat-count-wrap>
+                            <i class="fa-solid fa-comment fa-xs" aria-hidden="true"></i>
+                            <small data-cm-chat-count></small>
+                        </span>
+                        <small class="cm-chat-size" data-cm-chat-size></small>
+                    </div>
+                </div>
+            </div>
+        </article>
+    </template>
+
+    <template data-cm-component="backup-row">
+        <article class="cm-backup-row">
+            <div class="cm-chat-info">
+                <strong data-cm-backup-name></strong>
+                <small data-cm-backup-meta></small>
+                <span class="cm-backup-reason" data-cm-backup-reason></span>
+            </div>
+            <div class="cm-actions">
+                <button class="menu_button" type="button" data-cm-backup-view>
+                    <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                    <span>查看内容</span>
+                </button>
+                <button class="menu_button" type="button" data-cm-backup-download>
+                    <i class="fa-solid fa-download" aria-hidden="true"></i>
+                    <span>下载文件</span>
+                </button>
+            </div>
+        </article>
+    </template>
+
+    <template data-cm-component="message">
+        <article class="cm-message">
+            <header class="cm-message-header">
+                <strong data-cm-message-name></strong>
+                <time data-cm-message-date></time>
+            </header>
+            <pre data-cm-message-content></pre>
+        </article>
+    </template>
+
+    <template data-cm-component="split-part">
+        <div class="cm-preview-row">
+            <span data-cm-split-part-text></span>
+        </div>
+    </template>
+
+    <template data-cm-component="state">
+        <div class="cm-state" role="status">
+            <span data-cm-state-text></span>
+        </div>
+    </template>
+
+    <template data-cm-component="recovery-task">
+        <article class="cm-recovery">
+            <div class="cm-chat-info">
+                <strong data-cm-recovery-name></strong>
+                <span data-cm-recovery-parts></span>
+            </div>
+            <div class="cm-actions">
+                <button class="menu_button" type="button" data-cm-recovery-resume>
+                    <i class="fa-solid fa-play" aria-hidden="true"></i>
+                    <span>继续任务</span>
+                </button>
+                <button class="menu_button" type="button" data-cm-recovery-clear>
+                    <i class="fa-solid fa-broom" aria-hidden="true"></i>
+                    <span>清除任务记录</span>
+                </button>
+            </div>
+        </article>
+    </template>
+</div>
