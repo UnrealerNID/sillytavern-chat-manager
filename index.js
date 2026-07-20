@@ -23,6 +23,7 @@ let initialized = false;
  * 插件功能设置
  * @typedef {object} ChatManagerSettings
  * @property {boolean} enabled 是否启用插件功能
+ * @property {'left'|'right'} [column] 首次选择并固定使用的扩展栏
  */
 
 /**
@@ -54,12 +55,15 @@ function countRenderedExtensionCards(container) {
 }
 
 /**
- * 选择当前扩展卡数量较少的原生扩展栏
+ * 优先选择已保存的扩展栏，否则选择当前扩展卡数量较少的栏
+ * @param {'left'|'right'|undefined} savedColumn 已保存的扩展栏
  * @returns {HTMLElement|null} 目标扩展栏；两栏数量相同时返回左栏
  */
-function selectExtensionColumn() {
+function selectExtensionColumn(savedColumn) {
     const left = document.querySelector('#extensions_settings');
     const right = document.querySelector('#extensions_settings2');
+    if (savedColumn === 'left' && left instanceof HTMLElement) return left;
+    if (savedColumn === 'right' && right instanceof HTMLElement) return right;
     if (!(left instanceof HTMLElement)) return right instanceof HTMLElement ? right : null;
     if (!(right instanceof HTMLElement)) return left;
     return countRenderedExtensionCards(left) <= countRenderedExtensionCards(right) ? left : right;
@@ -74,8 +78,13 @@ function selectExtensionColumn() {
  */
 function insertExtensionStatus(metadata, settings, onEnabledChange) {
     if (document.querySelector('#chat_manager_extension_status')) return true;
-    const container = selectExtensionColumn();
+    const container = selectExtensionColumn(settings.column);
     if (!container) return false;
+    const selectedColumn = container.id === 'extensions_settings' ? 'left' : 'right';
+    if (settings.column !== selectedColumn) {
+        settings.column = selectedColumn;
+        saveSettingsDebounced();
+    }
 
     const drawer = element('div', {
         className: 'inline-drawer chat-manager-extension-status',
