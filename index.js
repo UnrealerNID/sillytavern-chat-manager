@@ -41,6 +41,31 @@ async function loadExtensionMetadata() {
 }
 
 /**
+ * 统计扩展栏中已经填充且未隐藏的顶层扩展卡
+ * @param {HTMLElement} container 扩展栏容器
+ * @returns {number} 已渲染的扩展卡数量
+ */
+function countRenderedExtensionCards(container) {
+    return Array.from(container.children).filter(child => {
+        if (!(child instanceof HTMLElement)) return false;
+        if (child.hidden || getComputedStyle(child).display === 'none') return false;
+        return child.childElementCount > 0 || Boolean(child.textContent?.trim());
+    }).length;
+}
+
+/**
+ * 选择当前扩展卡数量较少的原生扩展栏
+ * @returns {HTMLElement|null} 目标扩展栏；两栏数量相同时返回左栏
+ */
+function selectExtensionColumn() {
+    const left = document.querySelector('#extensions_settings');
+    const right = document.querySelector('#extensions_settings2');
+    if (!(left instanceof HTMLElement)) return right instanceof HTMLElement ? right : null;
+    if (!(right instanceof HTMLElement)) return left;
+    return countRenderedExtensionCards(left) <= countRenderedExtensionCards(right) ? left : right;
+}
+
+/**
  * 向酒馆原生扩展程序抽屉添加状态卡片
  * @param {ExtensionMetadata} metadata 扩展元数据
  * @param {ChatManagerSettings} settings 插件功能设置
@@ -49,7 +74,7 @@ async function loadExtensionMetadata() {
  */
 function insertExtensionStatus(metadata, settings, onEnabledChange) {
     if (document.querySelector('#chat_manager_extension_status')) return true;
-    const container = document.querySelector('#extensions_settings2');
+    const container = selectExtensionColumn();
     if (!container) return false;
 
     const drawer = element('div', {
