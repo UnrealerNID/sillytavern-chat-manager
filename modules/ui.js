@@ -584,8 +584,6 @@ export class ChatManagerUi {
         const chunk = this.#mount(dialog.body, '[data-cm-split-chunk]', HTMLInputElement);
         const chunkRow = this.#mount(dialog.body, '[data-cm-split-chunk-field]');
         const preview = this.#mount(dialog.body, '[data-cm-split-preview]');
-        const notice = this.#mount(dialog.body, '[data-cm-split-notice]');
-        const acknowledge = this.#mount(dialog.body, '[data-cm-split-acknowledge]', HTMLInputElement);
         const confirm = this.#mount(dialog.body, '[data-cm-split-confirm]', HTMLButtonElement);
         const stop = this.#mount(dialog.body, '[data-cm-split-stop]', HTMLButtonElement);
         const maxFloor = Math.max(0, record.messageCount - 1);
@@ -653,8 +651,7 @@ export class ChatManagerUi {
         const syncControls = () => {
             const blocked = executing || this.isGenerating() || this.splitter.running;
             for (const input of [mode, start, end, chunk, groupConfig]) input.disabled = blocked;
-            acknowledge.disabled = blocked;
-            confirm.disabled = blocked || previewing || !plan || !acknowledge.checked;
+            confirm.disabled = blocked || previewing || !plan;
         };
         const runPreview = async (revision) => {
             if (revision !== previewRevision || executing) return;
@@ -686,14 +683,12 @@ export class ChatManagerUi {
                 const totalMessages = plan.parts.reduce((sum, part) => sum + part.messages.length, 0);
                 previewDetail.textContent = `${plan.parts.length} 个分卷 · 共 ${totalMessages} 层`;
                 setPreviewStatus('预览已更新', 'ready');
-                notice.classList.remove('cm-hidden');
             } catch (error) {
                 if (controller.signal.aborted || dialog.signal.aborted || revision !== previewRevision) return;
                 plan = null;
                 previewDetail.textContent = '';
                 setPreviewStatus('无法预览', 'error');
                 preview.replaceChildren(this.#state(error.message, { error: true }));
-                notice.classList.add('cm-hidden');
             } finally {
                 dialog.signal.removeEventListener('abort', abortPreview);
                 if (revision === previewRevision) {
@@ -712,8 +707,6 @@ export class ChatManagerUi {
             previewController = null;
             previewing = false;
             plan = null;
-            acknowledge.checked = false;
-            notice.classList.add('cm-hidden');
             previewDetail.textContent = '';
             setPreviewStatus(delay ? '等待更新' : '正在更新', 'loading');
             preview.replaceChildren(this.#state(delay ? '参数修改中，稍后自动更新预览…' : '正在准备预览…'));
@@ -725,7 +718,7 @@ export class ChatManagerUi {
         };
 
         this.#bindButton(confirm, async () => {
-            if (!plan || !acknowledge.checked) return;
+            if (!plan) return;
             if (this.isGenerating()) return notify('warning', '聊天正在生成，不能写入分卷');
             let refreshSource = false;
             executing = true;
@@ -742,7 +735,6 @@ export class ChatManagerUi {
                 });
                 this.#renderTask(preview, task);
                 plan = null;
-                notice.classList.add('cm-hidden');
                 setPreviewStatus(task.status === 'complete' ? '创建完成' : '任务已暂停', task.status === 'complete' ? 'ready' : 'warning');
                 previewDetail.textContent = task.status === 'complete' ? '所有分卷均已写入并校验' : '可以从恢复任务继续执行';
                 notify(task.status === 'complete' ? 'success' : 'warning', task.status === 'complete' ? '分割完成' : '任务已安全暂停');
@@ -764,7 +756,6 @@ export class ChatManagerUi {
             }
         });
         this.#bindButton(stop, () => this.splitter.requestStop());
-        acknowledge.addEventListener('change', () => syncControls());
         mode.addEventListener('change', () => {
             chunkRow.classList.toggle('cm-hidden', mode.value !== 'fixed');
             syncGroupConfig();

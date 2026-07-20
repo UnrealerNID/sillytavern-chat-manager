@@ -51,21 +51,25 @@
                 <span>组配置</span>
                 <select class="text_pole" data-cm-split-group-config></select>
             </label>
-            <label class="cm-field">
-                <span>模式</span>
-                <select class="text_pole" data-cm-split-mode>
-                    <option value="range">指定范围</option>
-                    <option value="fixed">固定楼层数</option>
-                </select>
-            </label>
-            <label class="cm-field">
-                <span>起始楼层 #</span>
-                <input class="text_pole" type="number" step="1" data-cm-split-start>
-            </label>
-            <label class="cm-field">
-                <span>结束楼层 #</span>
-                <input class="text_pole" type="number" step="1" data-cm-split-end>
-            </label>
+            <div class="cm-split-primary-fields">
+                <label class="cm-field">
+                    <span>模式</span>
+                    <select class="text_pole" data-cm-split-mode>
+                        <option value="range">指定范围</option>
+                        <option value="fixed">固定楼层数</option>
+                    </select>
+                </label>
+                <div class="cm-split-floor-fields">
+                    <label class="cm-field">
+                        <span>起始楼层 #</span>
+                        <input class="text_pole" type="number" step="1" data-cm-split-start>
+                    </label>
+                    <label class="cm-field">
+                        <span>结束楼层 #</span>
+                        <input class="text_pole" type="number" step="1" data-cm-split-end>
+                    </label>
+                </div>
+            </div>
             <label class="cm-field cm-hidden" data-cm-split-chunk-field>
                 <span>每卷楼层数</span>
                 <input class="text_pole" type="number" step="1" data-cm-split-chunk>
@@ -76,10 +80,10 @@
             <small data-cm-split-preview-detail></small>
         </div>
         <div class="cm-preview" aria-live="polite" data-cm-split-preview></div>
-        <label class="cm-confirm-notice cm-hidden" data-cm-split-notice>
-            <input type="checkbox" data-cm-split-acknowledge>
-            <span>我了解：创建分卷会触发酒馆原生备份及轮换规则</span>
-        </label>
+        <div class="cm-split-notice" role="note">
+            <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+            <span>确认后会把预览中的分卷另存为新聊天，不会修改或删除原聊天；保存时酒馆会按自身设置生成备份，旧备份可能因保留数量上限被轮换清理。</span>
+        </div>
         <div class="cm-dialog-actions">
             <button class="menu_button cm-primary-action" type="button" data-cm-split-confirm>
                 <i class="fa-solid fa-scissors" aria-hidden="true"></i>

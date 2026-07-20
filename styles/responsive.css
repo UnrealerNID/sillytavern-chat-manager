@@ -112,7 +112,7 @@
         min-width: 0;
     }
 
-    .cm-split-form {
+    .cm-split-primary-fields {
         grid-template-columns: 1fr;
     }
 

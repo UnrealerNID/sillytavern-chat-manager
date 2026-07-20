@@ -38,12 +38,18 @@ test('dialog templates expose every static dialog and dynamic mount', async () =
         'data-cm-split-preview-status',
         'data-cm-split-preview-detail',
         'data-cm-split-group-config',
+        'cm-split-primary-fields',
+        'cm-split-floor-fields',
+        'cm-split-notice',
         'data-cm-dialog-content="recovery"',
         'data-cm-recovery-list',
     ]) {
         assert.match(html, new RegExp(marker));
     }
     assert.doesNotMatch(html, /data-cm-split-generate/);
+    assert.doesNotMatch(html, /data-cm-split-acknowledge/);
+    assert.match(html, /不会修改或删除原聊天/);
+    assert.match(html, /旧备份可能因保留数量上限被轮换清理/);
 });
 
 test('component templates expose every repeated card and action mount', async () => {
