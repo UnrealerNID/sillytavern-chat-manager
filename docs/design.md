@@ -393,7 +393,7 @@ UI 只有在 `verified` 时默认选中归属；`strong` 必须展示证据并�
 ```html
 <a id="chat_archive_optimizer_open">
     <i class="fa-lg fa-solid fa-box-archive"></i>
-    <span>全部聊天与归档</span>
+    <span>聊天管理</span>
 </a>
 ```
 
@@ -540,7 +540,7 @@ type ChatIndexEntry = {
 
 ### 12.2 状态入口
 
-聊天选项菜单中位于原生“聊天文件”之后的“全部聊天与归档”菜单项，是唯一界面入口。点击后打开状态面板，显示：
+聊天选项菜单中位于原生“聊天文件”之后的“聊天管理”菜单项，是唯一界面入口。点击后打开状态面板，显示：
 
 - 当前聊天大小
 - 风险等级
