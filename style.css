@@ -267,3 +267,23 @@
         grid-template-columns: 1fr;
     }
 }
+.chat-manager-extension-status .inline-drawer-header {
+    align-items: center;
+}
+
+.chat-manager-extension-version {
+    margin-left: 0.5rem;
+    color: var(--SmartThemeEmColor);
+    font-size: 0.85em;
+    font-weight: normal;
+}
+
+.chat-manager-update-status {
+    display: block;
+    margin-bottom: 0.75rem;
+    opacity: 0.75;
+}
+
+.chat-manager-extension-details {
+    width: fit-content;
+}

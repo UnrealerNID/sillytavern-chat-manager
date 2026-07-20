@@ -11,6 +11,63 @@ import { element } from './modules/utils.js';
 
 let initialized = false;
 
+/**
+ * Reads the installed manifest so displayed metadata has one source of truth
+ * @returns {Promise<{display_name:string, version:string, auto_update:boolean}>} Extension metadata
+ */
+async function loadExtensionMetadata() {
+    try {
+        const response = await fetch(new URL('./manifest.json', import.meta.url), { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.warn('[Chat Manager] Failed to read extension metadata', error);
+        return { display_name: '聊天文件管理', version: '未知', auto_update: false };
+    }
+}
+
+/**
+ * Adds a status-only card to the native extensions drawer
+ * @param {{display_name:string, version:string, auto_update:boolean}} metadata Extension metadata
+ * @returns {boolean} Whether the native container was available
+ */
+function insertExtensionStatus(metadata) {
+    if (document.querySelector('#chat_manager_extension_status')) return true;
+    const container = document.querySelector('#extensions_settings2');
+    if (!container) return false;
+
+    const drawer = element('div', {
+        className: 'inline-drawer chat-manager-extension-status',
+        attrs: { id: 'chat_manager_extension_status' },
+    });
+    const header = element('div', { className: 'inline-drawer-toggle inline-drawer-header' });
+    const title = element('b', { text: metadata.display_name || '聊天文件管理' });
+    const version = element('span', { className: 'chat-manager-extension-version', text: `v${metadata.version}` });
+    const icon = element('div', { className: 'inline-drawer-icon fa-solid fa-circle-chevron-down down' });
+    header.append(title, version, icon);
+
+    const content = element('div', { className: 'inline-drawer-content' });
+    content.append(
+        element('p', { text: '聊天文件浏览、原生备份识别与聊天记录分卷。功能入口位于“聊天文件”之后。' }),
+        element('small', {
+            className: 'chat-manager-update-status',
+            text: metadata.auto_update
+                ? '已启用酒馆原生更新检测；更新依据为安装仓库的 Git 远程分支。'
+                : '未启用自动更新检测。',
+        }),
+    );
+    const detailsButton = element('button', {
+        className: 'menu_button chat-manager-extension-details',
+        text: '查看扩展与更新',
+        type: 'button',
+    });
+    detailsButton.addEventListener('click', () => document.querySelector('#extensions_details')?.click());
+    content.append(detailsButton);
+    drawer.append(header, content);
+    container.append(drawer);
+    return true;
+}
+
 function getContext() {
     return SillyTavern.getContext();
 }
@@ -54,6 +111,7 @@ export async function init() {
     const splitter = new SplitService(api, journal, () => getContext().uuidv4());
     const ui = new ChatManagerUi({ getContext, api, backups, splitter, isGenerating, openRecord });
     const nativePanel = new NativeChatPanel({ getContext, ui, isGenerating });
+    const metadata = await loadExtensionMetadata();
 
     const insertEntry = () => {
         if (document.querySelector('#chat_manager_open')) return true;
@@ -76,6 +134,7 @@ export async function init() {
     if (!insertEntry()) setTimeout(() => {
         if (!insertEntry()) globalThis.toastr?.error?.('聊天管理无法找到原生聊天文件入口');
     }, 1000);
+    if (!insertExtensionStatus(metadata)) setTimeout(() => insertExtensionStatus(metadata), 1000);
     if (!nativePanel.init()) setTimeout(() => nativePanel.init(), 1000);
 
     const updateState = () => {
