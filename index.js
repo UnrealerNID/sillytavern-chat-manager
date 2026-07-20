@@ -1,5 +1,6 @@
-import { isGenerating, setActiveCharacter, setActiveGroup } from '/script.js';
+import { isGenerating, saveSettingsDebounced, setActiveCharacter, setActiveGroup } from '/script.js';
 import { openGroupById } from '/scripts/group-chats.js';
+import { extension_settings } from '/scripts/extensions.js';
 
 import { ChatManagerApi } from './modules/api.js';
 import { BackupService } from './modules/backups.js';
@@ -16,7 +17,12 @@ let initialized = false;
  * @typedef {object} ExtensionMetadata
  * @property {string} display_name 扩展显示名称
  * @property {string} version 当前扩展版本
- * @property {boolean} auto_update 是否启用酒馆原生更新检测
+ */
+
+/**
+ * 插件功能设置
+ * @typedef {object} ChatManagerSettings
+ * @property {boolean} enabled 是否启用插件功能
  */
 
 /**
@@ -30,16 +36,18 @@ async function loadExtensionMetadata() {
         return await response.json();
     } catch (error) {
         console.warn('[聊天文件管理] 读取扩展元数据失败', error);
-        return { display_name: '聊天文件管理', version: '未知', auto_update: false };
+        return { display_name: '聊天文件管理', version: '未知' };
     }
 }
 
 /**
  * 向酒馆原生扩展程序抽屉添加状态卡片
  * @param {ExtensionMetadata} metadata 扩展元数据
+ * @param {ChatManagerSettings} settings 插件功能设置
+ * @param {(enabled: boolean) => void} onEnabledChange 启用状态变更回调
  * @returns {boolean} 是否已找到原生容器并完成插入
  */
-function insertExtensionStatus(metadata) {
+function insertExtensionStatus(metadata, settings, onEnabledChange) {
     if (document.querySelector('#chat_manager_extension_status')) return true;
     const container = document.querySelector('#extensions_settings2');
     if (!container) return false;
@@ -50,27 +58,24 @@ function insertExtensionStatus(metadata) {
     });
     const header = element('div', { className: 'inline-drawer-toggle inline-drawer-header' });
     const title = element('b', { text: metadata.display_name || '聊天文件管理' });
-    const version = element('span', { className: 'chat-manager-extension-version', text: `v${metadata.version}` });
     const icon = element('div', { className: 'inline-drawer-icon fa-solid fa-circle-chevron-down down' });
-    header.append(title, version, icon);
+    header.append(title, icon);
 
     const content = element('div', { className: 'inline-drawer-content' });
-    content.append(
-        element('p', { text: '聊天文件浏览、原生备份识别与聊天记录分卷。功能入口位于“聊天文件”之后。' }),
-        element('small', {
-            className: 'chat-manager-update-status',
-            text: metadata.auto_update
-                ? '已启用酒馆原生更新检测；更新依据为安装仓库的 Git 远程分支。'
-                : '未启用自动更新检测。',
-        }),
+    const versionRow = element('div', { className: 'chat-manager-setting-row' });
+    versionRow.append(
+        element('span', { text: '版本' }),
+        element('span', { className: 'chat-manager-extension-version', text: `v${metadata.version}` }),
     );
-    const detailsButton = element('button', {
-        className: 'menu_button chat-manager-extension-details',
-        text: '查看扩展与更新',
-        type: 'button',
+    const enabledLabel = element('label', { className: 'chat-manager-setting-row checkbox_label' });
+    const enabledToggle = element('input', {
+        className: 'checkbox',
+        attrs: { id: 'chat_manager_enabled', type: 'checkbox' },
     });
-    detailsButton.addEventListener('click', () => document.querySelector('#extensions_details')?.click());
-    content.append(detailsButton);
+    enabledToggle.checked = settings.enabled;
+    enabledToggle.addEventListener('change', () => onEnabledChange(enabledToggle.checked));
+    enabledLabel.append(element('span', { text: '启用扩展' }), enabledToggle);
+    content.append(versionRow, enabledLabel);
     drawer.append(header, content);
     container.append(drawer);
     return true;
@@ -124,6 +129,19 @@ export async function init() {
     const ui = new ChatManagerUi({ getContext, api, backups, splitter, isGenerating, openRecord });
     const nativePanel = new NativeChatPanel({ getContext, ui, isGenerating });
     const metadata = await loadExtensionMetadata();
+    const settings = extension_settings.chatManager ??= { enabled: true };
+    if (typeof settings.enabled !== 'boolean') settings.enabled = true;
+
+    const applyEnabledState = enabled => {
+        settings.enabled = enabled;
+        document.querySelector('#chat_manager_open')?.toggleAttribute('hidden', !enabled);
+        nativePanel.setEnabled(enabled);
+    };
+
+    const onEnabledChange = enabled => {
+        applyEnabledState(enabled);
+        saveSettingsDebounced();
+    };
 
     const insertEntry = () => {
         if (document.querySelector('#chat_manager_open')) return true;
@@ -139,6 +157,7 @@ export async function init() {
             const options = document.querySelector('#options');
             if (options instanceof HTMLElement) options.style.display = 'none';
         });
+        entry.toggleAttribute('hidden', !settings.enabled);
         anchor.insertAdjacentElement('afterend', entry);
         return true;
     };
@@ -146,8 +165,11 @@ export async function init() {
     if (!insertEntry()) setTimeout(() => {
         if (!insertEntry()) globalThis.toastr?.error?.('聊天管理无法找到原生聊天文件入口');
     }, 1000);
-    if (!insertExtensionStatus(metadata)) setTimeout(() => insertExtensionStatus(metadata), 1000);
+    if (!insertExtensionStatus(metadata, settings, onEnabledChange)) {
+        setTimeout(() => insertExtensionStatus(metadata, settings, onEnabledChange), 1000);
+    }
     if (!nativePanel.init()) setTimeout(() => nativePanel.init(), 1000);
+    applyEnabledState(settings.enabled);
 
     const updateState = () => {
         ui.updateRuntimeState();

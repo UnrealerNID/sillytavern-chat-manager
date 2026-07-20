@@ -271,19 +271,14 @@
     align-items: center;
 }
 
+.chat-manager-setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.35rem 0;
+}
+
 .chat-manager-extension-version {
-    margin-left: 0.5rem;
     color: var(--SmartThemeEmColor);
-    font-size: 0.85em;
-    font-weight: normal;
-}
-
-.chat-manager-update-status {
-    display: block;
-    margin-bottom: 0.75rem;
-    opacity: 0.75;
-}
-
-.chat-manager-extension-details {
-    width: fit-content;
 }
