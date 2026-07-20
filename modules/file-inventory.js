@@ -1,4 +1,4 @@
-import { formatBytes, parseBytes, parseJsonlResponse, stripJsonl } from './utils.js';
+import { formatBytes, parseBytes, parseJsonlResponse } from './utils.js';
 
 const PAGE_SIZE = 50;
 
@@ -21,21 +21,17 @@ function notify(type, message) {
 export class FileInventoryUi {
     /**
      * @param {object} dependencies 依赖项
-     * @param {()=>any} dependencies.getContext 酒馆上下文提供器
      * @param {import('./api.js').ChatManagerApi} dependencies.api 酒馆接口
      * @param {import('./backups.js').BackupService} dependencies.backups 备份服务
-     * @param {(record:object)=>Promise<void>} dependencies.openRecord 打开聊天回调
-     * @param {string} dependencies.template 独立文件清单模板
+     * @param {string} dependencies.template 独立备份管理模板
      */
-    constructor({ getContext, api, backups, openRecord, template }) {
-        this.getContext = getContext;
+    constructor({ api, backups, template }) {
         this.api = api;
         this.backups = backups;
-        this.openRecord = openRecord;
-        this.items = { chats: [], backups: [], orphanBackups: [] };
+        this.items = { backups: [], orphanBackups: [] };
         this.mode = 'all';
         this.scanned = { orphanBackups: false };
-        this.activeKind = 'chats';
+        this.activeKind = 'backups';
         this.page = 0;
         this.controller = null;
         this.orphanController = null;
@@ -44,6 +40,7 @@ export class FileInventoryUi {
         this.reportShared = false;
         this.orphanBackupCache = null;
         this.chatInventoryLoaded = false;
+        this.activeIntegrities = new Set();
         this.scanRevision = 0;
         this.selected = new Map();
         this.viewerController = null;
@@ -56,10 +53,10 @@ export class FileInventoryUi {
         const holder = document.createElement('template');
         holder.innerHTML = template.trim();
         const root = holder.content.firstElementChild;
-        if (!(root instanceof HTMLElement)) throw new Error('文件清单模板无效');
+        if (!(root instanceof HTMLElement)) throw new Error('备份管理模板无效');
         const required = (selector, type = HTMLElement) => {
             const node = root.querySelector(selector);
-            if (!(node instanceof type)) throw new Error(`文件清单模板缺少 ${selector}`);
+            if (!(node instanceof type)) throw new Error(`备份管理模板缺少 ${selector}`);
             return node;
         };
         this.root = root;
@@ -102,7 +99,6 @@ export class FileInventoryUi {
         this.modes = new Map(Array.from(root.querySelectorAll('[data-cm-inventory-mode]'), button => [button.dataset.cmInventoryMode, button]));
         this.tabs = new Map(Array.from(root.querySelectorAll('[data-cm-inventory-tab]'), button => [button.dataset.cmInventoryTab, button]));
         this.counts = {
-            chats: required('[data-cm-inventory-chat-count]'),
             backups: required('[data-cm-inventory-backup-count]'),
             orphanBackups: required('[data-cm-inventory-orphan-backup-count]'),
         };
@@ -126,14 +122,14 @@ export class FileInventoryUi {
         this.#syncMode();
     }
 
-    /** 打开独立文件清单并重新读取基础清单 */
+    /** 打开独立备份管理页并重新读取备份 */
     async open() {
         this.#selectMode('all');
         this.root.classList.remove('cm-hidden');
         await this.refresh();
     }
 
-    /** 关闭独立文件清单并释放扫描资源 */
+    /** 关闭独立备份管理页并释放扫描资源 */
     close() {
         this.scanRevision++;
         this.controller?.abort();
@@ -146,7 +142,7 @@ export class FileInventoryUi {
         void this.#releaseReport();
     }
 
-    /** 重新读取全部可识别聊天与全部原生聊天备份 */
+    /** 重新读取全部原生聊天备份 */
     async refresh() {
         this.scanRevision++;
         this.controller?.abort();
@@ -161,27 +157,17 @@ export class FileInventoryUi {
         this.scanOrphanBackups.disabled = true;
         const startedAt = Date.now();
         let completed = 0;
-        const updateProgress = () => this.#setStatus(`正在读取聊天与备份文件 · ${completed} / 2`, {
+        const updateProgress = () => this.#setStatus(`正在读取备份文件 · ${completed} / 1`, {
             loading: true,
             detail: `已等待 ${((Date.now() - startedAt) / 1000).toFixed(1)} 秒`,
             done: completed,
-            total: 2,
+            total: 1,
         });
         updateProgress();
         const timer = setInterval(updateProgress, 250);
         const failures = [];
         this.chatInventoryLoaded = false;
-        const chats = this.api.listChatFiles(signal).then(data => {
-            if (!Array.isArray(data)) throw new Error('聊天文件接口返回格式无效');
-            this.items.chats = this.#mapChats(data);
-            this.chatInventoryLoaded = true;
-            this.#render();
-        }).catch(error => {
-            if (!signal.aborted) failures.push(`聊天文件：${error.message}`);
-        }).finally(() => {
-            completed++;
-            updateProgress();
-        });
+        this.activeIntegrities.clear();
         const backups = this.backups.list(signal, true).then(data => {
             if (!Array.isArray(data)) throw new Error('备份文件接口返回格式无效');
             this.items.backups = data.map(item => this.#mapBackup(item));
@@ -192,49 +178,13 @@ export class FileInventoryUi {
             completed++;
             updateProgress();
         });
-        await Promise.allSettled([chats, backups]);
+        await Promise.allSettled([backups]);
         clearInterval(timer);
         if (signal.aborted) return;
         this.#setStatus(failures.join('；'), { error: failures.length > 0 });
         if (this.controller === controller) {
             this.scanOrphanBackups.disabled = false;
         }
-    }
-
-    /** @param {object[]} data recent 接口数据 */
-    #mapChats(data) {
-        const context = this.getContext();
-        const characters = new Map((context.characters ?? []).map(character => [character.avatar, character]));
-        const groups = new Map((context.groups ?? []).map(group => [String(group.id), group]));
-        return data.map(item => {
-            const isGroup = item.group !== undefined && item.group !== null;
-            const owner = isGroup ? groups.get(String(item.group)) : characters.get(item.avatar);
-            const fileId = stripJsonl(item.file_id ?? item.file_name);
-            const ownerName = String(owner?.name ?? (isGroup ? `群组 ${item.group}` : item.avatar ? `角色 ${item.avatar}` : '根目录聊天'));
-            const record = owner ? {
-                ownerType: isGroup ? 'group' : 'character',
-                ownerId: String(isGroup ? item.group : item.avatar),
-                ownerName,
-                fileId,
-                fileName: String(item.file_name ?? `${fileId}.jsonl`),
-                fileSize: String(item.file_size ?? ''),
-                messageCount: Number(item.chat_items ?? 0),
-                lastMessageAt: item.last_mes ?? '',
-                preview: String(item.mes ?? ''),
-                chatManager: item.chat_metadata?.chat_manager ?? null,
-            } : null;
-            return {
-                name: String(item.file_name ?? `${fileId}.jsonl`),
-                owner: ownerName,
-                kind: '聊天',
-                size: parseBytes(item.file_size),
-                sizeLabel: String(item.file_size ?? '未知大小'),
-                timestamp: this.#timeValue(item.last_mes),
-                detail: `${Number(item.chat_items ?? 0)} 层 · 最后消息 ${this.#formatDate(item.last_mes)}`,
-                integrity: String(item.chat_metadata?.integrity ?? ''),
-                record,
-            };
-        });
     }
 
     /** @param {object} item 备份接口数据 */
@@ -293,6 +243,15 @@ export class FileInventoryUi {
                 this.reportShared = true;
             }
             clearInterval(timer);
+            if (!this.chatInventoryLoaded) {
+                this.#setStatus('正在读取现有聊天标识…', { loading: true });
+                const chats = await this.api.listChatFiles(signal);
+                if (!Array.isArray(chats)) throw new Error('聊天文件接口返回格式无效');
+                this.activeIntegrities = new Set(chats
+                    .map(item => String(item.chat_metadata?.integrity ?? ''))
+                    .filter(Boolean));
+                this.chatInventoryLoaded = true;
+            }
             this.orphanBackupCache ??= await this.#findOrphanBackups(this.dataMaidReport.chatBackups, signal, startedAt);
             this.items.orphanBackups = this.orphanBackupCache;
             this.scanned.orphanBackups = true;
@@ -322,7 +281,7 @@ export class FileInventoryUi {
         this.items.orphanBackups = [];
         this.scanned.orphanBackups = false;
         this.selected.clear();
-        if (this.activeKind === 'orphanBackups') this.activeKind = 'chats';
+        if (this.activeKind === 'orphanBackups') this.activeKind = 'backups';
         this.#syncMode();
     }
 
@@ -336,7 +295,6 @@ export class FileInventoryUi {
     async #findOrphanBackups(reportBackups, signal, startedAt) {
         if (!this.chatInventoryLoaded) throw new Error('现有聊天清单读取失败，无法安全判断孤立备份');
         const candidates = Array.isArray(reportBackups) ? reportBackups : [];
-        const activeIntegrities = new Set(this.items.chats.map(item => item.integrity).filter(Boolean));
         const backupByName = new Map(this.items.backups.map(item => [item.name, item]));
         const results = new Array(candidates.length);
         let cursor = 0;
@@ -350,7 +308,7 @@ export class FileInventoryUi {
                 let reason = '旧备份缺少完整性标识，无法自动确认是否仍有对应聊天';
                 try {
                     integrity = await this.#readReportIntegrity(item, signal) ?? '';
-                    const classification = classifyBackupIntegrity(integrity, activeIntegrities);
+                    const classification = classifyBackupIntegrity(integrity, this.activeIntegrities);
                     if (classification === 'linked') {
                         results[index] = null;
                     } else if (classification === 'orphan') {
@@ -431,7 +389,7 @@ export class FileInventoryUi {
     #selectMode(mode) {
         if (!this.modes.has(mode)) return;
         this.mode = mode;
-        if (mode === 'all') this.activeKind = 'chats';
+        if (mode === 'all') this.activeKind = 'backups';
         else this.activeKind = 'orphanBackups';
         this.page = 0;
         this.#syncMode();
@@ -507,7 +465,6 @@ export class FileInventoryUi {
         const select = mount('[data-cm-inventory-select]');
         const view = mount('[data-cm-inventory-view-file]');
         const download = mount('[data-cm-inventory-download]');
-        const enter = mount('[data-cm-inventory-enter]');
         const remove = mount('[data-cm-inventory-delete]');
         const selectable = Boolean(item.orphan?.hash);
         selectWrap.classList.toggle('cm-hidden', !selectable);
@@ -521,23 +478,10 @@ export class FileInventoryUi {
         row.classList.toggle('cm-selected', select.checked);
         view.classList.toggle('cm-hidden', !item.backup && !item.orphan);
         download.classList.toggle('cm-hidden', !item.backup && !item.orphan);
-        enter.classList.toggle('cm-hidden', !item.record);
         remove.classList.toggle('cm-hidden', !selectable);
         if (item.backup || item.orphan) view.addEventListener('click', () => void this.#viewItem(item));
         if (item.orphan) download.addEventListener('click', () => void this.#downloadOrphan(item));
         else if (item.backup) download.addEventListener('click', () => void this.backups.download(item.backup));
-        if (item.record) {
-            enter.addEventListener('click', async () => {
-                enter.disabled = true;
-                try {
-                    await this.openRecord(item.record);
-                    this.close();
-                } catch (error) {
-                    notify('error', error.message);
-                    enter.disabled = false;
-                }
-            });
-        }
         if (selectable) remove.addEventListener('click', () => this.#showDelete([item]));
         row.addEventListener('click', event => {
             if (!selectable || event.target.closest('button, label')) return;

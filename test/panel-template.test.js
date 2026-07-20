@@ -43,7 +43,6 @@ test('file inventory delegates chat cleanup and scans only orphan backups', asyn
         'data-cm-inventory-delete-selected',
         'data-cm-inventory-viewer',
         'data-cm-inventory-delete-dialog',
-        'data-cm-inventory-tab="chats"',
         'data-cm-inventory-tab="backups"',
         'data-cm-inventory-tab="orphanBackups"',
         'data-cm-inventory-row-template',
@@ -54,6 +53,7 @@ test('file inventory delegates chat cleanup and scans only orphan backups', asyn
     }
     assert.match(html, /清理孤立聊天/);
     assert.match(html, /检查孤立备份/);
+    assert.doesNotMatch(html, /data-cm-inventory-tab="chats"|data-cm-inventory-enter/);
     assert.doesNotMatch(html, /data-cm-inventory-tab="orphans"/);
     assert.match(html, /type="checkbox"/);
     assert.doesNotMatch(html, /打开酒馆数据清理/);
@@ -175,6 +175,7 @@ test('chat deletion uses SillyTavern native character and group workflows', asyn
     assert.match(entry, /deleteCharacterChatByName\(String\(characterId\), record\.fileId\)/);
     assert.match(entry, /deleteGroupChatByName\(group\.id, record\.fileId\)/);
     assert.match(ui, /this\.loading \|\| this\.refreshTask[\s\S]*聊天清单正在读取，完成后才能删除聊天/);
+    assert.match(ui, /finally\s*{\s*this\.loading = false;\s*this\.#syncSelectionControls\(\);\s*this\.#render\(\)/);
 });
 
 test('chat inventory resynchronizes on every open and coalesces concurrent refreshes', async () => {

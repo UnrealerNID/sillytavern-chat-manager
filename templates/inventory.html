@@ -4,7 +4,7 @@
             <div class="cm-title-block">
                 <h2 id="chat_manager_inventory_title">
                     <i class="fa-solid fa-boxes-stacked" aria-hidden="true"></i>
-                    <span>文件清单</span>
+                    <span>备份管理</span>
                 </h2>
             </div>
             <button class="cm-icon-button" type="button" title="关闭" aria-label="关闭" data-cm-inventory-close>
@@ -12,10 +12,10 @@
             </button>
         </header>
 
-        <div class="cm-inventory-modes" role="tablist" aria-label="文件清单功能">
+        <div class="cm-inventory-modes" role="tablist" aria-label="备份管理功能">
             <button class="menu_button cm-active" type="button" role="tab" aria-selected="true" data-cm-inventory-mode="all">
                 <i class="fa-solid fa-list" aria-hidden="true"></i>
-                <span>全部文件</span>
+                <span>全部备份</span>
             </button>
             <button class="menu_button" type="button" role="tab" aria-selected="false" data-cm-inventory-mode="orphan">
                 <i class="fa-solid fa-link-slash" aria-hidden="true"></i>
@@ -26,7 +26,7 @@
         <div class="cm-inventory-toolbar">
             <label class="cm-search-wrap">
                 <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-                <input class="text_pole cm-search" type="search" placeholder="筛选文件名、角色或目录" data-cm-inventory-search>
+                <input class="text_pole cm-search" type="search" placeholder="筛选备份文件名或状态" data-cm-inventory-search>
             </label>
             <select class="text_pole" aria-label="文件排序" data-cm-inventory-sort>
                 <option value="oldest">最旧优先</option>
@@ -62,10 +62,7 @@
         </div>
 
         <div class="cm-inventory-tabs" role="tablist" aria-label="文件类型">
-            <button class="menu_button cm-active" type="button" role="tab" aria-selected="true" data-cm-inventory-tab="chats" data-cm-inventory-view="all">
-                <span>聊天文件</span><small data-cm-inventory-chat-count>0</small>
-            </button>
-            <button class="menu_button" type="button" role="tab" aria-selected="false" data-cm-inventory-tab="backups" data-cm-inventory-view="all">
+            <button class="menu_button cm-active" type="button" role="tab" aria-selected="true" data-cm-inventory-tab="backups" data-cm-inventory-view="all">
                 <span>备份文件</span><small data-cm-inventory-backup-count>0</small>
             </button>
             <button class="menu_button cm-hidden" type="button" role="tab" aria-selected="false" data-cm-inventory-tab="orphanBackups" data-cm-inventory-view="orphan">
@@ -89,7 +86,7 @@
             <div class="cm-inventory-summary">
                 <span data-cm-inventory-summary></span>
             </div>
-            <nav class="cm-pagination" aria-label="文件清单分页">
+            <nav class="cm-pagination" aria-label="备份文件分页">
                 <button class="menu_button" type="button" data-cm-inventory-previous>上一页</button>
                 <span class="cm-page-label" data-cm-inventory-page></span>
                 <button class="menu_button" type="button" data-cm-inventory-next>下一页</button>
@@ -116,9 +113,6 @@
                     </button>
                     <button class="menu_button cm-inventory-action" type="button" data-cm-inventory-download>
                         <i class="fa-solid fa-download" aria-hidden="true"></i><span>下载文件</span>
-                    </button>
-                    <button class="menu_button cm-inventory-action" type="button" data-cm-inventory-enter>
-                        <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i><span>进入聊天</span>
                     </button>
                     <button class="menu_button cm-inventory-action cm-danger-action" type="button" data-cm-inventory-delete>
                         <i class="fa-solid fa-trash" aria-hidden="true"></i><span>删除</span>

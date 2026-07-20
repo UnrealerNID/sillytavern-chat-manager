@@ -385,7 +385,7 @@ export async function init() {
         renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/dialogs'),
         renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/components'),
     ]);
-    const inventory = new FileInventoryUi({ getContext, api, backups, openRecord, template: inventoryTemplate });
+    const inventory = new FileInventoryUi({ api, backups, template: inventoryTemplate });
     const ui = new ChatManagerUi({
         getContext,
         api,

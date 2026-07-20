@@ -81,6 +81,16 @@
     background: var(--white20a);
 }
 
+.cm-panel :is(.menu_button, .cm-icon-button):disabled,
+.cm-dialog :is(.menu_button, .cm-icon-button):disabled {
+    border-color: var(--SmartThemeBorderColor) !important;
+    color: var(--grey70) !important;
+    background: rgb(0 0 0 / 12%) !important;
+    opacity: 0.72 !important;
+    filter: none !important;
+    cursor: not-allowed !important;
+}
+
 .cm-state,
 .cm-empty {
     padding: 10px 16px;

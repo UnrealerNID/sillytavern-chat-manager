@@ -263,6 +263,7 @@ export class ChatManagerUi {
         } finally {
             this.loading = false;
             this.#syncSelectionControls();
+            this.#render();
         }
     }
 
