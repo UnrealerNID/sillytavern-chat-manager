@@ -19,6 +19,15 @@ let initialized = false;
 const extensionId = 'third-party/sillytavern-chat-manager';
 const extensionFolder = 'sillytavern-chat-manager';
 const remoteManifestUrl = 'https://raw.githubusercontent.com/UnrealerNID/sillytavern-chat-manager/main/manifest.json';
+const extensionUpdateViews = new Set();
+const extensionUpdateState = {
+    semanticVersion: '',
+    shortHash: '',
+    remoteVersion: '',
+    phase: 'checking',
+    canUpdate: true,
+};
+let extensionUpdateCheck;
 
 /**
  * 扩展清单中用于界面展示的元数据
@@ -103,54 +112,100 @@ async function updateExtension() {
 }
 
 /**
- * 根据酒馆返回的版本状态控制更新按钮
+ * 同步所有版本与更新视图
+ * @returns {void}
+ */
+function renderExtensionUpdateViews() {
+    const versionText = `version ${extensionUpdateState.semanticVersion}${extensionUpdateState.shortHash ? ` (${extensionUpdateState.shortHash})` : ''}`;
+    const labels = {
+        checking: '检查更新…',
+        current: '已是最新',
+        available: extensionUpdateState.canUpdate ? '更新' : '有可用更新',
+        updating: '更新中…',
+        updated: '更新完成',
+        retry: '重试更新',
+        failed: '检查失败',
+    };
+    for (const view of extensionUpdateViews) {
+        view.version.textContent = versionText;
+        view.button.textContent = labels[extensionUpdateState.phase];
+        view.button.disabled = (extensionUpdateState.phase !== 'available' && extensionUpdateState.phase !== 'retry')
+            || (extensionUpdateState.phase === 'available' && !extensionUpdateState.canUpdate);
+        view.button.title = extensionUpdateState.phase === 'available' && extensionUpdateState.remoteVersion
+            ? `更新至 version ${extensionUpdateState.remoteVersion}`
+            : '';
+    }
+}
+
+/**
+ * 检查本地提交号与远端发布版本
+ * @returns {Promise<void>}
+ */
+async function checkExtensionUpdate() {
+    extensionUpdateState.phase = 'checking';
+    renderExtensionUpdateViews();
+    const [installation, remote] = await Promise.allSettled([
+        getExtensionVersionStatus(),
+        getRemoteExtensionVersion(),
+    ]);
+    if (installation.status === 'fulfilled') {
+        extensionUpdateState.shortHash = installation.value.currentCommitHash?.slice(0, 7) ?? '';
+    } else {
+        console.warn('[聊天文件管理] 读取扩展提交号失败', installation.reason);
+    }
+    if (remote.status === 'rejected') {
+        console.warn('[聊天文件管理] 检查扩展更新失败', remote.reason);
+        extensionUpdateState.phase = 'failed';
+        renderExtensionUpdateViews();
+        return;
+    }
+    extensionUpdateState.remoteVersion = remote.value;
+    extensionUpdateState.canUpdate = !isGlobalExtension() || isAdmin();
+    extensionUpdateState.phase = isNewerVersion(remote.value, extensionUpdateState.semanticVersion) ? 'available' : 'current';
+    renderExtensionUpdateViews();
+}
+
+/**
+ * 通过酒馆原生接口执行更新并同步所有入口
+ * @returns {Promise<void>}
+ */
+async function performExtensionUpdate() {
+    if (!['available', 'retry'].includes(extensionUpdateState.phase)) return;
+    extensionUpdateState.phase = 'updating';
+    renderExtensionUpdateViews();
+    try {
+        const result = await updateExtension();
+        if (result.isUpToDate) {
+            extensionUpdateState.phase = 'retry';
+            renderExtensionUpdateViews();
+            globalThis.toastr?.warning?.('酒馆未拉取到新提交，请稍后重试');
+            return;
+        }
+        extensionUpdateState.phase = 'updated';
+        renderExtensionUpdateViews();
+        globalThis.toastr?.success?.('插件更新完成，正在刷新页面');
+        setTimeout(() => location.reload(), 500);
+    } catch (error) {
+        console.error('[聊天文件管理] 更新扩展失败', error);
+        extensionUpdateState.phase = 'retry';
+        renderExtensionUpdateViews();
+        globalThis.toastr?.error?.(`插件更新失败：${error.message}`);
+    }
+}
+
+/**
+ * 注册一个版本与更新视图
  * @param {HTMLButtonElement} button 更新按钮
  * @param {HTMLElement} version 版本文本
  * @param {string} semanticVersion 清单语义版本
- * @returns {Promise<void>}
+ * @returns {void}
  */
-async function configureUpdateButton(button, version, semanticVersion) {
-    try {
-        const status = await getExtensionVersionStatus();
-        const shortHash = status.currentCommitHash?.slice(0, 7);
-        version.textContent = `version ${semanticVersion}${shortHash ? ` (${shortHash})` : ''}`;
-    } catch (error) {
-        console.warn('[聊天文件管理] 读取扩展提交号失败', error);
-    }
-
-    try {
-        const remoteVersion = await getRemoteExtensionVersion();
-        const hasUpdate = isNewerVersion(remoteVersion, semanticVersion);
-        const canUpdate = !isGlobalExtension() || isAdmin();
-        button.textContent = hasUpdate ? (canUpdate ? '更新' : '有可用更新') : '已是最新';
-        button.disabled = !hasUpdate || !canUpdate;
-    } catch (error) {
-        console.warn('[聊天文件管理] 检查扩展更新失败', error);
-        button.textContent = '检查失败';
-        button.disabled = true;
-        return;
-    }
-
-    button.addEventListener('click', async () => {
-        button.disabled = true;
-        button.textContent = '更新中…';
-        try {
-            const result = await updateExtension();
-            if (result.isUpToDate) {
-                button.disabled = false;
-                button.textContent = '重试更新';
-                globalThis.toastr?.warning?.('酒馆未拉取到新提交，请稍后重试');
-                return;
-            }
-            globalThis.toastr?.success?.('插件更新完成，正在刷新页面');
-            setTimeout(() => location.reload(), 500);
-        } catch (error) {
-            console.error('[聊天文件管理] 更新扩展失败', error);
-            globalThis.toastr?.error?.(`插件更新失败：${error.message}`);
-            button.disabled = false;
-            button.textContent = '重试更新';
-        }
-    });
+function configureUpdateButton(button, version, semanticVersion) {
+    extensionUpdateState.semanticVersion = semanticVersion;
+    extensionUpdateViews.add({ button, version });
+    button.addEventListener('click', () => void performExtensionUpdate());
+    renderExtensionUpdateViews();
+    extensionUpdateCheck ??= checkExtensionUpdate();
 }
 
 /**
@@ -280,9 +335,14 @@ export async function init() {
     const journal = new TaskJournal();
     const backups = new BackupService(api);
     const splitter = new SplitService(api, journal, () => getContext().uuidv4());
-    const ui = new ChatManagerUi({ getContext, api, backups, splitter, isGenerating, openRecord });
+    const [metadata, panelTemplate] = await Promise.all([
+        loadExtensionMetadata(),
+        renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'panel'),
+    ]);
+    const ui = new ChatManagerUi({ getContext, api, backups, splitter, isGenerating, openRecord, template: panelTemplate });
     const nativePanel = new NativeChatPanel({ getContext, ui, isGenerating });
-    const metadata = await loadExtensionMetadata();
+    const panelUpdateView = ui.getExtensionUpdateView();
+    configureUpdateButton(panelUpdateView.button, panelUpdateView.version, metadata.version);
     const settings = extension_settings.chatManager ??= {};
     settings.enabled ??= true;
     let recoveryChecked = false;

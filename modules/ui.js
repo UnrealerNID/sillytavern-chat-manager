@@ -17,8 +17,9 @@ export class ChatManagerUi {
      * @param {import('./splitter.js').SplitService} dependencies.splitter Split service
      * @param {()=>boolean} dependencies.isGenerating Generation state
      * @param {(record:object)=>Promise<void>} dependencies.openRecord Open callback
+     * @param {string} dependencies.template 稳定面板模板
      */
-    constructor({ getContext, api, backups, splitter, isGenerating, openRecord }) {
+    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, template }) {
         this.getContext = getContext;
         this.api = api;
         this.backups = backups;
@@ -30,57 +31,71 @@ export class ChatManagerUi {
         this.page = 0;
         this.selectedKey = null;
         this.loading = false;
-        this.#build();
+        this.#build(template);
     }
 
-    #build() {
-        this.root = element('div', { className: 'cm-overlay cm-hidden', attrs: { id: 'chat_manager_overlay' } });
-        const panel = element('section', { className: 'cm-panel' });
-        const header = element('header', { className: 'cm-header' });
-        header.append(element('h2', { text: '聊天管理' }));
-        const close = element('button', { className: 'cm-icon-button', text: '×', title: '关闭', type: 'button' });
-        close.addEventListener('click', () => this.close());
-        header.append(close);
+    #build(template) {
+        const holder = document.createElement('template');
+        holder.innerHTML = template.trim();
+        const root = holder.content.firstElementChild;
+        if (!(root instanceof HTMLElement)) throw new Error('聊天管理面板模板无效');
+        const required = (selector, type = HTMLElement) => {
+            const node = root.querySelector(selector);
+            if (!(node instanceof type)) throw new Error(`聊天管理面板缺少 ${selector}`);
+            return node;
+        };
 
-        const toolbar = element('div', { className: 'cm-toolbar' });
-        this.search = element('input', { className: 'text_pole cm-search', attrs: { placeholder: '筛选角色、群组或聊天文件名' } });
+        this.root = root;
+        this.search = required('[data-cm-search]', HTMLInputElement);
+        this.state = required('[data-cm-state]');
+        this.list = required('[data-cm-list]');
+        this.previous = required('[data-cm-previous]', HTMLButtonElement);
+        this.next = required('[data-cm-next]', HTMLButtonElement);
+        this.pageLabel = required('[data-cm-page]');
+        this.version = required('[data-cm-version]');
+        this.updateButton = required('[data-cm-update]', HTMLButtonElement);
+        this.dialogTemplate = required('[data-cm-dialog-template]', HTMLTemplateElement);
+
+        required('[data-cm-close]', HTMLButtonElement).addEventListener('click', () => this.close());
+        required('[data-cm-refresh]', HTMLButtonElement).addEventListener('click', () => this.refresh());
         this.search.addEventListener('input', () => { this.page = 0; this.#filter(); });
-        const refresh = element('button', { className: 'menu_button', text: '刷新', type: 'button' });
-        refresh.addEventListener('click', () => this.refresh());
-        toolbar.append(this.search, refresh);
-
-        this.state = element('div', { className: 'cm-state' });
-        this.list = element('div', { className: 'cm-chat-list' });
-        const footer = element('footer', { className: 'cm-footer' });
-        this.previous = element('button', { className: 'menu_button', text: '上一页', type: 'button' });
-        this.next = element('button', { className: 'menu_button', text: '下一页', type: 'button' });
-        this.pageLabel = element('span');
         this.previous.addEventListener('click', () => { this.page--; this.#render(); });
         this.next.addEventListener('click', () => { this.page++; this.#render(); });
-        footer.append(this.previous, this.pageLabel, this.next);
-        panel.append(header, toolbar, this.state, this.list, footer);
-        this.root.append(panel);
         this.root.addEventListener('mousedown', event => {
             if (event.target === this.root) this.close();
         });
         document.body.append(this.root);
     }
 
+    /**
+     * 返回主面板中的版本与更新控件
+     * @returns {{version:HTMLElement,button:HTMLButtonElement}} 更新视图
+     */
+    getExtensionUpdateView() {
+        return { version: this.version, button: this.updateButton };
+    }
+
     async open() {
         this.root.classList.remove('cm-hidden');
-        this.updateRuntimeState();
         if (!this.records) await this.refresh();
+        else this.updateRuntimeState();
     }
 
     close() {
         this.root.classList.add('cm-hidden');
     }
 
+    #setState(message, error = false) {
+        this.state.textContent = message;
+        this.state.classList.toggle('cm-hidden', !message);
+        this.state.classList.toggle('cm-error', error);
+    }
+
     updateRuntimeState() {
         const generating = this.isGenerating();
-        this.state.textContent = generating
+        this.#setState(generating
             ? '聊天正在生成：当前仅允许浏览和查看备份'
-            : this.splitter.running ? '分割任务正在执行' : '';
+            : this.splitter.running ? '分割任务正在执行' : '');
         if (this.activeSplitRoot?.isConnected) this.activeSplitSync?.();
         this.#render();
     }
@@ -88,7 +103,7 @@ export class ChatManagerUi {
     async refresh() {
         if (this.loading) return;
         this.loading = true;
-        this.state.textContent = '正在读取全部聊天…';
+        this.#setState('正在读取全部聊天…');
         try {
             const data = await this.api.getRecentChats();
             if (!Array.isArray(data)) throw new Error('全部聊天接口返回格式无效');
@@ -113,8 +128,9 @@ export class ChatManagerUi {
             }).filter(Boolean).sort((a, b) => new Date(b.lastMessageAt).valueOf() - new Date(a.lastMessageAt).valueOf());
             this.page = 0;
             this.#filter();
+            this.updateRuntimeState();
         } catch (error) {
-            this.state.textContent = error.message;
+            this.#setState(error.message, true);
             notify('error', error.message);
         } finally {
             this.loading = false;
@@ -135,7 +151,7 @@ export class ChatManagerUi {
         const pageRecords = this.filtered.slice(this.page * PAGE_SIZE, (this.page + 1) * PAGE_SIZE);
         for (const record of pageRecords) this.list.append(this.#chatRow(record));
         if (!pageRecords.length && !this.loading) this.list.append(element('div', { className: 'cm-empty', text: '没有可显示的聊天' }));
-        this.pageLabel.textContent = `${this.page + 1} / ${totalPages}（${this.filtered.length}）`;
+        this.pageLabel.textContent = `第 ${this.page + 1} / ${totalPages} 页 · ${this.filtered.length} 条`;
         this.previous.disabled = this.page <= 0;
         this.next.disabled = this.page >= totalPages - 1;
     }
@@ -392,25 +408,28 @@ export class ChatManagerUi {
 
     #dialog(title) {
         const controller = new AbortController();
-        const root = element('div', { className: 'cm-overlay cm-dialog-overlay' });
-        const panel = element('section', { className: 'cm-dialog' });
-        const header = element('header', { className: 'cm-header' });
-        header.append(element('h3', { text: title }));
+        const fragment = this.dialogTemplate.content.cloneNode(true);
+        const root = fragment.querySelector('[data-cm-dialog-overlay]');
+        const heading = fragment.querySelector('[data-cm-dialog-title]');
+        const closeButton = fragment.querySelector('[data-cm-dialog-close]');
+        const body = fragment.querySelector('[data-cm-dialog-body]');
+        if (!(root instanceof HTMLElement)
+            || !(heading instanceof HTMLElement)
+            || !(closeButton instanceof HTMLButtonElement)
+            || !(body instanceof HTMLElement)) {
+            throw new Error('聊天管理弹窗模板无效');
+        }
+        heading.textContent = title;
         const remove = () => {
             controller.abort();
             root.remove();
         };
-        const close = this.#button('×', remove, '关闭');
-        close.className = 'cm-icon-button';
-        header.append(close);
-        const body = element('div', { className: 'cm-dialog-body' });
-        panel.append(header, body);
-        root.append(panel);
+        closeButton.addEventListener('click', remove);
         root.addEventListener('mousedown', event => {
-            if (event.target === root && !close.disabled) remove();
+            if (event.target === root && !closeButton.disabled) remove();
         });
         document.body.append(root);
-        return { root, body, signal: controller.signal, close: remove, setClosable: value => { close.disabled = !value; } };
+        return { root, body, signal: controller.signal, close: remove, setClosable: value => { closeButton.disabled = !value; } };
     }
 
     #button(text, handler, title = '') {

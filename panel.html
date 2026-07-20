@@ -1,0 +1,62 @@
+<div id="chat_manager_overlay" class="cm-overlay cm-hidden" role="presentation">
+    <section class="cm-panel" role="dialog" aria-modal="true" aria-labelledby="chat_manager_title">
+        <header class="cm-header cm-panel-header">
+            <div class="cm-title-block">
+                <h2 id="chat_manager_title">
+                    <i class="fa-solid fa-folder-tree" aria-hidden="true"></i>
+                    <span>聊天文件管理</span>
+                </h2>
+                <p>浏览全部聊天，识别原生备份，并从原记录创建分卷</p>
+            </div>
+            <button class="cm-icon-button" type="button" title="关闭" aria-label="关闭" data-cm-close>
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
+        </header>
+
+        <div class="cm-toolbar">
+            <label class="cm-search-wrap">
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                <input class="text_pole cm-search" type="search" placeholder="筛选角色、群组或聊天文件名" data-cm-search>
+            </label>
+            <button class="menu_button cm-refresh-button" type="button" data-cm-refresh>
+                <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+                <span>刷新</span>
+            </button>
+        </div>
+
+        <div class="cm-state cm-hidden" role="status" aria-live="polite" data-cm-state></div>
+        <main class="cm-chat-list" data-cm-list></main>
+
+        <footer class="cm-footer cm-panel-footer">
+            <div class="chat-manager-extension-meta">
+                <small class="chat-manager-extension-version" data-cm-version></small>
+                <button class="chat-manager-update-action" type="button" disabled data-cm-update>检查更新…</button>
+            </div>
+            <nav class="cm-pagination" aria-label="聊天分页">
+                <button class="menu_button" type="button" data-cm-previous>
+                    <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+                    <span>上一页</span>
+                </button>
+                <span class="cm-page-label" data-cm-page></span>
+                <button class="menu_button" type="button" data-cm-next>
+                    <span>下一页</span>
+                    <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                </button>
+            </nav>
+        </footer>
+    </section>
+
+    <template data-cm-dialog-template>
+        <div class="cm-overlay cm-dialog-overlay" role="presentation" data-cm-dialog-overlay>
+            <section class="cm-dialog" role="dialog" aria-modal="true">
+                <header class="cm-header">
+                    <h3 data-cm-dialog-title></h3>
+                    <button class="cm-icon-button" type="button" title="关闭" aria-label="关闭" data-cm-dialog-close>
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                    </button>
+                </header>
+                <div class="cm-dialog-body" data-cm-dialog-body></div>
+            </section>
+        </div>
+    </template>
+</div>
