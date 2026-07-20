@@ -18,8 +18,15 @@ for (const file of files(root).filter(path => /\.(?:js|mjs)$/.test(path))) {
 }
 
 const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8'));
-for (const required of ['display_name', 'js', 'css', 'version', 'minimum_client_version']) {
+const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+for (const required of ['display_name', 'js', 'css', 'version', 'minimum_client_version', 'homePage']) {
     if (!manifest[required]) throw new Error(`manifest.json missing ${required}`);
+}
+if (manifest.version !== packageJson.version) {
+    throw new Error('manifest.json and package.json versions do not match');
+}
+if (manifest.auto_update !== true) {
+    throw new Error('manifest.json must enable SillyTavern update checks');
 }
 for (const referenced of [manifest.js, manifest.css, ...Object.values(manifest.i18n ?? {})]) {
     if (!existsSync(join(root, referenced))) throw new Error(`manifest.json references missing file: ${referenced}`);

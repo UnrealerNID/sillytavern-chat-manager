@@ -1,14 +1,15 @@
 {
-  "display_name": "SillyTavern Chat Manager",
+  "display_name": "聊天文件管理",
   "loading_order": 100,
   "requires": [],
   "optional": [],
   "js": "index.js",
   "css": "style.css",
   "author": "Unrealer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "minimum_client_version": "1.18.0",
-  "auto_update": false,
+  "auto_update": true,
+  "homePage": "https://github.com/UnrealerNID/sillytavern-chat-manager",
   "i18n": {
     "zh-cn": "i18n/zh-cn.json"
   },
