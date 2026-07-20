@@ -28,7 +28,7 @@ if (manifest.version !== packageJson.version) {
 if (manifest.auto_update !== true) {
     throw new Error('manifest.json must enable SillyTavern update checks');
 }
-for (const referenced of [manifest.js, manifest.css, ...Object.values(manifest.i18n ?? {})]) {
+for (const referenced of [manifest.js, manifest.css, 'settings.html', ...Object.values(manifest.i18n ?? {})]) {
     if (!existsSync(join(root, referenced))) throw new Error(`manifest.json references missing file: ${referenced}`);
 }
 console.log('checked manifest.json');

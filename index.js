@@ -1,6 +1,6 @@
 import { isGenerating, saveSettingsDebounced, setActiveCharacter, setActiveGroup } from '/script.js';
 import { openGroupById } from '/scripts/group-chats.js';
-import { extension_settings } from '/scripts/extensions.js';
+import { extension_settings, renderExtensionTemplateAsync } from '/scripts/extensions.js';
 
 import { ChatManagerApi } from './modules/api.js';
 import { BackupService } from './modules/backups.js';
@@ -15,7 +15,6 @@ let initialized = false;
 /**
  * 扩展清单中用于界面展示的元数据
  * @typedef {object} ExtensionMetadata
- * @property {string} display_name 扩展显示名称
  * @property {string} version 当前扩展版本
  */
 
@@ -37,7 +36,7 @@ async function loadExtensionMetadata() {
         return await response.json();
     } catch (error) {
         console.warn('[聊天文件管理] 读取扩展元数据失败', error);
-        return { display_name: '聊天文件管理', version: '未知' };
+        return { version: '未知' };
     }
 }
 
@@ -74,9 +73,9 @@ function selectExtensionColumn(savedColumn) {
  * @param {ExtensionMetadata} metadata 扩展元数据
  * @param {ChatManagerSettings} settings 插件功能设置
  * @param {(enabled: boolean) => void} onEnabledChange 启用状态变更回调
- * @returns {boolean} 是否已找到原生容器并完成插入
+ * @returns {Promise<boolean>} 是否已找到原生容器并完成插入
  */
-function insertExtensionStatus(metadata, settings, onEnabledChange) {
+async function insertExtensionStatus(metadata, settings, onEnabledChange) {
     if (document.querySelector('#chat_manager_extension_status')) return true;
     const container = selectExtensionColumn(settings.column);
     if (!container) return false;
@@ -86,31 +85,19 @@ function insertExtensionStatus(metadata, settings, onEnabledChange) {
         saveSettingsDebounced();
     }
 
-    const drawer = element('div', {
-        className: 'inline-drawer chat-manager-extension-status',
-        attrs: { id: 'chat_manager_extension_status' },
-    });
-    const header = element('div', { className: 'inline-drawer-toggle inline-drawer-header' });
-    const title = element('b', { text: metadata.display_name || '聊天文件管理' });
-    const icon = element('div', { className: 'inline-drawer-icon fa-solid fa-circle-chevron-down down' });
-    header.append(title, icon);
+    const html = await renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'settings');
+    const template = document.createElement('template');
+    template.innerHTML = html.trim();
+    const drawer = template.content.firstElementChild;
+    const version = drawer?.querySelector('.chat-manager-extension-version');
+    const enabledToggle = drawer?.querySelector('#chat_manager_enabled');
+    if (!(drawer instanceof HTMLElement) || !(version instanceof HTMLElement) || !(enabledToggle instanceof HTMLInputElement)) {
+        throw new Error('扩展设置模板结构无效');
+    }
 
-    const content = element('div', { className: 'inline-drawer-content' });
-    const versionRow = element('div', { className: 'chat-manager-setting-row' });
-    versionRow.append(
-        element('span', { text: '版本' }),
-        element('span', { className: 'chat-manager-extension-version', text: `v${metadata.version}` }),
-    );
-    const enabledLabel = element('label', { className: 'chat-manager-setting-row checkbox_label' });
-    const enabledToggle = element('input', {
-        className: 'checkbox',
-        attrs: { id: 'chat_manager_enabled', type: 'checkbox' },
-    });
+    version.textContent = `v${metadata.version}`;
     enabledToggle.checked = settings.enabled;
     enabledToggle.addEventListener('change', () => onEnabledChange(enabledToggle.checked));
-    enabledLabel.append(element('span', { text: '启用扩展' }), enabledToggle);
-    content.append(versionRow, enabledLabel);
-    drawer.append(header, content);
     container.append(drawer);
     return true;
 }
@@ -199,8 +186,16 @@ export async function init() {
     if (!insertEntry()) setTimeout(() => {
         if (!insertEntry()) globalThis.toastr?.error?.('聊天管理无法找到原生聊天文件入口');
     }, 1000);
-    if (!insertExtensionStatus(metadata, settings, onEnabledChange)) {
-        setTimeout(() => insertExtensionStatus(metadata, settings, onEnabledChange), 1000);
+    try {
+        if (!await insertExtensionStatus(metadata, settings, onEnabledChange)) {
+            setTimeout(() => {
+                insertExtensionStatus(metadata, settings, onEnabledChange).catch(error => {
+                    console.error('[聊天文件管理] 插入扩展设置失败', error);
+                });
+            }, 1000);
+        }
+    } catch (error) {
+        console.error('[聊天文件管理] 插入扩展设置失败', error);
     }
     if (!nativePanel.init()) setTimeout(() => nativePanel.init(), 1000);
     applyEnabledState(settings.enabled);

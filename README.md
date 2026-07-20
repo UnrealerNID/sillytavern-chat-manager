@@ -21,7 +21,7 @@
 
 ## 当前状态与版本
 
-当前扩展版本为 `0.1.5`，最低支持 SillyTavern 1.18.0。版本号同时记录在
+当前扩展版本为 `0.1.6`，最低支持 SillyTavern 1.18.0。版本号同时记录在
 `manifest.json` 和 `package.json`；发布时应同步递增两处版本。
 
 ## 安装
@@ -62,6 +62,7 @@ npm test
 │  └─ design.md
 ├─ manifest.json
 ├─ index.js
+├─ settings.html
 ├─ style.css
 ├─ modules/
 ├─ i18n/
