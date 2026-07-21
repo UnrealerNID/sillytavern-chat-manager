@@ -148,6 +148,9 @@ test('opening native cleanup preserves the chat manager and rows open only from 
 test('component templates expose every repeated card and action mount', async () => {
     const html = await readFile(new URL('../templates/components.html', import.meta.url), 'utf8');
     for (const marker of [
+        'data-cm-component="welcome-group-controls"',
+        'data-cm-welcome-group-owners',
+        'data-cm-welcome-group-splits',
         'data-cm-component="chat-row"',
         'data-cm-chat-open',
         'data-cm-chat-view',
@@ -302,4 +305,20 @@ test('chat inventory resynchronizes on every open and coalesces concurrent refre
     assert.match(ui, /const characters = new Map/);
     assert.match(ui, /const groups = new Map/);
     assert.match(entry, /ui\.invalidateChatFiles\(\)/);
+});
+
+test('welcome recent chats share grouping settings and preserve native chat actions', async () => {
+    const [entry, ui, welcome] = await Promise.all([
+        readFile(new URL('../index.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/ui/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/ui/welcome-recent.js', import.meta.url), 'utf8'),
+    ]);
+    assert.match(entry, /welcomeRecent\?\.setGrouping\(options\)/);
+    assert.match(entry, /onOptionsChange: options => \{[\s\S]*ui\.setGrouping\(options\)[\s\S]*saveViewOptions\(options\)/);
+    assert.match(ui, /setGrouping\(options\)[\s\S]*this\.groupOwners = Boolean\(options\.groupOwners\)/);
+    assert.match(welcome, /groupOwnerRecords\(records, session\.groupSplits, records\)/);
+    assert.match(welcome, /groupSplitRecords\(records, records\)/);
+    assert.match(welcome, /session\.rows\.map\(row => this\.#record/);
+    assert.doesNotMatch(welcome, /\.renameChat.*addEventListener|\.deleteChat.*addEventListener|\.pinChat.*addEventListener/);
+    assert.match(welcome, /sort\(\(left, right\) => right\.split\.sequence - left\.split\.sequence\)[\s\S]*children\.append\(sourceRow\)/);
 });

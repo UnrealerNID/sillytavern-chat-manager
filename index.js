@@ -28,6 +28,7 @@ import {
 import { element } from './modules/shared/utils.js';
 import { ChatManagerUi } from './modules/ui/ui.js';
 import { NativeChatPanel } from './modules/ui/native-chat-panel.js';
+import { WelcomeRecentEnhancer } from './modules/ui/welcome-recent.js';
 
 let initialized = false;
 
@@ -87,6 +88,15 @@ export async function init() {
     ]);
     const updater = new ExtensionUpdater(metadata.version);
     const dataMaid = new DataMaidEnhancer({ api, template: dataMaidTemplate });
+    let welcomeRecent;
+    const saveViewOptions = (options) => {
+        settings.groupOwners = options.groupOwners;
+        settings.groupSplits = options.groupSplits;
+        if (options.sortOrder) settings.sortOrder = options.sortOrder;
+        if (options.pageSize) accountStorage.setItem('Characters_PerPage', String(options.pageSize));
+        saveSettingsDebounced();
+        welcomeRecent?.setGrouping(options);
+    };
     const ui = new ChatManagerUi({
         getContext,
         api,
@@ -111,12 +121,18 @@ export async function init() {
             sortOrder: settings.sortOrder,
             pageSize: nativePageSize,
         },
-        onViewOptionsChange: options => {
-            settings.groupOwners = options.groupOwners;
-            settings.groupSplits = options.groupSplits;
-            settings.sortOrder = options.sortOrder;
-            accountStorage.setItem('Characters_PerPage', String(options.pageSize));
-            saveSettingsDebounced();
+        onViewOptionsChange: saveViewOptions,
+    });
+    welcomeRecent = new WelcomeRecentEnhancer({
+        api,
+        templates: ui.getTemplates(),
+        getOptions: () => ({
+            groupOwners: settings.groupOwners,
+            groupSplits: settings.groupSplits,
+        }),
+        onOptionsChange: options => {
+            ui.setGrouping(options);
+            saveViewOptions(options);
         },
     });
     const nativePanel = new NativeChatPanel({ getContext, ui, isGenerating });
@@ -143,6 +159,7 @@ export async function init() {
         }
         dataMaid.setEnabled(enabled);
         nativePanel.setEnabled(enabled);
+        welcomeRecent.setEnabled(enabled);
         if (enabled) void recoverPendingTasks();
     };
 
@@ -185,6 +202,7 @@ export async function init() {
     }
     applyEnabledState(settings.enabled);
     if (!nativePanel.init()) setTimeout(() => nativePanel.init(), 1000);
+    if (!welcomeRecent.init()) setTimeout(() => welcomeRecent.init(), 1000);
 
     const updateState = () => {
         ui.updateRuntimeState();

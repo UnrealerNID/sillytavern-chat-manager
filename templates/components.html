@@ -1,4 +1,31 @@
 <div data-cm-component-registry>
+    <template data-cm-component="welcome-group-controls">
+        <div class="cm-welcome-group-controls" role="group" aria-label="最近聊天分组方式">
+            <button
+                class="menu_button menu_button_icon"
+                type="button"
+                role="switch"
+                title="按角色或群组显示"
+                aria-label="按角色或群组显示"
+                aria-checked="false"
+                data-cm-welcome-group-owners
+            >
+                <i class="fa-solid fa-address-book" aria-hidden="true"></i>
+            </button>
+            <button
+                class="menu_button menu_button_icon"
+                type="button"
+                role="switch"
+                title="按分卷组显示"
+                aria-label="按分卷组显示"
+                aria-checked="false"
+                data-cm-welcome-group-splits
+            >
+                <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
+            </button>
+        </div>
+    </template>
+
     <template data-cm-component="chat-row">
         <article class="cm-chat-row">
             <label class="cm-chat-selector cm-hidden" title="选择这条聊天" data-cm-chat-select-wrap>
