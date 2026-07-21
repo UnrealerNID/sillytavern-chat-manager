@@ -1,4 +1,5 @@
 import { power_user } from '/scripts/power-user.js';
+import { Popup, POPUP_TYPE } from '/scripts/popup.js';
 import { parseJsonlResponse } from '../../shared/data.js';
 import { formatBytes } from '../../shared/files.js';
 
@@ -23,22 +24,15 @@ export class DataMaidViewer {
     /**
      * @param {object} dependencies 依赖项
      * @param {import('../api.js').ChatManagerApi} dependencies.api 酒馆接口
+     * @param {HTMLTemplateElement} dependencies.template 查看器模板
      * @param {HTMLTemplateElement} dependencies.messageTemplate 消息行模板
-     * @param {(selector:string,type?:Function)=>HTMLElement} dependencies.required 模板节点读取器
      */
-    constructor({ api, messageTemplate, required }) {
+    constructor({ api, template, messageTemplate }) {
         this.api = api;
+        this.template = template;
         this.messageTemplate = messageTemplate;
-        this.root = required('[data-cm-maid-viewer]');
-        this.title = required('[data-cm-maid-viewer-title]');
-        this.summary = required('[data-cm-maid-viewer-summary]');
-        this.messages = required('[data-cm-maid-messages]');
-        this.previous = required('[data-cm-maid-message-previous]', HTMLButtonElement);
-        this.next = required('[data-cm-maid-message-next]', HTMLButtonElement);
-        this.pageLabel = required('[data-cm-maid-message-page]');
         this.controller = null;
-        required('[data-cm-maid-viewer-close]', HTMLButtonElement)
-            .addEventListener('click', () => this.close());
+        this.popup = null;
     }
 
     /**
@@ -47,18 +41,40 @@ export class DataMaidViewer {
      * @param {string} token 数据清理安全令牌
      */
     async open(item, token) {
-        this.controller?.abort();
+        this.close();
         this.controller = new AbortController();
         const signal = this.controller.signal;
+        const root = this.template.content.firstElementChild.cloneNode(true);
+        const required = (selector, type = HTMLElement) => {
+            const node = root.querySelector(selector);
+            if (!(node instanceof type)) throw new Error(`备份查看模板缺少 ${selector}`);
+            return node;
+        };
+        this.summary = required('[data-cm-maid-viewer-summary]');
+        this.messages = required('[data-cm-maid-messages]');
+        this.previous = required('[data-cm-maid-message-previous]', HTMLButtonElement);
+        this.next = required('[data-cm-maid-message-next]', HTMLButtonElement);
+        this.pageLabel = required('[data-cm-maid-message-page]');
         const pageSize = Number(power_user.chat_truncation) || Number.MAX_SAFE_INTEGER;
         let page = 0;
         let loadRevision = 0;
-        this.root.classList.remove('cm-hidden');
-        this.title.textContent = '查看聊天备份';
         this.summary.textContent = [
             item.record.name,
             formatBytes(Number(item.record.size ?? 0)),
         ].join(' · ');
+        const popup = new Popup(root, POPUP_TYPE.DISPLAY, '', {
+            large: true,
+            wide: true,
+            allowVerticalScrolling: false,
+            onClose: () => {
+                if (this.popup !== popup) return;
+                this.controller?.abort();
+                this.controller = null;
+                this.popup = null;
+            },
+        });
+        this.popup = popup;
+        const popupTask = popup.show();
 
         const load = async () => {
             const revision = ++loadRevision;
@@ -102,6 +118,7 @@ export class DataMaidViewer {
             void load();
         };
         await load();
+        await popupTask;
     }
 
     /**
@@ -110,7 +127,9 @@ export class DataMaidViewer {
     close() {
         this.controller?.abort();
         this.controller = null;
-        this.root.classList.add('cm-hidden');
+        const popup = this.popup;
+        this.popup = null;
+        if (popup) void popup.completeCancelled();
     }
 
     /**

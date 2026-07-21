@@ -64,11 +64,12 @@ export class DataMaidEnhancer {
         };
         this.toolbarTemplate = required('[data-cm-maid-toolbar-template]', HTMLTemplateElement);
         this.controlsTemplate = required('[data-cm-maid-controls-template]', HTMLTemplateElement);
+        const viewerTemplate = required('[data-cm-maid-viewer-template]', HTMLTemplateElement);
         const messageTemplate = required('[data-cm-maid-message-template]', HTMLTemplateElement);
         this.viewer = new DataMaidViewer({
             api: this.api,
+            template: viewerTemplate,
             messageTemplate,
-            required,
         });
         document.body.append(root);
     }

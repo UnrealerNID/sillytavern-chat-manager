@@ -1,17 +1,7 @@
 <div id="chat_manager_data_maid_enhancer" class="cm-data-maid-root">
-    <div class="cm-overlay cm-dialog-overlay cm-hidden" role="presentation" data-cm-maid-viewer>
-        <section
-            class="cm-dialog cm-data-maid-viewer"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="chat_manager_maid_viewer_title"
-        >
-            <header class="cm-header">
-                <h3 id="chat_manager_maid_viewer_title" data-cm-maid-viewer-title>查看聊天备份</h3>
-                <button class="cm-icon-button" type="button" title="关闭" aria-label="关闭" data-cm-maid-viewer-close>
-                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-                </button>
-            </header>
+    <template data-cm-maid-viewer-template>
+        <section class="cm-data-maid-viewer">
+            <h3>查看聊天备份</h3>
             <div class="cm-result-summary" data-cm-maid-viewer-summary></div>
             <div class="cm-message-list" data-cm-maid-messages></div>
             <footer class="cm-footer cm-dialog-pagination">
@@ -24,7 +14,7 @@
                 </button>
             </footer>
         </section>
-    </div>
+    </template>
 
     <template data-cm-maid-toolbar-template>
         <div class="cm-data-maid-tools">

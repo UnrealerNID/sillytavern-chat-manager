@@ -92,6 +92,8 @@
 }
 
 .cm-data-maid-viewer {
+    display: flex;
+    flex-direction: column;
     width: min(980px, 94vw);
     height: min(760px, 90dvh);
 }

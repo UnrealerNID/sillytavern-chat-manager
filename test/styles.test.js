@@ -19,7 +19,7 @@ test('style entry imports every responsibility module', async () => {
     await Promise.all(imports.map(path => access(new URL(path, entryUrl))));
 });
 
-test('data maid enhancement dialogs use the shared dialog layer', async () => {
+test('chat manager overlay dialogs reserve stable panel and child layers', async () => {
     const base = await readFile(new URL('../styles/chat-files/base.css', import.meta.url), 'utf8');
     assert.match(base, /\.cm-overlay\s*\{[^}]*z-index:\s*31000/s);
     assert.match(base, /\.cm-dialog-overlay\s*\{[^}]*z-index:\s*32000/s);

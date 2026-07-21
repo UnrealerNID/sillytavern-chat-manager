@@ -74,7 +74,7 @@ test('data maid enhancement mounts after either native or plugin-triggered scans
         'data-cm-maid-select-all',
         'data-cm-maid-clear-selection',
         'data-cm-maid-delete-selected',
-        'data-cm-maid-viewer',
+        'data-cm-maid-viewer-template',
         'data-cm-maid-controls-template',
     ]) {
         assert.match(html, new RegExp(marker));
@@ -91,6 +91,7 @@ test('data maid enhancement mounts after either native or plugin-triggered scans
     assert.match(source, /closest\('\.dataMaidStartButton'\)/);
     assert.match(source, /Popup\.show\.confirm\(/);
     assert.doesNotMatch(source, /data-cm-maid-delete-dialog|deleteDialog/);
+    assert.match(html, /<template data-cm-maid-viewer-template>/);
     assert.match(source, /captureNextDataMaidReport\(\)/);
     assert.match(reportCapture, /includes\('\/api\/data-maid\/report'\)/);
     assert.doesNotMatch(source, /start\.click\(\)/);
@@ -275,6 +276,9 @@ test('chat viewer follows SillyTavern message rendering count', async () => {
     assert.match(dialogs, /const revision = \+\+loadRevision[\s\S]*revision !== loadRevision/);
     assert.match(dataMaidViewer, /Number\(power_user\.chat_truncation\) \|\| Number\.MAX_SAFE_INTEGER/);
     assert.match(dataMaidViewer, /const revision = \+\+loadRevision[\s\S]*revision !== loadRevision/);
+    assert.match(dataMaidViewer, /new Popup\(root, POPUP_TYPE\.DISPLAY/);
+    assert.match(dataMaidViewer, /if \(popup\) void popup\.completeCancelled\(\)/);
+    assert.doesNotMatch(dataMaidViewer, /classList\.remove\('cm-hidden'\)/);
     assert.doesNotMatch(dataMaidViewer, /constructor\(\{ root,/);
 });
 
