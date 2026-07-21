@@ -238,9 +238,10 @@ test('backup listing is only requested explicitly while chat files are stable', 
 });
 
 test('chat deletion uses SillyTavern native character and group workflows', async () => {
-    const [entry, ui, actions, deletion] = await Promise.all([
+    const [entry, ui, inventory, actions, deletion] = await Promise.all([
         readFile(new URL('../modules/chat-files/module.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/chat-files/ui/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/chat/inventory.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/chat-files/chat/chat-actions.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/chat-files/ui/chat-delete-dialog.js', import.meta.url), 'utf8'),
     ]);
@@ -252,8 +253,8 @@ test('chat deletion uses SillyTavern native character and group workflows', asyn
     assert.match(deletion, /if \(this\.isLoading\(\)\)[\s\S]*聊天清单正在读取，完成后才能删除聊天/);
     assert.doesNotMatch(ui, /this\.loading \|\| this\.refreshTask[\s\S]*聊天清单正在读取，完成后才能删除聊天/);
     assert.match(ui, /#setLoading\(loading\)[\s\S]*this\.refreshButton\.disabled = loading;[\s\S]*this\.#syncSelectionControls\(\);[\s\S]*this\.#render\(\)/);
-    assert.match(ui, /async #loadChatFiles\(target\)\s*{\s*this\.#setLoading\(true\)/);
-    assert.match(ui, /finally\s*{\s*this\.#setLoading\(false\)/);
+    assert.match(ui, /onLoading: loading => this\.#setLoading\(loading\)/);
+    assert.match(inventory, /async #drain\(\)[\s\S]*this\.onLoading\(true\)[\s\S]*finally\s*{\s*this\.onLoading\(false\)/);
     assert.match(deletion, /if \(succeeded > 0\) await this\.#refreshRecentChats\(\)/);
     assert.match(ui, /if \(this\.selectionMode\) this\.#setSelectionMode\(false\)/);
 });
@@ -293,18 +294,21 @@ test('main UI delegates dialog workflows to focused modules', async () => {
 });
 
 test('chat inventory resynchronizes on every open and coalesces concurrent refreshes', async () => {
-    const [entry, api, ui] = await Promise.all([
+    const [entry, api, ui, inventory] = await Promise.all([
         readFile(new URL('../modules/chat-files/module.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/chat-files/api.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/chat-files/ui/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/chat/inventory.js', import.meta.url), 'utf8'),
     ]);
     assert.match(api, /listChatFiles\(signal\)/);
     assert.match(api, /listOwnerChatFiles\(owner, signal\)/);
     assert.match(ui, /if \(!this\.records \|\| !this\.isGenerating\(\)\) await this\.refresh\(\)/);
-    assert.match(ui, /if \(this\.refreshKey === target\.key\) return this\.refreshTask/);
-    assert.match(ui, /target\.scope === 'current' && target\.owner[\s\S]*listOwnerChatFiles\(target\.owner\)/);
-    assert.match(ui, /const characters = new Map/);
-    assert.match(ui, /const groups = new Map/);
+    assert.match(ui, /this\.records = await this\.inventory\.refresh\(\)/);
+    assert.match(inventory, /this\.task \?\?= this\.#drain\(\)/);
+    assert.match(inventory, /while \(this\.requested\)[\s\S]*target\.key === this\.getTarget\(\)\.key/);
+    assert.match(inventory, /target\.scope === 'current' && target\.owner[\s\S]*listOwnerChatFiles\(target\.owner\)/);
+    assert.match(inventory, /const characters = new Map/);
+    assert.match(inventory, /const groups = new Map/);
     assert.match(entry, /ui\.invalidateChatFiles\(\)/);
 });
 

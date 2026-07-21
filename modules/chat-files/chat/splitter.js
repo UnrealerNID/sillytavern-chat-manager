@@ -1,12 +1,11 @@
 import {
-    buildRanges,
-    chatKey,
     cloneJson,
     digestMessages,
-    formatBytes,
     jsonlByteSize,
-    stripJsonl,
-} from '../../shared/utils.js';
+} from '../../shared/data.js';
+import { formatBytes, stripJsonl } from '../../shared/files.js';
+import { chatKey } from './identity.js';
+import { buildRanges } from './ranges.js';
 import {
     fingerprintsEqual,
     getSourceFingerprint,

@@ -1,11 +1,13 @@
 import {
-    chatKey,
     digestMessage,
-    formatBytes,
     parseJsonlResponse,
-    stripJsonl,
     toHex,
-} from '../../shared/utils.js';
+} from '../../shared/data.js';
+import {
+    formatBytes,
+    stripJsonl,
+} from '../../shared/files.js';
+import { chatKey } from '../chat/identity.js';
 import { loadStableSource } from '../chat/source.js';
 
 const BACKUP_LIST_CACHE_MS = 30_000;

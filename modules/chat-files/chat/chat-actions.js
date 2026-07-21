@@ -14,7 +14,7 @@ import { callGenericPopup, POPUP_TYPE } from '/scripts/popup.js';
 import { renderTemplateAsync } from '/scripts/templates.js';
 import { openWelcomeScreen } from '/scripts/welcome-screen.js';
 
-import { stripJsonl } from '../../shared/utils.js';
+import { stripJsonl } from '../../shared/files.js';
 
 /**
  * 创建聊天文件操作适配器

@@ -1,6 +1,7 @@
 import { extension_settings } from '/scripts/extensions.js';
 
-import { ChatFilesModule } from './modules/chat-files/module.js';
+import { chatFilesModuleDefinition } from './modules/chat-files/definition.js';
+import { ToolboxModuleRegistry } from './modules/core/module-registry.js';
 import { initializeToolboxSettings } from './modules/core/settings.js';
 import { ToolboxSettingsPanel } from './modules/core/settings-panel.js';
 import {
@@ -8,30 +9,60 @@ import {
     loadExtensionMetadata,
 } from './modules/platform/extension-updater.js';
 
-let initialized = false;
+const moduleDefinitions = [chatFilesModuleDefinition];
+let initializationTask = null;
+let runtime = null;
 
 /**
  * 通过酒馆扩展清单钩子激活工具箱
  * @returns {Promise<void>}
  */
 export async function init() {
-    if (initialized) return;
-    initialized = true;
+    initializationTask ??= initializeToolbox().catch(error => {
+        // 允许酒馆扩展钩子在临时初始化失败后重新调用
+        initializationTask = null;
+        throw error;
+    });
+    return initializationTask;
+}
 
-    const settings = initializeToolboxSettings(extension_settings.tavernToolbox ??= {});
+/**
+ * 完成工具箱设置、模块和更新入口装配
+ * @returns {Promise<void>}
+ */
+async function initializeToolbox() {
+    runtime ??= await createRuntime();
+    await insertSettingsWithRetry(runtime.settingsPanel);
+    await runtime.modules.applySettings();
+}
+
+/**
+ * 创建可跨初始化重试复用的工具箱运行时
+ * @returns {Promise<object>} 模块注册器与设置面板
+ */
+async function createRuntime() {
+    const settings = initializeToolboxSettings(
+        extension_settings.tavernToolbox ??= {},
+        moduleDefinitions,
+    );
     const metadata = await loadExtensionMetadata();
     const updater = new ExtensionUpdater(metadata.version);
-    const chatFiles = new ChatFilesModule({ toolboxSettings: settings });
-    await chatFiles.initialize();
-    const panelUpdateView = chatFiles.getUpdateView();
-    updater.register(panelUpdateView.button, panelUpdateView.version);
+    const modules = new ToolboxModuleRegistry({
+        settings,
+        definitions: moduleDefinitions,
+        onInitialized: instance => {
+            const view = instance.getUpdateView?.();
+            if (view) updater.register(view.button, view.version);
+        },
+    });
 
     const settingsPanel = new ToolboxSettingsPanel({
         settings,
+        definitions: moduleDefinitions,
         updater,
-        onChange: () => chatFiles.applySettings(),
+        onChange: () => modules.applySettings(),
     });
-    await insertSettingsWithRetry(settingsPanel);
+    return { modules, settingsPanel };
 }
 
 /**

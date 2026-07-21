@@ -3,10 +3,10 @@ import {
     groupSplitRecords,
 } from '../chat/grouping.js';
 import {
-    chatKey,
-    element,
     stripJsonl,
-} from '../../shared/utils.js';
+} from '../../shared/files.js';
+import { element } from '../../shared/dom.js';
+import { chatKey } from '../chat/identity.js';
 
 /**
  * 在欢迎页最近聊天中复用聊天管理的分组规则
@@ -26,7 +26,7 @@ export class WelcomeRecentEnhancer {
         this.templates = templates;
         this.getOptions = getOptions;
         this.onOptionsChange = onOptionsChange;
-        this.enabled = true;
+        this.enabled = false;
         this.session = null;
         this.expandedOwners = new Set();
         this.expandedSplits = new Set();
@@ -36,11 +36,11 @@ export class WelcomeRecentEnhancer {
      * 观察欢迎页重建并增强当前最近聊天列表
      */
     init() {
-        this.chat = document.querySelector('#chat');
-        if (!this.chat) return false;
-        this.observer = new MutationObserver(() => this.#enhance());
-        this.observer.observe(this.chat, { childList: true, subtree: true });
-        this.#enhance();
+        const chat = document.querySelector('#chat');
+        if (!(chat instanceof HTMLElement)) return false;
+        if (this.chat !== chat) this.#disconnect();
+        this.chat = chat;
+        if (this.enabled) this.#connect();
         return true;
     }
 
@@ -51,11 +51,31 @@ export class WelcomeRecentEnhancer {
     setEnabled(enabled) {
         this.enabled = enabled;
         if (!enabled) {
-            this.#restore(this.session, true);
-            this.session = null;
+            this.#disconnect();
             return;
         }
+        if (!this.chat?.isConnected && !this.init()) return;
+        this.#connect();
+    }
+
+    /**
+     * 启动欢迎页变化监听
+     */
+    #connect() {
+        if (!this.chat || this.observer) return;
+        this.observer = new MutationObserver(() => this.#enhance());
+        this.observer.observe(this.chat, { childList: true, subtree: true });
         this.#enhance();
+    }
+
+    /**
+     * 停止欢迎页变化监听并恢复原生聊天卡
+     */
+    #disconnect() {
+        this.observer?.disconnect();
+        this.observer = null;
+        this.#restore(this.session, true);
+        this.session = null;
     }
 
     /**

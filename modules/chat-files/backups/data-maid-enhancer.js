@@ -1,5 +1,6 @@
-import { formatBytes } from '../../shared/utils.js';
+import { formatBytes } from '../../shared/files.js';
 import { captureNextDataMaidReport } from './data-maid-report.js';
+import { DataMaidSelection } from './data-maid-selection.js';
 import {
     backupStateMatchesFilter,
     inspectDataMaidBackups,
@@ -52,7 +53,6 @@ export class DataMaidEnhancer {
         this.token = '';
         this.reportItems = [];
         this.items = new Map();
-        this.selected = new Map();
         this.category = null;
         this.container = null;
         this.controller = null;
@@ -60,12 +60,15 @@ export class DataMaidEnhancer {
         this.pendingDelete = [];
         this.pendingCapture = null;
         this.filter = 'all';
-        this.selectionMode = false;
         this.busy = false;
+        this.selection = new DataMaidSelection({
+            getItems: () => this.items,
+            isBusy: () => this.busy,
+            onDelete: items => this.#showDelete(items),
+        });
         this.#build(template);
         this.documentClick = event => this.#handleDocumentClick(event);
-        this.enabled = true;
-        document.addEventListener('click', this.documentClick, true);
+        this.enabled = false;
     }
 
     /**
@@ -205,12 +208,16 @@ export class DataMaidEnhancer {
             this.filter = this.filterSelect.value;
             this.#applyFilter();
         });
-        this.batchStart.addEventListener('click', () => this.#setSelectionMode(!this.selectionMode));
-        this.selectAll.addEventListener('click', () => this.#toggleSelectAll());
-        this.clearSelection.addEventListener('click', () => this.#clearSelection());
-        this.deleteSelected.addEventListener('click', () => this.#showDelete(Array.from(this.selected.values())));
+        this.selection.mount({
+            category,
+            batchStart: this.batchStart,
+            selectionToolbar: this.selectionToolbar,
+            selectAll: this.selectAll,
+            clearSelection: this.clearSelection,
+            deleteSelected: this.deleteSelected,
+            selectedCount: this.selectedCount,
+        });
         for (const element of category.querySelectorAll('.dataMaidItem')) this.#enhanceItem(element);
-        this.#setSelectionMode(false);
     }
 
     /**
@@ -233,12 +240,7 @@ export class DataMaidEnhancer {
         const view = controls.querySelector('[data-cm-maid-view]');
         item.checkbox = checkbox;
         item.badge = badge;
-        checkbox.addEventListener('change', () => {
-            if (checkbox.checked) this.selected.set(hash, item);
-            else this.selected.delete(hash);
-            element.classList.toggle('cm-selected', checkbox.checked);
-            this.#syncSelection();
-        });
+        this.selection.bindItem(item);
         view.addEventListener('click', () => void this.viewer.open(item, this.token));
     }
 
@@ -291,11 +293,7 @@ export class DataMaidEnhancer {
             const queryVisible = !query || `${item.record.name} ${item.state}`.toLowerCase().includes(query);
             const visible = stateVisible && queryVisible;
             item.element?.classList.toggle('cm-hidden', !visible);
-            if (!visible && this.selected.has(item.record.hash)) {
-                this.selected.delete(item.record.hash);
-                item.checkbox.checked = false;
-                item.element?.classList.remove('cm-selected');
-            }
+            this.selection.setVisible(item, visible);
         }
         const list = this.category?.querySelector('.dataMaidCategoryContent > .flex-container');
         if (list) {
@@ -306,70 +304,7 @@ export class DataMaidEnhancer {
             });
             for (const item of sorted) list.append(item.element);
         }
-        this.#syncSelection();
-    }
-
-    #toggleSelectAll() {
-        if (!this.selectionMode) return;
-        const visible = Array.from(this.items.values()).filter(item => item.element?.isConnected && !item.element.classList.contains('cm-hidden'));
-        const allSelected = visible.length > 0 && visible.every(item => this.selected.has(item.record.hash));
-        for (const item of visible) {
-            item.checkbox.checked = !allSelected;
-            if (allSelected) this.selected.delete(item.record.hash);
-            else this.selected.set(item.record.hash, item);
-            item.element.classList.toggle('cm-selected', !allSelected);
-        }
-        this.#syncSelection();
-    }
-
-    /**
-     * 切换批量选择模式
-     * @param {boolean} enabled 是否启用
-     */
-    #setSelectionMode(enabled) {
-        if (enabled && this.busy) return;
-        this.selectionMode = enabled;
-        if (!enabled) this.#clearSelection(false);
-        this.category?.classList.toggle('cm-data-maid-selection-mode', enabled);
-        this.selectionToolbar?.classList.toggle('cm-hidden', !enabled);
-        this.batchStart?.classList.toggle('active', enabled);
-        this.batchStart?.setAttribute('aria-pressed', String(enabled));
-        const action = enabled ? '退出批量选择' : '进入批量选择';
-        if (this.batchStart) {
-            this.batchStart.title = action;
-            this.batchStart.setAttribute('aria-label', action);
-        }
-        this.#syncSelection();
-    }
-
-    /**
-     * 清除备份选择
-     * @param {boolean} sync 是否立即同步控件
-     */
-    #clearSelection(sync = true) {
-        this.selected.clear();
-        for (const item of this.items.values()) {
-            if (item.checkbox) item.checkbox.checked = false;
-            item.element?.classList.remove('cm-selected');
-        }
-        if (sync) this.#syncSelection();
-    }
-
-    #syncSelection() {
-        if (!this.toolbar) return;
-        for (const [hash, item] of this.selected) {
-            if (!item.element?.isConnected) this.selected.delete(hash);
-        }
-        const visible = Array.from(this.items.values()).filter(item => item.element?.isConnected && !item.element.classList.contains('cm-hidden'));
-        const allSelected = visible.length > 0 && visible.every(item => this.selected.has(item.record.hash));
-        const selectAction = allSelected ? '取消全选当前结果' : '全选当前结果';
-        this.batchStart.disabled = this.busy;
-        this.selectAll.disabled = this.busy || visible.length === 0;
-        this.selectAll.title = selectAction;
-        this.selectAll.setAttribute('aria-label', selectAction);
-        this.clearSelection.disabled = this.busy || this.selected.size === 0;
-        this.deleteSelected.disabled = this.busy || this.selected.size === 0;
-        this.selectedCount.textContent = `已选 ${this.selected.size} 项`;
+        this.selection.sync();
     }
 
     /**
@@ -407,11 +342,11 @@ export class DataMaidEnhancer {
             for (const item of items) {
                 item.element?.remove();
                 this.items.delete(item.record.hash);
-                this.selected.delete(item.record.hash);
+                this.selection.remove(item);
             }
             this.pendingDelete = [];
             this.#closeDelete(true);
-            this.#syncSelection();
+            this.selection.sync();
             this.#updateNativeSummary();
             notify('success', `已删除 ${items.length} 个聊天备份`);
         } catch (error) {
@@ -440,7 +375,7 @@ export class DataMaidEnhancer {
             if (button instanceof HTMLButtonElement) button.disabled = busy;
         }
         this.category?.querySelector('.dataMaidDeleteAll')?.setAttribute('aria-disabled', String(busy));
-        this.#syncSelection();
+        this.selection.sync();
     }
 
     #watchSession() {
@@ -467,8 +402,7 @@ export class DataMaidEnhancer {
         this.sessionObserver = null;
         this.viewer.close();
         this.#closeDelete(true);
-        this.selected.clear();
-        this.selectionMode = false;
+        this.selection.reset();
         this.category?.classList.remove('cm-data-maid-enhanced', 'cm-data-maid-busy', 'cm-data-maid-selection-mode');
         this.category?.querySelector('.cm-data-maid-tools')?.remove();
         for (const controls of this.category?.querySelectorAll('.cm-data-maid-controls') ?? []) controls.remove();

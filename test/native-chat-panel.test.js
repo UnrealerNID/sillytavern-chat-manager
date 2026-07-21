@@ -7,6 +7,7 @@ test('setEnabled removes native actions without reloading the page', () => {
     const action = { removeCalled: false, remove() { this.removeCalled = true; } };
     const wrapper = { dataset: { chatManagerEnhanced: 'true' } };
     const container = {
+        removeEventListener() {},
         querySelectorAll(selector) {
             if (selector === '[data-chat-manager-action]') return [action];
             if (selector === '[data-chat-manager-enhanced]') return [wrapper];

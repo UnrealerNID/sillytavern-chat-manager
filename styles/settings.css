@@ -28,6 +28,11 @@
     padding-bottom: 10px;
 }
 
+.toolbox-settings-modules {
+    display: grid;
+    gap: 10px;
+}
+
 .toolbox-settings-meta {
     justify-content: space-between;
     min-height: 24px;

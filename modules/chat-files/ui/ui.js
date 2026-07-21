@@ -1,4 +1,5 @@
-import { chatKey, stripJsonl } from '../../shared/utils.js';
+import { chatKey } from '../chat/identity.js';
+import { ChatInventory } from '../chat/inventory.js';
 import {
     filterChatRecords,
     getCurrentOwner,
@@ -90,8 +91,6 @@ export class ChatManagerUi {
         this.selectionMode = false;
         this.selectedRecords = new Map();
         this.loading = false;
-        this.refreshTask = null;
-        this.refreshKey = '';
         this.refreshTimer = null;
         this.groupOwners = Boolean(viewOptions.groupOwners);
         this.groupSplits = Boolean(viewOptions.groupSplits);
@@ -101,6 +100,13 @@ export class ChatManagerUi {
         this.pageSize = normalizePageSize(viewOptions.pageSize);
         this.onViewOptionsChange = onViewOptionsChange;
         this.#build(template, dialogTemplates, componentTemplates);
+        this.inventory = new ChatInventory({
+            api: this.api,
+            getContext: this.getContext,
+            getTarget: () => this.#inventoryTarget(),
+            getAvatarUrl: this.getAvatarUrl,
+            onLoading: loading => this.#setLoading(loading),
+        });
     }
 
     #build(template, dialogTemplates, componentTemplates) {
@@ -307,87 +313,30 @@ export class ChatManagerUi {
      * @returns {Promise<void>} 清单刷新完成
      */
     async refresh() {
-        const target = {
-            key: this.#inventoryKey(),
-            scope: this.scope,
-            owner: this.currentOwner ? { ...this.currentOwner } : null,
-        };
-        if (this.refreshTask) {
-            if (this.refreshKey === target.key) return this.refreshTask;
-            await this.refreshTask;
-            return this.refresh();
-        }
-        this.refreshKey = target.key;
-        this.refreshTask = this.#loadChatFiles(target);
         try {
-            return await this.refreshTask;
-        } finally {
-            this.refreshTask = null;
-            this.refreshKey = '';
-        }
-    }
-
-    /**
-     * 获取当前清单范围的稳定键
-     * @returns {string} 稳定键
-     */
-    #inventoryKey() {
-        return this.scope === 'current' && this.currentOwner
-            ? `current:${this.currentOwner.ownerType}:${this.currentOwner.ownerId}`
-            : 'all';
-    }
-
-    /**
-     * 读取指定范围的聊天文件并更新清单
-     * @param {object} target 清单读取目标
-     * @param {string} target.key 稳定请求键
-     * @param {'current'|'all'} target.scope 聊天范围
-     * @param {object|null} target.owner 当前所有者
-     * @returns {Promise<void>} 清单加载完成
-     */
-    async #loadChatFiles(target) {
-        this.#setLoading(true);
-        try {
-            const data = target.scope === 'current' && target.owner
-                ? await this.api.listOwnerChatFiles(target.owner)
-                : await this.api.listChatFiles();
-            if (!Array.isArray(data)) throw new Error('聊天文件接口返回格式无效');
-            const context = this.getContext();
-            const characters = new Map((context.characters ?? []).map(character => [character.avatar, character]));
-            const groups = new Map((context.groups ?? []).map(group => [String(group.id), group]));
-            const records = data.map(item => {
-                const isGroup = item.group !== undefined && item.group !== null;
-                const owner = isGroup
-                    ? groups.get(String(item.group))
-                    : characters.get(item.avatar);
-                if (!owner) return null;
-                const record = {
-                    ownerType: isGroup ? 'group' : 'character',
-                    ownerId: String(isGroup ? item.group : item.avatar),
-                    ownerName: String(owner.name ?? item.char_name ?? item.group ?? item.avatar),
-                    fileId: stripJsonl(item.file_id ?? item.file_name),
-                    fileName: String(item.file_name ?? `${item.file_id}.jsonl`),
-                    fileSize: String(item.file_size ?? ''),
-                    messageCount: Number(item.chat_items ?? 0),
-                    lastMessageAt: item.last_mes ?? '',
-                    preview: String(item.mes ?? ''),
-                    chatManager: item.chat_metadata?.chat_manager ?? null,
-                };
-                record.avatarUrl = this.getAvatarUrl(record);
-                return record;
-            }).filter(Boolean).sort((a, b) => new Date(b.lastMessageAt).valueOf() - new Date(a.lastMessageAt).valueOf());
-            // 范围切换后，较早返回的请求不能覆盖新范围的清单
-            if (target.key !== this.#inventoryKey()) return;
-            this.records = records;
+            this.records = await this.inventory.refresh();
             this.page = 0;
             this.#filter();
             this.updateRuntimeState();
         } catch (error) {
             this.#setState(error.message, true);
             notify('error', error.message);
-        } finally {
-            this.#setLoading(false);
         }
+    }
+
+    /**
+     * 获取当前聊天清单读取目标
+     * @returns {object} 范围、所有者与稳定键
+     */
+    #inventoryTarget() {
+        const owner = this.currentOwner ? { ...this.currentOwner } : null;
+        return {
+            scope: this.scope,
+            owner,
+            key: this.scope === 'current' && owner
+                ? `current:${owner.ownerType}:${owner.ownerId}`
+                : 'all',
+        };
     }
 
     #filter() {
@@ -545,39 +494,28 @@ export class ChatManagerUi {
     }
 
     /**
-     * 打开聊天对应备份
-     * @param {object} record 原聊天记录
-     * @returns {Promise<void>} 弹窗任务
-     */
-    /**
      * 打开指定聊天的备份列表
      * @param {object} record 聊天记录
+     * @returns {Promise<void>} 弹窗任务
      */
     openBackups(record) {
         return this.backupDialogs.open(record);
     }
 
     /**
-     * @param {object} record 来源聊天
-     * @param {object} initialOptions 分卷初始配置
-     */
-    /**
      * 打开指定聊天的分卷面板
      * @param {object} record 聊天记录
      * @param {object} [initialOptions] 可沿用的分卷配置
+     * @returns {Promise<void>} 弹窗任务
      */
     openSplit(record, initialOptions = {}) {
         return this.splitDialogs.open(record, initialOptions);
     }
 
     /**
-     * 显示未完成分卷任务
-     * @param {object[]} tasks 未完成任务
-     * @returns {Promise<void>} 弹窗任务
-     */
-    /**
      * 展示可恢复的分卷任务
      * @param {object[]} tasks 待恢复任务
+     * @returns {Promise<void>} 弹窗任务
      */
     showRecovery(tasks) {
         return this.splitDialogs.showRecovery(tasks);

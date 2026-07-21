@@ -2,13 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-    buildRanges,
     canonicalJson,
-    isNewerVersion,
-    parseBytes,
     parseJsonlResponse,
+} from '../modules/shared/data.js';
+import {
+    parseBytes,
     stripJsonl,
-} from '../modules/shared/utils.js';
+} from '../modules/shared/files.js';
+import { buildRanges } from '../modules/chat-files/chat/ranges.js';
+import { isNewerVersion } from '../modules/platform/version.js';
 
 test('buildRanges keeps inclusive floors and the remainder', () => {
     assert.deepEqual(buildRanges(100, 349, 100), [

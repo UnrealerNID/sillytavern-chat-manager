@@ -1,4 +1,5 @@
-import { cloneJson, stripJsonl } from '../../shared/utils.js';
+import { cloneJson } from '../../shared/data.js';
+import { stripJsonl } from '../../shared/files.js';
 
 /**
  * 判断值是否为普通对象

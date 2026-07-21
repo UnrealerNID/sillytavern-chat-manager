@@ -10,13 +10,16 @@ export class ToolboxSettingsPanel {
     /**
      * @param {object} options 配置项
      * @param {object} options.settings 工具箱设置
+     * @param {object[]} options.definitions 模块定义
      * @param {import('../platform/extension-updater.js').ExtensionUpdater} options.updater 更新控制器
-     * @param {()=>void} options.onChange 设置变化回调
+     * @param {()=>Promise<void>|void} options.onChange 设置变化回调
      */
-    constructor({ settings, updater, onChange }) {
+    constructor({ settings, definitions, updater, onChange }) {
         this.settings = settings;
+        this.definitions = definitions;
         this.updater = updater;
         this.onChange = onChange;
+        this.moduleRoots = new Map();
     }
 
     /**
@@ -41,21 +44,10 @@ export class ToolboxSettingsPanel {
         if (!(root instanceof HTMLElement)) throw new Error('工具箱设置模板结构无效');
 
         this.root = root;
-        this.#bindSwitch('[data-toolbox-enabled]', () => this.settings.enabled, value => {
+        this.#bindSwitch(root, '[data-toolbox-enabled]', () => this.settings.enabled, value => {
             this.settings.enabled = value;
         });
-        this.#bindSwitch('[data-chat-files-enabled]', () => this.settings.modules.chatFiles.enabled, value => {
-            this.settings.modules.chatFiles.enabled = value;
-        });
-        this.#bindSwitch('[data-native-chat-panel-enabled]', () => this.#integrations().nativeChatPanel, value => {
-            this.#integrations().nativeChatPanel = value;
-        });
-        this.#bindSwitch('[data-welcome-recent-enabled]', () => this.#integrations().welcomeRecent, value => {
-            this.#integrations().welcomeRecent = value;
-        });
-        this.#bindSwitch('[data-data-maid-enabled]', () => this.#integrations().dataMaid, value => {
-            this.#integrations().dataMaid = value;
-        });
+        await this.#mountModules(root);
 
         const version = root.querySelector('[data-toolbox-version]');
         const update = root.querySelector('[data-toolbox-update]');
@@ -70,20 +62,47 @@ export class ToolboxSettingsPanel {
 
     /**
      * 绑定一个设置开关
+     * @param {HTMLElement} root 查找控件的根节点
      * @param {string} selector 开关选择器
      * @param {()=>boolean} read 读取设置
      * @param {(value:boolean)=>void} write 写入设置
      */
-    #bindSwitch(selector, read, write) {
-        const input = this.root.querySelector(selector);
+    #bindSwitch(root, selector, read, write) {
+        const input = root.querySelector(selector);
         if (!(input instanceof HTMLInputElement)) throw new Error(`工具箱设置缺少 ${selector}`);
         input.checked = read() !== false;
         input.addEventListener('change', () => {
             write(input.checked);
             saveSettingsDebounced();
             this.#syncHierarchy();
-            this.onChange();
+            Promise.resolve(this.onChange()).catch(error => {
+                console.error('[酒馆工具箱] 应用扩展设置失败', error);
+                globalThis.toastr?.error?.(`应用工具箱设置失败：${error.message}`);
+            });
         });
+    }
+
+    /**
+     * 加载并挂载每个模块自己的设置模板
+     * @param {HTMLElement} root 工具箱设置根节点
+     */
+    async #mountModules(root) {
+        const container = root.querySelector('[data-toolbox-modules]');
+        if (!(container instanceof HTMLElement)) throw new Error('工具箱设置模板缺少模块挂载点');
+        for (const definition of this.definitions) {
+            const html = await renderExtensionTemplateAsync(EXTENSION_ID, definition.settingsTemplate);
+            const holder = document.createElement('template');
+            holder.innerHTML = html.trim();
+            const moduleRoot = holder.content.firstElementChild;
+            if (!(moduleRoot instanceof HTMLElement)) throw new Error(`${definition.id} 设置模板结构无效`);
+            container.append(moduleRoot);
+            this.moduleRoots.set(definition.id, moduleRoot);
+            definition.bindSettings({
+                root: moduleRoot,
+                settings: this.settings,
+                bindSwitch: this.#bindSwitch.bind(this),
+            });
+        }
     }
 
     /**
@@ -92,24 +111,13 @@ export class ToolboxSettingsPanel {
     #syncHierarchy() {
         if (!this.root) return;
         const toolboxEnabled = this.settings.enabled !== false;
-        const moduleEnabled = this.settings.modules.chatFiles.enabled !== false;
-        const moduleToggle = this.root.querySelector('[data-chat-files-enabled]');
-        const integrations = this.root.querySelector('[data-chat-files-integrations]');
-        if (moduleToggle instanceof HTMLInputElement) moduleToggle.disabled = !toolboxEnabled;
-        if (integrations instanceof HTMLElement) {
-            integrations.classList.toggle('toolbox-settings-disabled', !toolboxEnabled || !moduleEnabled);
-            for (const input of integrations.querySelectorAll('input[type="checkbox"]')) {
-                input.disabled = !toolboxEnabled || !moduleEnabled;
-            }
+        for (const definition of this.definitions) {
+            definition.syncSettings({
+                root: this.moduleRoots.get(definition.id),
+                settings: this.settings,
+                toolboxEnabled,
+            });
         }
-    }
-
-    /**
-     * 获取聊天文件模块的界面注入设置
-     * @returns {object} 注入设置
-     */
-    #integrations() {
-        return this.settings.modules.chatFiles.integrations;
     }
 }
 

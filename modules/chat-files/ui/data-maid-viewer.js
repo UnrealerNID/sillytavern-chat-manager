@@ -1,4 +1,5 @@
-import { formatBytes, parseJsonlResponse } from '../../shared/utils.js';
+import { parseJsonlResponse } from '../../shared/data.js';
+import { formatBytes } from '../../shared/files.js';
 
 const PAGE_SIZE = 50;
 

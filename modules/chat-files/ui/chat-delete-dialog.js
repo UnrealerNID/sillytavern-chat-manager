@@ -1,4 +1,5 @@
-import { chatKey, formatBytes } from '../../shared/utils.js';
+import { formatBytes } from '../../shared/files.js';
+import { chatKey } from '../chat/identity.js';
 import { aggregateRecords } from './chat-list-renderer.js';
 
 /**

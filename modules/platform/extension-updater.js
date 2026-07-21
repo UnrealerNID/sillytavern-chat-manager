@@ -6,7 +6,7 @@ import {
 } from '/scripts/extensions.js';
 import { isAdmin } from '/scripts/user.js';
 
-import { isNewerVersion } from '../shared/utils.js';
+import { isNewerVersion } from './version.js';
 
 const EXTENSION_ID = 'third-party/sillytavern-toolbox';
 const EXTENSION_FOLDER = 'sillytavern-toolbox';

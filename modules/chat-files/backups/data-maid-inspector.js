@@ -1,4 +1,4 @@
-import { parseJsonlResponse } from '../../shared/utils.js';
+import { parseJsonlResponse } from '../../shared/data.js';
 
 const MATCH_CONCURRENCY = 4;
 

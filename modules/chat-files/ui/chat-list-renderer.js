@@ -1,5 +1,6 @@
 import { deriveIncrementalSplit } from '../chat/grouping.js';
-import { chatKey, formatBytes, parseBytes } from '../../shared/utils.js';
+import { formatBytes, parseBytes } from '../../shared/files.js';
+import { chatKey } from '../chat/identity.js';
 
 /**
  * 汇总聊天文件规模与最近记录

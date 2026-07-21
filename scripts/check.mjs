@@ -58,6 +58,7 @@ for (const referenced of [
     manifest.js,
     manifest.css,
     'templates/settings.html',
+    'templates/chat-files/settings.html',
     'templates/chat-files/panel.html',
     'templates/chat-files/data-maid-enhancer.html',
     'templates/chat-files/dialogs.html',

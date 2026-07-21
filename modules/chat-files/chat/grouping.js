@@ -1,4 +1,4 @@
-import { parseBytes } from '../../shared/utils.js';
+import { parseBytes } from '../../shared/files.js';
 
 /**
  * 按聊天管理面板的排序方式返回新数组

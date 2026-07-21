@@ -1,4 +1,4 @@
-import { element } from '../../shared/utils.js';
+import { element } from '../../shared/dom.js';
 
 /**
  * 统一管理静态模板、挂载点和弹窗生命周期

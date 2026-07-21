@@ -11,8 +11,7 @@ import { renderExtensionTemplateAsync } from '/scripts/extensions.js';
 import { accountStorage } from '/scripts/util/AccountStorage.js';
 import { openWelcomeScreen } from '/scripts/welcome-screen.js';
 
-import { isChatFilesEnabled } from '../core/settings.js';
-import { element } from '../shared/utils.js';
+import { element } from '../shared/dom.js';
 import { ChatManagerApi } from './api.js';
 import { BackupService } from './backups/backups.js';
 import { DataMaidEnhancer } from './backups/data-maid-enhancer.js';
@@ -39,6 +38,10 @@ export class ChatFilesModule {
         this.settings = toolboxSettings.modules.chatFiles;
         this.getContext = () => SillyTavern.getContext();
         this.recoveryChecked = false;
+        this.enabled = false;
+        this.initialized = false;
+        this.eventBindings = [];
+        this.eventsBound = false;
     }
 
     /**
@@ -46,7 +49,15 @@ export class ChatFilesModule {
      * @returns {Promise<void>}
      */
     async initialize() {
+        if (this.initialized) return;
         const context = this.getContext();
+        const [panelTemplate, dataMaidTemplate, dialogTemplates, componentTemplates] = await Promise.all([
+            this.#template('panel'),
+            this.#template('data-maid-enhancer'),
+            this.#template('dialogs'),
+            this.#template('components'),
+        ]);
+
         this.api = new ChatManagerApi(this.getContext);
         this.journal = new TaskJournal();
         this.backups = new BackupService(this.api);
@@ -58,13 +69,6 @@ export class ChatFilesModule {
             openRecord: record => this.#openRecord(record),
         });
         const nativePageSize = Number(accountStorage.getItem('Characters_PerPage')) || 50;
-        const [panelTemplate, dataMaidTemplate, dialogTemplates, componentTemplates] = await Promise.all([
-            this.#template('panel'),
-            this.#template('data-maid-enhancer'),
-            this.#template('dialogs'),
-            this.#template('components'),
-        ]);
-
         this.dataMaid = new DataMaidEnhancer({ api: this.api, template: dataMaidTemplate });
         const saveViewOptions = (options, source) => {
             const view = this.settings.view;
@@ -118,11 +122,11 @@ export class ChatFilesModule {
             isGenerating,
         });
 
-        this.applySettings();
         this.#insertEntryWithRetry();
         if (!this.nativePanel.init()) setTimeout(() => this.nativePanel.init(), 1000);
         if (!this.welcomeRecent.init()) setTimeout(() => this.welcomeRecent.init(), 1000);
-        this.#bindEvents(context);
+        this.#prepareEventBindings(context);
+        this.initialized = true;
     }
 
     /**
@@ -136,19 +140,21 @@ export class ChatFilesModule {
     /**
      * 根据总开关、模块开关与注入开关计算实际状态
      */
-    applySettings() {
-        if (!this.ui) return;
-        const moduleEnabled = isChatFilesEnabled(this.toolboxSettings);
+    setEnabled(enabled) {
+        if (!this.initialized) return;
+        const wasEnabled = this.enabled;
+        this.enabled = enabled;
         const integrations = this.settings.integrations;
-        document.querySelector('#chat_manager_open')?.classList.toggle('displayNone', !moduleEnabled);
-        if (!moduleEnabled) {
+        document.querySelector('#chat_manager_open')?.classList.toggle('displayNone', !enabled);
+        if (wasEnabled && !enabled) {
             this.ui.close();
             void this.backups.dispose();
         }
-        this.nativePanel.setEnabled(moduleEnabled && integrations.nativeChatPanel !== false);
-        this.welcomeRecent.setEnabled(moduleEnabled && integrations.welcomeRecent !== false);
-        this.dataMaid.setEnabled(moduleEnabled && integrations.dataMaid !== false);
-        if (moduleEnabled) void this.#recoverPendingTasks();
+        this.#setEventsEnabled(enabled);
+        this.nativePanel.setEnabled(enabled && integrations.nativeChatPanel !== false);
+        this.welcomeRecent.setEnabled(enabled && integrations.welcomeRecent !== false);
+        this.dataMaid.setEnabled(enabled && integrations.dataMaid !== false);
+        if (enabled) void this.#recoverPendingTasks();
     }
 
     /**
@@ -190,10 +196,9 @@ export class ChatFilesModule {
      * @returns {boolean} 是否插入成功
      */
     #insertEntry() {
-        const enabled = isChatFilesEnabled(this.toolboxSettings);
         const existing = document.querySelector('#chat_manager_open');
         if (existing) {
-            existing.classList.toggle('displayNone', !enabled);
+            existing.classList.toggle('displayNone', !this.enabled);
             return true;
         }
         const anchor = document.querySelector('#option_select_chat');
@@ -206,11 +211,12 @@ export class ChatFilesModule {
         entry.addEventListener('click', event => {
             event.preventDefault();
             event.stopPropagation();
+            if (!this.enabled) return;
             this.ui.open();
             const options = document.querySelector('#options');
             if (options instanceof HTMLElement) options.style.display = 'none';
         });
-        entry.classList.toggle('displayNone', !enabled);
+        entry.classList.toggle('displayNone', !this.enabled);
         anchor.insertAdjacentElement('afterend', entry);
         return true;
     }
@@ -223,24 +229,33 @@ export class ChatFilesModule {
         this.recoveryChecked = true;
         try {
             const tasks = await this.splitter.reconcile();
-            if (isChatFilesEnabled(this.toolboxSettings) && tasks.length) await this.ui.showRecovery(tasks);
+            if (!this.enabled) {
+                // 停用发生在扫描期间时保留待恢复状态，下次启用重新确认
+                if (tasks.length) this.recoveryChecked = false;
+                return;
+            }
+            if (tasks.length) await this.ui.showRecovery(tasks);
         } catch (error) {
             console.error('[酒馆工具箱] 恢复未完成任务失败', error);
         }
     }
 
     /**
-     * 绑定生成状态与聊天文件变化事件
+     * 准备生成状态与聊天文件变化事件
      * @param {object} context 酒馆上下文
      */
-    #bindEvents(context) {
+    #prepareEventBindings(context) {
         const updateState = () => {
             this.ui.updateRuntimeState();
             this.nativePanel.updateRuntimeState();
         };
-        context.eventSource.on(context.eventTypes.GENERATION_STARTED, updateState);
-        context.eventSource.on(context.eventTypes.GENERATION_ENDED, updateState);
-        context.eventSource.on(context.eventTypes.GENERATION_STOPPED, updateState);
+        for (const eventType of [
+            context.eventTypes.GENERATION_STARTED,
+            context.eventTypes.GENERATION_ENDED,
+            context.eventTypes.GENERATION_STOPPED,
+        ].filter(Boolean)) {
+            this.eventBindings.push([eventType, updateState]);
+        }
 
         // 原生 recent 接口实时扫描磁盘，事件只安排一次防抖同步
         const chatFileEvents = [
@@ -257,7 +272,21 @@ export class ChatFilesModule {
             context.eventTypes.GENERATION_STOPPED,
         ].filter(Boolean);
         for (const eventType of new Set(chatFileEvents)) {
-            context.eventSource.on(eventType, () => this.ui.invalidateChatFiles());
+            this.eventBindings.push([eventType, () => this.ui.invalidateChatFiles()]);
+        }
+        this.eventSource = context.eventSource;
+    }
+
+    /**
+     * 启停聊天文件模块的酒馆事件监听
+     * @param {boolean} enabled 是否启用监听
+     */
+    #setEventsEnabled(enabled) {
+        if (enabled === this.eventsBound) return;
+        this.eventsBound = enabled;
+        for (const [eventType, handler] of this.eventBindings) {
+            if (enabled) this.eventSource.on(eventType, handler);
+            else this.eventSource.removeListener(eventType, handler);
         }
     }
 }

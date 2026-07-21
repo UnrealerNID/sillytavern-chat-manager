@@ -1,4 +1,4 @@
-import { element } from '../../shared/utils.js';
+import { element } from '../../shared/dom.js';
 
 export class NativeChatPanel {
     /**
@@ -11,7 +11,8 @@ export class NativeChatPanel {
         this.getContext = getContext;
         this.ui = ui;
         this.isGenerating = isGenerating;
-        this.enabled = true;
+        this.enabled = false;
+        this.clickHandler = event => this.#onClick(event);
     }
 
     /**
@@ -19,12 +20,11 @@ export class NativeChatPanel {
      * @returns {boolean} 是否找到并完成挂载
      */
     init() {
-        this.container = document.querySelector('#select_chat_div');
-        if (!this.container) return false;
-        this.container.addEventListener('click', event => this.#onClick(event));
-        this.observer = new MutationObserver(() => this.enhance());
-        this.observer.observe(this.container, { childList: true, subtree: true });
-        this.enhance();
+        const container = document.querySelector('#select_chat_div');
+        if (!(container instanceof HTMLElement)) return false;
+        if (this.container !== container) this.#disconnect();
+        this.container = container;
+        if (this.enabled) this.#connect();
         return true;
     }
 
@@ -36,13 +36,35 @@ export class NativeChatPanel {
     setEnabled(enabled) {
         this.enabled = enabled;
         if (enabled) {
-            this.enhance();
+            if (!this.container?.isConnected && !this.init()) return;
+            this.#connect();
             return;
         }
+        this.#disconnect();
         this.container?.querySelectorAll('[data-chat-manager-action]').forEach(button => button.remove());
         this.container?.querySelectorAll('[data-chat-manager-enhanced]').forEach(wrapper => {
             delete wrapper.dataset.chatManagerEnhanced;
         });
+    }
+
+    /**
+     * 启动原生聊天文件面板监听
+     */
+    #connect() {
+        if (!this.container || this.observer) return;
+        this.container.addEventListener('click', this.clickHandler);
+        this.observer = new MutationObserver(() => this.enhance());
+        this.observer.observe(this.container, { childList: true, subtree: true });
+        this.enhance();
+    }
+
+    /**
+     * 停止原生聊天文件面板监听
+     */
+    #disconnect() {
+        this.container?.removeEventListener('click', this.clickHandler);
+        this.observer?.disconnect();
+        this.observer = null;
     }
 
     /**
