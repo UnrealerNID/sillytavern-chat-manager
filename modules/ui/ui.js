@@ -226,6 +226,14 @@ export class ChatManagerUi {
     }
 
     /**
+     * 返回聊天视图共用的静态模板工具
+     * @returns {UiTemplates} 模板工具
+     */
+    getTemplates() {
+        return this.ui;
+    }
+
+    /**
      * 打开聊天管理面板并同步当前范围的聊天文件
      * @returns {Promise<void>} 面板打开完成
      */
@@ -449,12 +457,25 @@ export class ChatManagerUi {
      * @param {'owners'|'splits'} type 分组维度
      */
     #toggleGrouping(type) {
-        if (type === 'owners') this.groupOwners = !this.groupOwners;
-        if (type === 'splits') this.groupSplits = !this.groupSplits;
+        this.setGrouping({
+            groupOwners: type === 'owners' ? !this.groupOwners : this.groupOwners,
+            groupSplits: type === 'splits' ? !this.groupSplits : this.groupSplits,
+        });
+        this.#saveViewOptions();
+    }
+
+    /**
+     * 从其他聊天视图同步分组设置
+     * @param {object} options 显示设置
+     * @param {boolean} options.groupOwners 是否按角色分组
+     * @param {boolean} options.groupSplits 是否按分卷分组
+     */
+    setGrouping(options) {
+        this.groupOwners = Boolean(options.groupOwners);
+        this.groupSplits = Boolean(options.groupSplits);
         this.page = 0;
         this.#syncGroupingButtons();
         this.#render();
-        this.#saveViewOptions();
     }
 
     /**
