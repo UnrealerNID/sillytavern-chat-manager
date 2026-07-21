@@ -69,7 +69,7 @@ export async function init() {
         backups,
         openRecord,
     });
-    const settings = extension_settings.chatManager ??= {};
+    const settings = extension_settings.tavernToolbox ??= {};
     settings.enabled ??= true;
     settings.groupOwners ??= false;
     settings.groupSplits ??= false;
