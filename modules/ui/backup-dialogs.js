@@ -24,6 +24,8 @@ export class BackupDialogs {
         if (this.isGenerating()) return this.notify('warning', '聊天正在生成，结束后才能读取备份');
         if (this.isSplitting()) return this.notify('warning', '分割任务正在写入聊天，完成后才能读取备份');
         const dialog = this.ui.dialog(['对应备份', record.ownerName, record.fileId], 'backups');
+        const search = this.ui.mount(dialog.body, '[data-cm-backup-search]', HTMLInputElement);
+        const sort = this.ui.mount(dialog.body, '[data-cm-backup-sort]', HTMLSelectElement);
         const status = this.ui.mount(dialog.body, '[data-cm-backup-status]');
         const statusText = this.ui.mount(dialog.body, '[data-cm-backup-status-text]');
         const elapsed = this.ui.mount(dialog.body, '[data-cm-backup-elapsed]');
@@ -41,10 +43,33 @@ export class BackupDialogs {
         let checked = 0;
         let candidateCount = 0;
         const rows = new Map();
+        let complete = false;
+        const applyView = () => {
+            const query = search.value.trim().toLowerCase();
+            const entries = Array.from(rows.values()).sort((left, right) => {
+                if (sort.value === 'oldest') return Number(left.backup.last_mes ?? 0) - Number(right.backup.last_mes ?? 0);
+                if (sort.value === 'largest') return Number(right.backup.file_bytes ?? 0) - Number(left.backup.file_bytes ?? 0);
+                return Number(right.backup.last_mes ?? 0) - Number(left.backup.last_mes ?? 0);
+            });
+            let visible = 0;
+            for (const entry of entries) {
+                const haystack = `${entry.backup.file_name} ${entry.backup.reason ?? ''} ${entry.backup.mes ?? ''}`.toLowerCase();
+                const matches = !query || haystack.includes(query);
+                entry.row.classList.toggle('cm-hidden', !matches);
+                if (matches) visible++;
+                results.append(entry.row);
+            }
+            return visible;
+        };
         const refreshSummary = () => {
-            summary.textContent = `候选 ${candidateCount} 个 · 已检查 ${checked} 个 · 已确认 ${found} 个`;
+            const visible = applyView();
+            summary.textContent = complete
+                ? `显示 ${visible} / ${rows.size} 个备份 · 原聊天 ${record.fileSize} · ${record.messageCount} 层`
+                : `候选 ${candidateCount} 个 · 已检查 ${checked} 个 · 已确认 ${found} 个`;
             summary.classList.remove('cm-hidden');
         };
+        search.addEventListener('input', refreshSummary);
+        sort.addEventListener('change', refreshSummary);
         try {
             const matches = await this.backups.find(record, {
                 onCandidates: candidates => {
@@ -90,8 +115,8 @@ export class BackupDialogs {
             }, dialog.signal);
             stopLoading();
             status.remove();
-            summary.textContent = `显示 ${matches.length} 个候选结果 · 原聊天 ${record.fileSize} · ${record.messageCount} 层`;
-            summary.classList.remove('cm-hidden');
+            complete = true;
+            refreshSummary();
             if (!matches.length) results.append(this.ui.state('没有找到能够关联到该聊天的备份', { empty: true }));
         } catch (error) {
             if (dialog.signal.aborted) return;
@@ -151,7 +176,7 @@ export class BackupDialogs {
         status.dataset.state = backup.status === 'pending' ? 'loading' : backup.status === 'matched' ? 'ready' : backup.status === 'confirm' ? 'warning' : 'error';
         this.ui.mount(row, '[data-cm-backup-created]').textContent = this.ui.formatBackupDate(backup.file_name);
         this.ui.mount(row, '[data-cm-backup-last-message]').textContent = this.ui.formatDate(backup.last_mes);
-        this.ui.mount(row, '[data-cm-backup-size]').textContent = `${backup.file_size} · ${backup.chat_items ?? '未知'} / ${record.messageCount} 层`;
+        this.ui.mount(row, '[data-cm-backup-size]').textContent = `${backup.file_size} · ${backup.chat_items ?? '未知'} 层`;
         this.ui.mount(row, '[data-cm-backup-reason]').textContent = `匹配依据：${backup.reason ?? '未提供'}`;
         this.ui.mount(row, '[data-cm-backup-preview]').textContent = String(backup.mes ?? '没有可显示的最后消息');
         this.ui.mount(row, '[data-cm-backup-restore]', HTMLButtonElement).disabled = !['matched', 'confirm'].includes(backup.status);

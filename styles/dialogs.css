@@ -23,6 +23,33 @@
     padding: 14px 16px;
 }
 
+.cm-backup-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 8px;
+}
+
+.cm-backup-toolbar .cm-search-wrap {
+    flex: 1;
+}
+
+.cm-backup-toolbar .cm-search,
+.cm-backup-sort {
+    height: 34px;
+}
+
+.cm-backup-sort {
+    width: 104px;
+}
+
+.cm-dialog-backups .cm-result-summary {
+    margin-bottom: 6px;
+    padding: 3px 1px;
+    border: 0;
+    background: transparent;
+}
+
 .cm-dialog-backup-viewer .cm-dialog-body {
     overflow: hidden;
     padding: 0;

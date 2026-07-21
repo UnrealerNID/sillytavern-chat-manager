@@ -87,7 +87,7 @@ export class ChatManagerUi {
         this.sort.value = this.sortOrder;
         this.pageSizeSelect = required(root, '[data-cm-page-size]', HTMLSelectElement);
         if (!Array.from(this.pageSizeSelect.options).some(option => Number(option.value) === this.pageSize)) {
-            this.pageSizeSelect.add(new Option(`${this.pageSize} 条`, String(this.pageSize)));
+            this.pageSizeSelect.add(new Option(`${this.pageSize} / 页`, String(this.pageSize)));
         }
         this.pageSizeSelect.value = String(this.pageSize);
         this.state = required(root, '[data-cm-state]');
@@ -614,7 +614,8 @@ export class ChatManagerUi {
         name.title = `${record.ownerName} - ${record.fileId}`;
         owner.textContent = record.ownerName;
         file.textContent = record.fileId;
-        date.textContent = this.ui.formatDate(record.lastMessageAt);
+        date.textContent = this.ui.formatShortDate(record.lastMessageAt);
+        date.title = this.ui.formatDate(record.lastMessageAt);
         preview.textContent = record.preview;
         preview.title = record.preview;
         countWrap.title = `${record.messageCount} 层消息`;

@@ -47,7 +47,7 @@ test('panel template exposes all stable UI mounts', async () => {
     assert.match(html, /aria-pressed="false"[^>]*data-cm-batch-start/);
     assert.match(html, /fa-square-check/);
     assert.match(html, /data-cm-batch-cancel[\s\S]{0,120}fa-eraser/);
-    assert.match(html, /value="10">10 条<[\s\S]*value="25">25 条<[\s\S]*value="1000">1000 条</);
+    assert.match(html, /value="10">10 \/ 页<[\s\S]*value="25">25 \/ 页<[\s\S]*value="1000">1000 \/ 页</);
     assert.doesNotMatch(html, /fa-arrow-down-wide-short|fa-table-list/);
     assert.doesNotMatch(html, />取消选择<|>删除已选</);
     assert.match(html, /data-cm-selection-toolbar[\s\S]*data-cm-batch-count[\s\S]*data-cm-batch-cancel[\s\S]*data-cm-batch-confirm/);
@@ -100,6 +100,8 @@ test('dialog templates expose every static dialog and dynamic mount', async () =
         'data-cm-dialog-content="backups"',
         'data-cm-backup-status',
         'data-cm-backup-progress',
+        'data-cm-backup-search',
+        'data-cm-backup-sort',
         'data-cm-backup-results',
         'data-cm-dialog-content="backup-viewer"',
         'data-cm-message-list',
@@ -220,6 +222,9 @@ test('backup listing is only requested explicitly while chat files are stable', 
     assert.match(ui, /backup\.disabled\s*=\s*this\.isGenerating\(\)\s*\|\|\s*this\.splitter\.running/);
     assert.match(backupDialogs, /async open\(record\)\s*{\s*if \(this\.isGenerating\(\)\)/);
     assert.match(backupDialogs, /if \(this\.isSplitting\(\)\) return this\.notify\('warning', '分割任务正在写入聊天/);
+    assert.match(backupDialogs, /search\.addEventListener\('input', refreshSummary\)/);
+    assert.match(backupDialogs, /sort\.addEventListener\('change', refreshSummary\)/);
+    assert.doesNotMatch(backupDialogs, /row\.addEventListener\('click'/);
 });
 
 test('chat deletion uses SillyTavern native character and group workflows', async () => {

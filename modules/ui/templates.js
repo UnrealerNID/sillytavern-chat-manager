@@ -155,6 +155,15 @@ export class UiTemplates {
     }
 
     /**
+     * @param {unknown} value 日期值
+     * @returns {string} 本地短日期
+     */
+    formatShortDate(value) {
+        const date = new Date(value);
+        return Number.isNaN(date.valueOf()) ? String(value ?? '') : date.toLocaleDateString();
+    }
+
+    /**
      * @param {string} fileName 备份文件名
      * @returns {string} 创建时间
      */

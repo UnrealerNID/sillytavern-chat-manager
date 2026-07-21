@@ -110,6 +110,17 @@
                 <div class="cm-backup-heading">
                     <strong data-cm-backup-name></strong>
                     <span class="cm-status-badge" data-cm-backup-status></span>
+                    <div class="cm-actions cm-backup-actions">
+                        <button class="menu_button menu_button_icon cm-row-action" type="button" title="恢复为新聊天" aria-label="恢复为新聊天" data-cm-backup-restore>
+                            <i class="fa-solid fa-file-import fa-fw" aria-hidden="true"></i>
+                        </button>
+                        <button class="menu_button menu_button_icon cm-row-action" type="button" title="查看备份内容" aria-label="查看备份内容" data-cm-backup-view>
+                            <i class="fa-solid fa-eye fa-fw" aria-hidden="true"></i>
+                        </button>
+                        <button class="menu_button menu_button_icon cm-row-action" type="button" title="下载备份文件" aria-label="下载备份文件" data-cm-backup-download>
+                            <i class="fa-solid fa-download fa-fw" aria-hidden="true"></i>
+                        </button>
+                    </div>
                 </div>
                 <dl class="cm-backup-facts">
                     <div>
@@ -127,20 +138,6 @@
                 </dl>
                 <span class="cm-backup-reason" data-cm-backup-reason></span>
                 <p class="cm-backup-preview" data-cm-backup-preview></p>
-            </div>
-            <div class="cm-actions">
-                <button class="menu_button cm-primary-action" type="button" title="通过酒馆原生导入链路创建一份新聊天，不覆盖原记录" data-cm-backup-restore>
-                    <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
-                    <span>恢复为新聊天</span>
-                </button>
-                <button class="menu_button" type="button" data-cm-backup-view>
-                    <i class="fa-solid fa-eye" aria-hidden="true"></i>
-                    <span>查看内容</span>
-                </button>
-                <button class="menu_button" type="button" data-cm-backup-download>
-                    <i class="fa-solid fa-download" aria-hidden="true"></i>
-                    <span>下载文件</span>
-                </button>
             </div>
         </article>
     </template>

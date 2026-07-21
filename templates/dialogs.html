@@ -14,6 +14,17 @@
     </template>
 
     <template data-cm-dialog-content="backups">
+        <div class="cm-backup-toolbar">
+            <label class="cm-search-wrap">
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                <input class="text_pole cm-search" type="search" placeholder="搜索备份文件名或内容" data-cm-backup-search>
+            </label>
+            <select class="text_pole cm-backup-sort" aria-label="备份排序" data-cm-backup-sort>
+                <option value="newest">最新</option>
+                <option value="oldest">最早</option>
+                <option value="largest">文件最大</option>
+            </select>
+        </div>
         <div class="cm-state cm-loading-state" role="status" aria-live="polite" data-cm-backup-status>
             <span class="cm-loading-spinner" aria-hidden="true"></span>
             <div class="cm-loading-copy">
