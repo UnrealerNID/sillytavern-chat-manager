@@ -40,3 +40,10 @@ test('settings UI distinguishes toolbox, module and integration levels', async (
     assert.match(moduleSource, /moduleEnabled && integrations\.welcomeRecent !== false/);
     assert.match(moduleSource, /moduleEnabled && integrations\.dataMaid !== false/);
 });
+
+test('extension version reads the manifest from the repository root', async () => {
+    const source = await readFile(new URL('../modules/platform/extension-updater.js', import.meta.url), 'utf8');
+
+    assert.match(source, /new URL\('\.\.\/\.\.\/manifest\.json', import\.meta\.url\)/);
+    assert.doesNotMatch(source, /new URL\('\.\.\/manifest\.json', import\.meta\.url\)/);
+});

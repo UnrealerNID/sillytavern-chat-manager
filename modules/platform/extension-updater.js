@@ -18,7 +18,7 @@ const REMOTE_MANIFEST_URL = 'https://raw.githubusercontent.com/UnrealerNID/silly
  */
 export async function loadExtensionMetadata() {
     try {
-        const response = await fetch(new URL('../manifest.json', import.meta.url), {
+        const response = await fetch(new URL('../../manifest.json', import.meta.url), {
             cache: 'no-store',
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
