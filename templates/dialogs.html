@@ -57,27 +57,25 @@
             </label>
             <div class="cm-split-primary-fields">
                 <label class="cm-field">
-                    <span>模式</span>
-                    <select class="text_pole" data-cm-split-mode>
-                        <option value="range">指定范围</option>
-                        <option value="fixed">固定楼层数</option>
-                    </select>
+                    <span>起始楼层 #</span>
+                    <input class="text_pole" type="number" step="1" data-cm-split-start>
                 </label>
-                <div class="cm-split-floor-fields">
-                    <label class="cm-field">
-                        <span>起始楼层 #</span>
-                        <input class="text_pole" type="number" step="1" data-cm-split-start>
-                    </label>
-                    <label class="cm-field">
-                        <span>结束楼层 #</span>
-                        <input class="text_pole" type="number" step="1" data-cm-split-end>
-                    </label>
-                </div>
+                <label class="cm-field">
+                    <span>结束楼层 #</span>
+                    <input class="text_pole" type="number" step="1" data-cm-split-end>
+                </label>
+                <label class="cm-field">
+                    <span>每卷楼层数（可选）</span>
+                    <input class="text_pole" type="number" min="1" step="1" placeholder="留空则只创建一卷" data-cm-split-chunk>
+                </label>
             </div>
-            <label class="cm-field cm-hidden" data-cm-split-chunk-field>
-                <span>每卷楼层数</span>
-                <input class="text_pole" type="number" step="1" data-cm-split-chunk>
-            </label>
+            <div class="cm-split-help" role="note">
+                <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                <span class="cm-notice-lines">
+                    <span>起止楼层决定要复制的消息范围。</span>
+                    <span>每卷楼层数留空时只创建一卷，填写后按该数量连续分卷。</span>
+                </span>
+            </div>
         </div>
         <div class="cm-split-preview-header">
             <strong>分卷预览</strong>
@@ -86,12 +84,15 @@
         <div class="cm-preview" aria-live="polite" data-cm-split-preview></div>
         <div class="cm-split-notice" role="note">
             <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
-            <span>确认后会把预览中的分卷另存为新聊天，不会修改或删除原聊天；保存时酒馆会按自身设置生成备份，旧备份可能因保留数量上限被轮换清理。</span>
+            <span class="cm-notice-lines">
+                <span>预览中的分卷会另存为新聊天，不会修改或删除原聊天。</span>
+                <span>保存时酒馆会按自身设置生成备份；旧备份可能因保留数量上限被轮换清理。</span>
+            </span>
         </div>
         <div class="cm-dialog-actions">
-            <button class="menu_button cm-primary-action" type="button" data-cm-split-confirm>
+            <button class="menu_button cm-primary-action" type="button" title="创建分卷" data-cm-split-confirm>
                 <i class="fa-solid fa-scissors" aria-hidden="true"></i>
-                <span>确认创建分卷</span>
+                <span>创建</span>
             </button>
             <button class="menu_button cm-hidden" type="button" data-cm-split-stop>完成当前卷后停止</button>
         </div>

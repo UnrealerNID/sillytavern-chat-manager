@@ -65,7 +65,10 @@ test('data maid enhancement mounts after either native or plugin-triggered scans
         'data-cm-maid-search',
         'data-cm-maid-sort',
         'data-cm-maid-filter',
+        'data-cm-maid-batch-start',
+        'data-cm-maid-selection-toolbar',
         'data-cm-maid-select-all',
+        'data-cm-maid-clear-selection',
         'data-cm-maid-delete-selected',
         'data-cm-maid-viewer',
         'data-cm-maid-delete-dialog',
@@ -73,7 +76,11 @@ test('data maid enhancement mounts after either native or plugin-triggered scans
     ]) {
         assert.match(html, new RegExp(marker));
     }
-    assert.match(html, /检查孤立备份/);
+    assert.match(html, /title="检查备份对应关系"[^>]*data-cm-maid-scan/);
+    assert.match(html, /value="orphan">仅孤立</);
+    assert.match(html, /value="uncertain">仅待确认</);
+    assert.match(html, /data-cm-maid-delete-selected>[\s\S]*fa-trash-can[\s\S]*<\/button>/);
+    assert.doesNotMatch(html, /删除已选（|全选当前结果<\/button>/);
     assert.match(html, /type="checkbox"/);
     assert.doesNotMatch(html, />上一页<|>下一页<|fa-trash"/);
     assert.match(source, /document\.querySelector\('#data_maid_button'\)/);
@@ -99,7 +106,7 @@ test('dialog templates expose every static dialog and dynamic mount', async () =
         'data-cm-split-preview-detail',
         'data-cm-split-group-config',
         'cm-split-primary-fields',
-        'cm-split-floor-fields',
+        'cm-split-help',
         'cm-split-notice',
         'data-cm-dialog-content="delete-chats"',
         'data-cm-delete-list',
@@ -111,9 +118,21 @@ test('dialog templates expose every static dialog and dynamic mount', async () =
     }
     assert.doesNotMatch(html, /data-cm-split-generate/);
     assert.doesNotMatch(html, /data-cm-split-acknowledge/);
+    assert.doesNotMatch(html, /data-cm-split-mode|>模式</);
+    assert.match(html, /data-cm-split-chunk/);
+    assert.match(html, /每卷楼层数留空时只创建一卷/);
+    assert.match(html, /data-cm-split-confirm>[\s\S]*<span>创建<\/span>/);
     assert.match(html, /不会修改或删除原聊天/);
     assert.match(html, /旧备份可能因保留数量上限被轮换清理/);
     assert.doesNotMatch(html, />上一页<|>下一页<|fa-trash"/);
+});
+
+test('opening native cleanup preserves the chat manager and rows open only from explicit actions', async () => {
+    const source = await readFile(new URL('../modules/ui.js', import.meta.url), 'utf8');
+    assert.match(source, /data-cm-data-maid-open[^\n]*openDataMaid\(\)/);
+    assert.doesNotMatch(source, /data-cm-data-maid-open[^}]*this\.close\(\)/);
+    assert.match(source, /row\.addEventListener\('click',[\s\S]*if \(!this\.selectionMode\) return;[\s\S]*select\.dispatchEvent/);
+    assert.doesNotMatch(source, /row\.addEventListener\('click',[\s\S]*void openRecord\(\)/);
 });
 
 test('component templates expose every repeated card and action mount', async () => {

@@ -119,10 +119,7 @@ export class ChatManagerUi {
         required(root, '[data-cm-close]', HTMLButtonElement).addEventListener('click', () => this.close());
         this.refreshButton = required(root, '[data-cm-refresh]', HTMLButtonElement);
         this.refreshButton.addEventListener('click', () => this.refresh());
-        required(root, '[data-cm-data-maid-open]', HTMLButtonElement).addEventListener('click', () => {
-            this.close();
-            void this.openDataMaid();
-        });
+        required(root, '[data-cm-data-maid-open]', HTMLButtonElement).addEventListener('click', () => void this.openDataMaid());
         this.scopeCurrentButton.addEventListener('click', () => void this.#setScope('current'));
         this.scopeAllButton.addEventListener('click', () => void this.#setScope('all'));
         this.groupOwnersButton.addEventListener('click', () => this.#toggleGrouping('owners'));
@@ -605,7 +602,6 @@ export class ChatManagerUi {
         select.checked = this.selectedRecords.has(key);
         row.classList.toggle('cm-source-record', source);
         sourceBadge.classList.toggle('cm-hidden', !source);
-        row.title = `打开 ${record.ownerName} / ${record.fileId}`;
         image.src = record.avatarUrl;
         image.alt = record.ownerName;
         name.title = `${record.ownerName} - ${record.fileId}`;
@@ -664,12 +660,9 @@ export class ChatManagerUi {
 
         row.addEventListener('click', event => {
             if (event.target.closest('button, label')) return;
-            if (this.selectionMode) {
-                select.checked = !select.checked;
-                select.dispatchEvent(new Event('change'));
-                return;
-            }
-            void openRecord().catch(error => notify('error', error.message));
+            if (!this.selectionMode) return;
+            select.checked = !select.checked;
+            select.dispatchEvent(new Event('change'));
         });
         return row;
     }

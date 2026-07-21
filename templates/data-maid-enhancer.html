@@ -48,33 +48,53 @@
 
     <template data-cm-maid-toolbar-template>
         <div class="cm-data-maid-tools">
-            <button class="menu_button" type="button" data-cm-maid-scan>
-                <i class="fa-solid fa-link-slash" aria-hidden="true"></i><span>检查孤立备份</span>
-            </button>
-            <label class="cm-search-wrap">
-                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-                <input class="text_pole cm-search" type="search" placeholder="搜索备份文件名" data-cm-maid-search>
-            </label>
-            <select class="text_pole" aria-label="备份排序" data-cm-maid-sort>
-                <option value="latest">最新优先</option>
-                <option value="oldest">最旧优先</option>
-                <option value="largest">最大优先</option>
-            </select>
-            <select class="text_pole" aria-label="备份显示范围" data-cm-maid-filter>
-                <option value="all">显示全部备份</option>
-                <option value="issues">仅孤立与待确认</option>
-            </select>
-            <span class="cm-data-maid-progress" role="status" aria-live="polite" data-cm-maid-progress>尚未检查对应关系</span>
-            <button class="menu_button" type="button" data-cm-maid-select-all>全选当前结果</button>
-            <button class="menu_button cm-danger-action" type="button" disabled data-cm-maid-delete-selected>
-                <i class="fa-solid fa-trash-can" aria-hidden="true"></i><span data-cm-maid-selected-count>删除已选（0）</span>
-            </button>
+            <div class="cm-data-maid-primary">
+                <button class="menu_button cm-icon-action" type="button" title="检查备份对应关系" aria-label="检查备份对应关系" data-cm-maid-scan>
+                    <i class="fa-solid fa-link" aria-hidden="true"></i>
+                </button>
+                <label class="cm-search-wrap">
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                    <input class="text_pole cm-search" type="search" placeholder="搜索备份文件名" data-cm-maid-search>
+                </label>
+                <select class="text_pole" aria-label="备份排序" data-cm-maid-sort>
+                    <option value="latest">最新优先</option>
+                    <option value="oldest">最旧优先</option>
+                    <option value="largest">最大优先</option>
+                </select>
+                <select class="text_pole" aria-label="备份状态筛选" data-cm-maid-filter>
+                    <option value="all">全部备份</option>
+                    <option value="orphan">仅孤立</option>
+                    <option value="uncertain">仅待确认</option>
+                    <option value="issues">孤立与待确认</option>
+                </select>
+                <button class="menu_button cm-icon-action" type="button" title="进入批量选择" aria-label="进入批量选择" aria-pressed="false" data-cm-maid-batch-start>
+                    <i class="fa-solid fa-square-check" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="cm-data-maid-secondary">
+                <span class="cm-data-maid-progress" role="status" aria-live="polite" data-cm-maid-progress>尚未检查对应关系</span>
+                <div class="cm-data-maid-selection cm-hidden" role="group" aria-label="批量选择操作" data-cm-maid-selection-toolbar>
+                    <span class="cm-selection-count" role="status" aria-live="polite">
+                        <i class="fa-solid fa-square-check" aria-hidden="true"></i>
+                        <span data-cm-maid-selected-count>已选 0 项</span>
+                    </span>
+                    <button class="menu_button cm-icon-action" type="button" title="全选当前结果" aria-label="全选当前结果" data-cm-maid-select-all>
+                        <i class="fa-solid fa-check-double" aria-hidden="true"></i>
+                    </button>
+                    <button class="menu_button cm-icon-action" type="button" title="取消全部选择" aria-label="取消全部选择" disabled data-cm-maid-clear-selection>
+                        <i class="fa-solid fa-eraser" aria-hidden="true"></i>
+                    </button>
+                    <button class="menu_button cm-icon-action cm-danger-action" type="button" title="删除已选" aria-label="删除已选" disabled data-cm-maid-delete-selected>
+                        <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
         </div>
     </template>
 
     <template data-cm-maid-controls-template>
         <div class="cm-data-maid-controls">
-            <label title="选择该备份"><input type="checkbox" data-cm-maid-select></label>
+            <label class="cm-data-maid-select-wrap" title="选择该备份"><input type="checkbox" data-cm-maid-select></label>
             <span class="cm-status-badge" data-state="unchecked" data-cm-maid-state>未检查</span>
             <button class="menu_button menu_button_icon margin0" type="button" title="分页查看聊天内容" aria-label="分页查看聊天内容" data-cm-maid-view>
                 <i class="fa-solid fa-eye" aria-hidden="true"></i>

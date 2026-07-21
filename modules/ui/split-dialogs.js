@@ -40,26 +40,26 @@ export class SplitDialogs {
         const previewDetail = this.ui.mount(dialog.body, '[data-cm-split-preview-detail]');
         const groupConfigField = this.ui.mount(dialog.body, '[data-cm-split-group-config-field]');
         const groupConfig = this.ui.mount(dialog.body, '[data-cm-split-group-config]', HTMLSelectElement);
-        const mode = this.ui.mount(dialog.body, '[data-cm-split-mode]', HTMLSelectElement);
         const start = this.ui.mount(dialog.body, '[data-cm-split-start]', HTMLInputElement);
         const end = this.ui.mount(dialog.body, '[data-cm-split-end]', HTMLInputElement);
         const chunk = this.ui.mount(dialog.body, '[data-cm-split-chunk]', HTMLInputElement);
-        const chunkRow = this.ui.mount(dialog.body, '[data-cm-split-chunk-field]');
         const preview = this.ui.mount(dialog.body, '[data-cm-split-preview]');
         const confirm = this.ui.mount(dialog.body, '[data-cm-split-confirm]', HTMLButtonElement);
         const stop = this.ui.mount(dialog.body, '[data-cm-split-stop]', HTMLButtonElement);
         const maxFloor = Math.max(0, record.messageCount - 1);
-        mode.value = initialOptions.mode ?? 'range';
         const initialStart = Number(initialOptions.start ?? 0);
         const initialEnd = Number(initialOptions.end ?? maxFloor);
-        const initialChunk = Number(initialOptions.chunkSize ?? Math.min(500, Math.max(1, record.messageCount)));
+        const fixed = initialOptions.mode === 'fixed';
+        const initialChunk = fixed ? Number(initialOptions.chunkSize ?? Math.min(500, Math.max(1, record.messageCount))) : '';
         summary.textContent = incremental
-            ? `增量来源：最后一卷新增楼层 · 本地 #${initialStart}–#${initialEnd}${mode.value === 'fixed' ? ` · 每卷 ${initialChunk} 层` : ''}`
+            ? `增量来源：最后一卷新增楼层 · 本地 #${initialStart}–#${initialEnd}${fixed ? ` · 每卷 ${initialChunk} 层` : ''}`
             : `原聊天 ${record.fileSize} · ${record.messageCount} 层 · 可用范围 #0–#${maxFloor}`;
         this.ui.configureNumberInput(start, initialStart, 0, maxFloor);
         this.ui.configureNumberInput(end, initialEnd, 0, maxFloor);
-        this.ui.configureNumberInput(chunk, initialChunk, 1, Math.max(1, record.messageCount));
-        chunkRow.classList.toggle('cm-hidden', mode.value !== 'fixed');
+        chunk.value = String(initialChunk);
+        chunk.min = '1';
+        chunk.max = String(Math.max(1, record.messageCount));
+        chunk.step = '1';
         const groupConfigs = Array.isArray(initialOptions.groupConfigs) ? initialOptions.groupConfigs : [];
         if (incremental) {
             groupConfigField.classList.remove('cm-hidden');
@@ -78,7 +78,7 @@ export class SplitDialogs {
 
         const syncGroupConfig = () => {
             if (!incremental) return;
-            const index = groupConfigs.findIndex(config => config.mode === mode.value && Number(config.chunkSize) === Number(chunk.value));
+            const index = chunk.value === '' ? -1 : groupConfigs.findIndex(config => Number(config.chunkSize) === Number(chunk.value));
             if (index >= 0) {
                 groupConfig.value = String(index);
                 return;
@@ -95,13 +95,15 @@ export class SplitDialogs {
             previewStatus.dataset.state = state;
         };
         const readOptions = () => {
-            const required = mode.value === 'fixed' ? [start, end, chunk] : [start, end];
-            if (required.some(input => input.value === '' || !input.checkValidity())) throw new Error('请输入有效的楼层范围');
+            const hasChunk = chunk.value.trim() !== '';
+            if ([start, end].some(input => input.value === '' || !input.checkValidity()) || (hasChunk && !chunk.checkValidity())) {
+                throw new Error('请输入有效的楼层范围');
+            }
             return {
-                mode: mode.value,
+                mode: hasChunk ? 'fixed' : 'range',
                 start: Number(start.value),
                 end: Number(end.value),
-                chunkSize: mode.value === 'fixed' ? Number(chunk.value) : undefined,
+                chunkSize: hasChunk ? Number(chunk.value) : undefined,
                 sequenceStart: initialOptions.sequenceStart,
                 incremental,
                 outputRootChatId: initialOptions.outputRootChatId,
@@ -110,7 +112,7 @@ export class SplitDialogs {
         };
         const syncControls = () => {
             const blocked = executing || this.isGenerating() || this.splitter.running;
-            for (const input of [mode, start, end, chunk, groupConfig]) input.disabled = blocked;
+            for (const input of [start, end, chunk, groupConfig]) input.disabled = blocked;
             confirm.disabled = blocked || previewing || !plan;
         };
         const runPreview = async revision => {
@@ -212,11 +214,6 @@ export class SplitDialogs {
             }
         });
         this.ui.bindButton(stop, () => this.splitter.requestStop());
-        mode.addEventListener('change', () => {
-            chunkRow.classList.toggle('cm-hidden', mode.value !== 'fixed');
-            syncGroupConfig();
-            schedulePreview();
-        });
         for (const input of [start, end]) input.addEventListener('input', () => schedulePreview());
         chunk.addEventListener('input', () => {
             syncGroupConfig();
@@ -226,9 +223,7 @@ export class SplitDialogs {
             if (groupConfig.value === 'custom') return;
             const config = groupConfigs[Number(groupConfig.value)];
             if (!config) return;
-            mode.value = config.mode;
             chunk.value = String(config.chunkSize);
-            chunkRow.classList.toggle('cm-hidden', mode.value !== 'fixed');
             schedulePreview();
         });
         dialog.signal.addEventListener('abort', () => {

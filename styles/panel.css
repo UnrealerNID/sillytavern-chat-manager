@@ -193,6 +193,10 @@
     align-items: center;
     gap: 10px;
     padding: 7px 10px;
+    cursor: default;
+}
+
+.cm-selection-mode .cm-chat-row {
     cursor: pointer;
 }
 

@@ -14,6 +14,19 @@ export function classifyBackupIntegrity(integrity, activeIntegrities) {
     return activeIntegrities.has(integrity) ? 'linked' : 'orphan';
 }
 
+/**
+ * 判断备份状态是否符合当前筛选
+ * @param {string} state 备份状态
+ * @param {string} filter 筛选值
+ * @returns {boolean} 是否显示
+ */
+export function backupStateMatchesFilter(state, filter) {
+    if (filter === 'orphan') return state === 'orphan';
+    if (filter === 'uncertain') return state === 'uncertain';
+    if (filter === 'issues') return state === 'orphan' || state === 'uncertain';
+    return true;
+}
+
 function notify(type, message) {
     if (globalThis.toastr?.[type]) globalThis.toastr[type](message);
     else console[type === 'error' ? 'error' : 'log'](message);
@@ -64,6 +77,7 @@ export class DataMaidEnhancer {
         this.pendingDelete = [];
         this.pendingCapture = null;
         this.filter = 'all';
+        this.selectionMode = false;
         this.busy = false;
         this.#build(template);
         this.documentClick = event => this.#handleDocumentClick(event);
@@ -236,7 +250,10 @@ export class DataMaidEnhancer {
         this.search = toolbar.querySelector('[data-cm-maid-search]');
         this.sort = toolbar.querySelector('[data-cm-maid-sort]');
         this.filterSelect = toolbar.querySelector('[data-cm-maid-filter]');
+        this.batchStart = toolbar.querySelector('[data-cm-maid-batch-start]');
+        this.selectionToolbar = toolbar.querySelector('[data-cm-maid-selection-toolbar]');
         this.selectAll = toolbar.querySelector('[data-cm-maid-select-all]');
+        this.clearSelection = toolbar.querySelector('[data-cm-maid-clear-selection]');
         this.deleteSelected = toolbar.querySelector('[data-cm-maid-delete-selected]');
         this.selectedCount = toolbar.querySelector('[data-cm-maid-selected-count]');
         this.progress = toolbar.querySelector('[data-cm-maid-progress]');
@@ -247,10 +264,12 @@ export class DataMaidEnhancer {
             this.filter = this.filterSelect.value;
             this.#applyFilter();
         });
+        this.batchStart.addEventListener('click', () => this.#setSelectionMode(!this.selectionMode));
         this.selectAll.addEventListener('click', () => this.#toggleSelectAll());
+        this.clearSelection.addEventListener('click', () => this.#clearSelection());
         this.deleteSelected.addEventListener('click', () => this.#showDelete(Array.from(this.selected.values())));
         for (const element of category.querySelectorAll('.dataMaidItem')) this.#enhanceItem(element);
-        this.#syncSelection();
+        this.#setSelectionMode(false);
     }
 
     /** @param {Element} element 原生备份条目 */
@@ -337,7 +356,7 @@ export class DataMaidEnhancer {
     #applyFilter() {
         const query = this.search?.value.trim().toLowerCase() ?? '';
         for (const item of this.items.values()) {
-            const stateVisible = this.filter === 'all' || ['orphan', 'uncertain'].includes(item.state);
+            const stateVisible = backupStateMatchesFilter(item.state, this.filter);
             const queryVisible = !query || `${item.record.name} ${item.state}`.toLowerCase().includes(query);
             const visible = stateVisible && queryVisible;
             item.element?.classList.toggle('cm-hidden', !visible);
@@ -360,6 +379,7 @@ export class DataMaidEnhancer {
     }
 
     #toggleSelectAll() {
+        if (!this.selectionMode) return;
         const visible = Array.from(this.items.values()).filter(item => item.element?.isConnected && !item.element.classList.contains('cm-hidden'));
         const allSelected = visible.length > 0 && visible.every(item => this.selected.has(item.record.hash));
         for (const item of visible) {
@@ -371,6 +391,33 @@ export class DataMaidEnhancer {
         this.#syncSelection();
     }
 
+    /** @param {boolean} enabled 是否进入批量选择模式 */
+    #setSelectionMode(enabled) {
+        if (enabled && this.busy) return;
+        this.selectionMode = enabled;
+        if (!enabled) this.#clearSelection(false);
+        this.category?.classList.toggle('cm-data-maid-selection-mode', enabled);
+        this.selectionToolbar?.classList.toggle('cm-hidden', !enabled);
+        this.batchStart?.classList.toggle('active', enabled);
+        this.batchStart?.setAttribute('aria-pressed', String(enabled));
+        const action = enabled ? '退出批量选择' : '进入批量选择';
+        if (this.batchStart) {
+            this.batchStart.title = action;
+            this.batchStart.setAttribute('aria-label', action);
+        }
+        this.#syncSelection();
+    }
+
+    /** @param {boolean} sync 是否立即同步控件 */
+    #clearSelection(sync = true) {
+        this.selected.clear();
+        for (const item of this.items.values()) {
+            if (item.checkbox) item.checkbox.checked = false;
+            item.element?.classList.remove('cm-selected');
+        }
+        if (sync) this.#syncSelection();
+    }
+
     #syncSelection() {
         if (!this.toolbar) return;
         for (const [hash, item] of this.selected) {
@@ -378,10 +425,14 @@ export class DataMaidEnhancer {
         }
         const visible = Array.from(this.items.values()).filter(item => item.element?.isConnected && !item.element.classList.contains('cm-hidden'));
         const allSelected = visible.length > 0 && visible.every(item => this.selected.has(item.record.hash));
+        const selectAction = allSelected ? '取消全选当前结果' : '全选当前结果';
+        this.batchStart.disabled = this.busy;
         this.selectAll.disabled = this.busy || visible.length === 0;
-        this.selectAll.textContent = allSelected ? '取消全选当前结果' : '全选当前结果';
+        this.selectAll.title = selectAction;
+        this.selectAll.setAttribute('aria-label', selectAction);
+        this.clearSelection.disabled = this.busy || this.selected.size === 0;
         this.deleteSelected.disabled = this.busy || this.selected.size === 0;
-        this.selectedCount.textContent = `删除已选（${this.selected.size}）`;
+        this.selectedCount.textContent = `已选 ${this.selected.size} 项`;
     }
 
     /** @param {object} item 备份增强条目 */
@@ -531,7 +582,8 @@ export class DataMaidEnhancer {
         this.#closeViewer();
         this.#closeDelete(true);
         this.selected.clear();
-        this.category?.classList.remove('cm-data-maid-enhanced', 'cm-data-maid-busy');
+        this.selectionMode = false;
+        this.category?.classList.remove('cm-data-maid-enhanced', 'cm-data-maid-busy', 'cm-data-maid-selection-mode');
         this.category?.querySelector('.cm-data-maid-tools')?.remove();
         for (const controls of this.category?.querySelectorAll('.cm-data-maid-controls') ?? []) controls.remove();
         for (const view of this.category?.querySelectorAll('.dataMaidItemView') ?? []) view.classList.remove('cm-hidden');

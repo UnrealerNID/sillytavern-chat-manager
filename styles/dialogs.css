@@ -61,13 +61,7 @@
 
 .cm-split-primary-fields {
     display: grid;
-    grid-template-columns: minmax(150px, 0.8fr) minmax(300px, 1.7fr);
-    gap: 12px;
-}
-
-.cm-split-floor-fields {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
 }
 
@@ -144,7 +138,8 @@
     border-left-color: #d99b28;
 }
 
-.cm-split-notice {
+.cm-split-notice,
+.cm-split-help {
     display: flex;
     align-items: flex-start;
     gap: 9px;
@@ -158,10 +153,18 @@
     line-height: 1.45;
 }
 
-.cm-split-notice i {
+.cm-split-notice i,
+.cm-split-help i {
     flex: 0 0 auto;
     margin-top: 0.15em;
     color: var(--SmartThemeQuoteColor);
+}
+
+.cm-notice-lines {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 3px;
 }
 
 .cm-dialog-actions {
