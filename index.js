@@ -88,16 +88,18 @@ export async function init() {
     ]);
     const updater = new ExtensionUpdater(metadata.version);
     const dataMaid = new DataMaidEnhancer({ api, template: dataMaidTemplate });
+    let ui;
     let welcomeRecent;
-    const saveViewOptions = (options) => {
+    const saveViewOptions = (options, source) => {
         settings.groupOwners = options.groupOwners;
         settings.groupSplits = options.groupSplits;
         if (options.sortOrder) settings.sortOrder = options.sortOrder;
         if (options.pageSize) accountStorage.setItem('Characters_PerPage', String(options.pageSize));
         saveSettingsDebounced();
-        welcomeRecent?.setGrouping(options);
+        if (source !== 'manager') ui?.setGrouping(options);
+        if (source !== 'welcome') welcomeRecent?.setGrouping(options);
     };
-    const ui = new ChatManagerUi({
+    ui = new ChatManagerUi({
         getContext,
         api,
         backups,
@@ -121,7 +123,7 @@ export async function init() {
             sortOrder: settings.sortOrder,
             pageSize: nativePageSize,
         },
-        onViewOptionsChange: saveViewOptions,
+        onViewOptionsChange: options => saveViewOptions(options, 'manager'),
     });
     welcomeRecent = new WelcomeRecentEnhancer({
         api,
@@ -130,10 +132,7 @@ export async function init() {
             groupOwners: settings.groupOwners,
             groupSplits: settings.groupSplits,
         }),
-        onOptionsChange: options => {
-            ui.setGrouping(options);
-            saveViewOptions(options);
-        },
+        onOptionsChange: options => saveViewOptions(options, 'welcome'),
     });
     const nativePanel = new NativeChatPanel({ getContext, ui, isGenerating });
     const panelUpdateView = ui.getExtensionUpdateView();
