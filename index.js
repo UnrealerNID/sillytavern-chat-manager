@@ -17,6 +17,7 @@ import {
     renderExtensionTemplateAsync,
 } from '/scripts/extensions.js';
 import { isAdmin } from '/scripts/user.js';
+import { openWelcomeScreen } from '/scripts/welcome-screen.js';
 
 import { ChatManagerApi } from './modules/api.js';
 import { BackupService } from './modules/backups.js';
@@ -394,6 +395,7 @@ export async function init() {
         isGenerating,
         openRecord,
         deleteRecord,
+        refreshRecentChats: () => openWelcomeScreen({ force: true }),
         restoreBackup: (record, backup) => restoreBackup(record, backup, backups),
         openDataMaid: () => dataMaid.open(),
         template: panelTemplate,

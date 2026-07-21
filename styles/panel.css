@@ -32,7 +32,8 @@
 .cm-toolbar-actions,
 .cm-scope-controls,
 .cm-view-controls,
-.cm-delete-controls {
+.cm-delete-controls,
+.cm-panel-utilities {
     display: flex;
     flex: 0 0 auto;
     align-items: center;
@@ -109,6 +110,30 @@
 
 .cm-refresh-button {
     align-self: center;
+    margin: 0;
+}
+
+.cm-selection-toolbar {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor);
+    background: var(--black20a);
+}
+
+.cm-selection-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--grey70);
+    font-variant-numeric: tabular-nums;
+}
+
+.cm-selection-toolbar .menu_button {
+    min-height: var(--cm-toolbar-control-height);
     margin: 0;
 }
 
@@ -306,7 +331,8 @@
 }
 
 .chat-manager-extension-meta,
-.cm-pagination {
+.cm-pagination,
+.cm-panel-utilities {
     display: flex;
     align-items: center;
     gap: 9px;
@@ -316,6 +342,10 @@
     min-width: 0;
     color: var(--grey70);
     font-size: calc(var(--mainFontSize) * 0.8);
+}
+
+.cm-panel-utilities {
+    min-width: 0;
 }
 
 .cm-pagination .menu_button {

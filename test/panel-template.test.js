@@ -13,6 +13,7 @@ test('panel template exposes all stable UI mounts', async () => {
         'data-cm-group-owners',
         'data-cm-group-splits',
         'data-cm-batch-start',
+        'data-cm-selection-toolbar',
         'data-cm-batch-cancel',
         'data-cm-batch-confirm',
         'data-cm-batch-count',
@@ -40,7 +41,11 @@ test('panel template exposes all stable UI mounts', async () => {
     assert.match(html, /<i class="fa-solid fa-address-card"/);
     assert.match(html, /<i class="fa-solid fa-address-book"/);
     assert.match(html, /<i class="fa-solid fa-arrows-rotate"/);
-    assert.match(html, /class="[^"]*cm-danger-action[^"]*"[^>]*data-cm-batch-start/);
+    assert.match(html, /aria-pressed="false"[^>]*data-cm-batch-start/);
+    assert.match(html, /fa-square-check/);
+    assert.match(html, /data-cm-selection-toolbar[\s\S]*data-cm-batch-count[\s\S]*data-cm-batch-cancel[\s\S]*data-cm-batch-confirm/);
+    assert.match(html, /cm-panel-utilities[\s\S]*data-cm-data-maid-open/);
+    assert.doesNotMatch(html, /data-cm-batch-start[^>]*[\s\S]{0,120}>批量删除</);
     assert.doesNotMatch(html, /fa-globe|fa-user"|fa-users|fa-list-check|fa-rotate-right/);
     assert.doesNotMatch(html, />范围<|>显示<|>数据清理<|>刷新</);
 });
@@ -189,11 +194,13 @@ test('chat deletion uses SillyTavern native character and group workflows', asyn
     ]);
     assert.match(entry, /deleteCharacterChatByName\(String\(characterId\), record\.fileId\)/);
     assert.match(entry, /deleteGroupChatByName\(group\.id, record\.fileId\)/);
+    assert.match(entry, /refreshRecentChats: \(\) => openWelcomeScreen\(\{ force: true \}\)/);
     assert.match(ui, /if \(this\.loading\) return notify\('warning', '聊天清单正在读取，完成后才能删除聊天'\)/);
     assert.doesNotMatch(ui, /this\.loading \|\| this\.refreshTask[\s\S]*聊天清单正在读取，完成后才能删除聊天/);
     assert.match(ui, /#setLoading\(loading\)[\s\S]*this\.refreshButton\.disabled = loading;[\s\S]*this\.#syncSelectionControls\(\);[\s\S]*this\.#render\(\)/);
     assert.match(ui, /async #loadChatFiles\(target\)\s*{\s*this\.#setLoading\(true\)/);
     assert.match(ui, /finally\s*{\s*this\.#setLoading\(false\)/);
+    assert.match(ui, /if \(succeeded > 0\)[\s\S]*await this\.refreshRecentChats\(\)/);
 });
 
 test('chat inventory resynchronizes on every open and coalesces concurrent refreshes', async () => {

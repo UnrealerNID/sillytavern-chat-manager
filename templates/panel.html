@@ -36,22 +36,25 @@
                         <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
                     </button>
                 </div>
-                <div class="cm-delete-controls" role="group" aria-label="批量删除聊天">
-                    <button class="menu_button cm-danger-action" type="button" data-cm-batch-start>
-                        <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
-                        <span>批量删除</span>
-                    </button>
-                    <button class="menu_button cm-hidden" type="button" data-cm-batch-cancel>取消选择</button>
-                    <button class="menu_button cm-danger-action cm-hidden" type="button" disabled data-cm-batch-confirm>
-                        <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
-                        <span data-cm-batch-count>删除已选（0）</span>
-                    </button>
-                </div>
-                <button class="menu_button cm-icon-action" type="button" title="打开酒馆数据清理" aria-label="打开酒馆数据清理" data-cm-data-maid-open>
-                    <i class="fa-solid fa-broom" aria-hidden="true"></i>
+                <button class="menu_button cm-icon-action" type="button" title="进入批量选择" aria-label="进入批量选择" aria-pressed="false" data-cm-batch-start>
+                    <i class="fa-solid fa-square-check" aria-hidden="true"></i>
                 </button>
                 <button class="menu_button cm-icon-action cm-refresh-button" type="button" title="重新加载聊天列表" aria-label="重新加载聊天列表" data-cm-refresh>
                     <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="cm-selection-toolbar cm-hidden" role="group" aria-label="批量选择操作" data-cm-selection-toolbar>
+            <span class="cm-selection-count" role="status" aria-live="polite">
+                <i class="fa-solid fa-square-check" aria-hidden="true"></i>
+                <span data-cm-batch-count>已选 0 条</span>
+            </span>
+            <div class="cm-delete-controls">
+                <button class="menu_button" type="button" disabled data-cm-batch-cancel>取消选择</button>
+                <button class="menu_button cm-danger-action" type="button" disabled data-cm-batch-confirm>
+                    <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                    <span>删除已选</span>
                 </button>
             </div>
         </div>
@@ -60,9 +63,14 @@
         <main class="cm-chat-list" data-cm-list></main>
 
         <footer class="cm-footer cm-panel-footer">
-            <div class="chat-manager-extension-meta">
-                <small class="chat-manager-extension-version" data-cm-version></small>
-                <button class="chat-manager-update-action" type="button" disabled data-cm-update>检查更新…</button>
+            <div class="cm-panel-utilities">
+                <button class="menu_button cm-icon-action" type="button" title="打开酒馆数据清理" aria-label="打开酒馆数据清理" data-cm-data-maid-open>
+                    <i class="fa-solid fa-broom" aria-hidden="true"></i>
+                </button>
+                <div class="chat-manager-extension-meta">
+                    <small class="chat-manager-extension-version" data-cm-version></small>
+                    <button class="chat-manager-update-action" type="button" disabled data-cm-update>检查更新…</button>
+                </div>
             </div>
             <nav class="cm-pagination" aria-label="聊天分页">
                 <button class="menu_button cm-icon-action" type="button" title="上一页" aria-label="上一页" data-cm-previous>

@@ -56,3 +56,14 @@ test('toolbar toggles reuse the native active state without custom color mapping
     assert.doesNotMatch(css, /cm-active|cm-(?:owner|split|cleanup)-accent|cm-control-accent/);
     assert.doesNotMatch(css, /\.cm-view-controls \.menu_button::after/);
 });
+
+test('batch selection keeps its entry in the primary row and its actions in a second row', async () => {
+    const [ui, css] = await Promise.all([
+        readFile(new URL('../modules/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../styles/panel.css', import.meta.url), 'utf8'),
+    ]);
+    assert.match(ui, /#setSelectionMode\(!this\.selectionMode\)/);
+    assert.match(ui, /this\.selectionToolbar\.classList\.toggle\('cm-hidden', !this\.selectionMode\)/);
+    assert.match(ui, /this\.batchStartButton\.classList\.toggle\('active', this\.selectionMode\)/);
+    assert.match(css, /\.cm-selection-toolbar\s*{/);
+});

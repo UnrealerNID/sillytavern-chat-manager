@@ -45,6 +45,10 @@
         justify-content: center;
     }
 
+    .cm-selection-toolbar {
+        padding-inline: 10px;
+    }
+
     .cm-group-header {
         align-items: flex-start;
         flex-wrap: wrap;
@@ -111,6 +115,7 @@
     }
 
     .chat-manager-extension-meta,
+    .cm-panel-utilities,
     .cm-pagination {
         justify-content: center;
     }

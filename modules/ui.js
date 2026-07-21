@@ -19,6 +19,7 @@ export class ChatManagerUi {
      * @param {()=>boolean} dependencies.isGenerating 是否正在生成
      * @param {(record:object)=>Promise<void>} dependencies.openRecord 打开聊天回调
      * @param {(record:object)=>Promise<void>} dependencies.deleteRecord 删除聊天回调
+     * @param {()=>Promise<void>} dependencies.refreshRecentChats 刷新酒馆最近聊天回调
      * @param {(record:object,backup:object)=>Promise<string[]>} dependencies.restoreBackup 原生备份恢复回调
      * @param {()=>Promise<void>} dependencies.openDataMaid 打开酒馆原生数据清理面板
      * @param {string} dependencies.template 稳定面板模板
@@ -28,7 +29,7 @@ export class ChatManagerUi {
      * @param {{groupOwners?:boolean,groupSplits?:boolean}} dependencies.viewOptions 列表分组设置
      * @param {(options:{groupOwners:boolean,groupSplits:boolean})=>void} dependencies.onViewOptionsChange 分组设置回调
      */
-    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, deleteRecord, restoreBackup, openDataMaid, template, dialogTemplates, componentTemplates, getAvatarUrl, viewOptions = {}, onViewOptionsChange = () => {} }) {
+    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, deleteRecord, refreshRecentChats, restoreBackup, openDataMaid, template, dialogTemplates, componentTemplates, getAvatarUrl, viewOptions = {}, onViewOptionsChange = () => {} }) {
         this.getContext = getContext;
         this.api = api;
         this.backups = backups;
@@ -36,6 +37,7 @@ export class ChatManagerUi {
         this.isGenerating = isGenerating;
         this.openRecord = openRecord;
         this.deleteRecord = deleteRecord;
+        this.refreshRecentChats = refreshRecentChats;
         this.restoreBackup = restoreBackup;
         this.openDataMaid = openDataMaid;
         this.getAvatarUrl = getAvatarUrl;
@@ -93,6 +95,7 @@ export class ChatManagerUi {
         this.groupOwnersButton = required(root, '[data-cm-group-owners]', HTMLButtonElement);
         this.groupSplitsButton = required(root, '[data-cm-group-splits]', HTMLButtonElement);
         this.batchStartButton = required(root, '[data-cm-batch-start]', HTMLButtonElement);
+        this.selectionToolbar = required(root, '[data-cm-selection-toolbar]');
         this.batchCancelButton = required(root, '[data-cm-batch-cancel]', HTMLButtonElement);
         this.batchConfirmButton = required(root, '[data-cm-batch-confirm]', HTMLButtonElement);
         this.batchCount = required(root, '[data-cm-batch-count]');
@@ -121,8 +124,8 @@ export class ChatManagerUi {
         this.scopeAllButton.addEventListener('click', () => void this.#setScope('all'));
         this.groupOwnersButton.addEventListener('click', () => this.#toggleGrouping('owners'));
         this.groupSplitsButton.addEventListener('click', () => this.#toggleGrouping('splits'));
-        this.batchStartButton.addEventListener('click', () => this.#setSelectionMode(true));
-        this.batchCancelButton.addEventListener('click', () => this.#setSelectionMode(false));
+        this.batchStartButton.addEventListener('click', () => this.#setSelectionMode(!this.selectionMode));
+        this.batchCancelButton.addEventListener('click', () => this.#clearSelection());
         this.batchConfirmButton.addEventListener('click', () => this.#confirmDelete(Array.from(this.selectedRecords.values())));
         this.search.addEventListener('input', () => { this.page = 0; this.#filter(); });
         this.previous.addEventListener('click', () => { this.page--; this.#render(); });
@@ -364,17 +367,27 @@ export class ChatManagerUi {
         this.#render();
     }
 
+    /** 清除当前勾选，但保留批量选择模式 */
+    #clearSelection() {
+        this.selectedRecords.clear();
+        this.#syncSelectionControls();
+        this.#render();
+    }
+
     /** 同步批量删除按钮和面板选择状态 */
     #syncSelectionControls() {
         const blocked = this.isGenerating() || this.splitter.running || this.loading;
         this.root.classList.toggle('cm-selection-mode', this.selectionMode);
-        this.batchStartButton.classList.toggle('cm-hidden', this.selectionMode);
-        this.batchCancelButton.classList.toggle('cm-hidden', !this.selectionMode);
-        this.batchConfirmButton.classList.toggle('cm-hidden', !this.selectionMode);
+        this.selectionToolbar.classList.toggle('cm-hidden', !this.selectionMode);
+        this.batchStartButton.classList.toggle('active', this.selectionMode);
+        this.batchStartButton.setAttribute('aria-pressed', String(this.selectionMode));
+        const batchAction = this.selectionMode ? '退出批量选择' : '进入批量选择';
+        this.batchStartButton.title = batchAction;
+        this.batchStartButton.setAttribute('aria-label', batchAction);
         this.batchStartButton.disabled = blocked;
-        this.batchCancelButton.disabled = blocked;
+        this.batchCancelButton.disabled = blocked || this.selectedRecords.size === 0;
         this.batchConfirmButton.disabled = blocked || this.selectedRecords.size === 0;
-        this.batchCount.textContent = `删除已选（${this.selectedRecords.size}）`;
+        this.batchCount.textContent = `已选 ${this.selectedRecords.size} 条`;
     }
 
     /**
@@ -680,6 +693,13 @@ export class ChatManagerUi {
             confirm.classList.add('cm-hidden');
             summary.textContent = `处理完成 · 已删除 ${succeeded} 条${failed ? ` · 失败 ${failed} 条` : ''}`;
             this.#setSelectionMode(false);
+            if (succeeded > 0) {
+                try {
+                    await this.refreshRecentChats();
+                } catch (error) {
+                    console.warn('[聊天文件管理] 刷新最近聊天失败', error);
+                }
+            }
             await this.refresh();
             notify(failed ? 'warning' : 'success', failed ? `已删除 ${succeeded} 条，${failed} 条失败` : `已删除 ${succeeded} 条聊天`);
         });
