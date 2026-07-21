@@ -76,6 +76,7 @@ test('chat and backup rows follow the compact recent-chat rhythm', async () => {
         readFile(new URL('../styles/components.css', import.meta.url), 'utf8'),
     ]);
     assert.match(panel, /\.cm-chat-list\s*{[^}]*gap:\s*2px/s);
+    assert.match(panel, /\.cm-chat-list > \*\s*{[^}]*flex:\s*0 0 auto/s);
     assert.match(panel, /\.cm-chat-row\s*{[^}]*padding:\s*5px 10px[^}]*border-radius:\s*10px[^}]*background:\s*transparent/s);
     assert.match(panel, /\.cm-chat-row:hover,[\s\S]*background:\s*var\(--white30a\)/);
     assert.match(panel, /\.cm-chat-message-row\s*{[^}]*font-size:\s*calc\(var\(--mainFontSize\) \* 0\.85\)/s);

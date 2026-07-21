@@ -182,6 +182,11 @@
     padding: 10px 16px 16px;
 }
 
+/* 列表项保持内容高度，超出面板的部分统一由聊天列表滚动 */
+.cm-chat-list > * {
+    flex: 0 0 auto;
+}
+
 .cm-chat-row {
     position: relative;
     align-items: center;

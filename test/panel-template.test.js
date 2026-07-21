@@ -272,6 +272,12 @@ test('chat list pagination shares SillyTavern character page size', async () => 
     assert.match(ui, /normalizePageSize\(viewOptions\.pageSize\)/);
 });
 
+test('split groups display newest volumes first and the source chat last', async () => {
+    const source = await readFile(new URL('../modules/ui/chat-list-renderer.js', import.meta.url), 'utf8');
+    assert.match(source, /sort\(\(left, right\) => right\.split\.sequence - left\.split\.sequence\)/);
+    assert.match(source, /displayParts\.forEach[\s\S]*if \(group\.sourceRecord\)[\s\S]*source: true/);
+});
+
 test('main UI delegates dialog workflows to focused modules', async () => {
     const source = await readFile(new URL('../modules/ui/ui.js', import.meta.url), 'utf8');
     assert.ok(source.split(/\r?\n/).length < 850, '主 UI 控制器不应重新承载完整弹窗工作流');
