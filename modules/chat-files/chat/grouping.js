@@ -87,13 +87,23 @@ export function getStoredSplitIdentity(record) {
 export function groupSplitRecords(records, allRecords = records) {
     const units = [];
     const seriesByKey = new Map();
+    const allSeriesByKey = new Map();
+    const recordByOwnerFile = new Map();
+    for (const record of allRecords) {
+        recordByOwnerFile.set(ownerFileKey(record, record.fileId), record);
+        const split = getStoredSplitIdentity(record);
+        if (!split) continue;
+        const key = splitSeriesKey(record, split.rootChatId);
+        if (!allSeriesByKey.has(key)) allSeriesByKey.set(key, []);
+        allSeriesByKey.get(key).push({ record, split });
+    }
     for (const record of records) {
         const split = getStoredSplitIdentity(record);
         if (!split) {
             units.push(recordUnit(record));
             continue;
         }
-        const key = `split:${record.ownerType}:${record.ownerId}:${split.rootChatId}`;
+        const key = splitSeriesKey(record, split.rootChatId);
         let series = seriesByKey.get(key);
         if (!series) {
             series = {
@@ -112,14 +122,8 @@ export function groupSplitRecords(records, allRecords = records) {
     }
     for (const series of seriesByKey.values()) {
         series.records.sort(compareSplitItems);
-        series.allRecords = allRecords.flatMap(record => {
-            if (record.ownerType !== series.ownerType || String(record.ownerId) !== String(series.ownerId)) return [];
-            const split = getStoredSplitIdentity(record);
-            return split?.rootChatId === series.rootChatId ? [{ record, split }] : [];
-        }).sort(compareSplitItems);
-        series.sourceRecord = allRecords.find(record => record.ownerType === series.ownerType
-            && String(record.ownerId) === String(series.ownerId)
-            && record.fileId === series.rootChatId);
+        series.allRecords = [...(allSeriesByKey.get(series.key) ?? [])].sort(compareSplitItems);
+        series.sourceRecord = recordByOwnerFile.get(ownerFileKey(series, series.rootChatId));
     }
     const sources = new Set(Array.from(seriesByKey.values(), series => series.sourceRecord).filter(Boolean));
     return units.filter(unit => unit.type !== 'record' || !sources.has(unit.record));
@@ -148,8 +152,14 @@ export function orderSplitGroupRecords(group) {
 export function groupOwnerRecords(records, groupSplits, allRecords = records) {
     const owners = [];
     const ownerByKey = new Map();
+    const allRecordsByOwner = new Map();
+    for (const record of allRecords) {
+        const key = ownerKey(record);
+        if (!allRecordsByOwner.has(key)) allRecordsByOwner.set(key, []);
+        allRecordsByOwner.get(key).push(record);
+    }
     for (const record of records) {
-        const key = `owner:${record.ownerType}:${record.ownerId}`;
+        const key = ownerKey(record);
         let owner = ownerByKey.get(key);
         if (!owner) {
             owner = {
@@ -167,10 +177,7 @@ export function groupOwnerRecords(records, groupSplits, allRecords = records) {
         owner.records.push(record);
     }
     for (const owner of owners) {
-        const allOwnerRecords = allRecords.filter(record => (
-            record.ownerType === owner.ownerType
-            && String(record.ownerId) === String(owner.ownerId)
-        ));
+        const allOwnerRecords = allRecordsByOwner.get(owner.key) ?? [];
         owner.allRecords = allOwnerRecords;
         owner.splitGroupCount = groupSplits
             ? groupSplitRecords(allOwnerRecords, allOwnerRecords).filter(unit => unit.type === 'split-group').length
@@ -180,6 +187,18 @@ export function groupOwnerRecords(records, groupSplits, allRecords = records) {
             : owner.records.map(recordUnit);
     }
     return owners;
+}
+
+function ownerKey(record) {
+    return `owner:${record.ownerType}:${record.ownerId}`;
+}
+
+function ownerFileKey(record, fileId) {
+    return `${record.ownerType}:${record.ownerId}:${fileId}`;
+}
+
+function splitSeriesKey(record, rootChatId) {
+    return `split:${ownerFileKey(record, rootChatId)}`;
 }
 
 /**

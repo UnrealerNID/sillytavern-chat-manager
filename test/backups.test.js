@@ -294,3 +294,34 @@ test('failed backup report finalization remains tracked for a later retry', asyn
     assert.equal(finalizeAttempts, 2);
     assert.equal(service.reportLeases.has('retry-token'), false);
 });
+
+test('a late backup report keeps failed finalization available for retry', async () => {
+    let releaseReport;
+    let finalizeAttempts = 0;
+    const reportReady = new Promise(resolve => {
+        releaseReport = resolve;
+    });
+    const service = new BackupService({
+        createDataMaidReport: async () => {
+            await reportReady;
+            return {
+                token: 'late-retry-token',
+                report: { chatBackups: [] },
+            };
+        },
+        finalizeDataMaidReport: async () => {
+            finalizeAttempts++;
+            if (finalizeAttempts === 1) throw new Error('temporary failure');
+        },
+    });
+
+    const listing = service.list();
+    await service.dispose();
+    releaseReport();
+    await assert.rejects(listing, /temporary failure/);
+    assert.equal(service.reportLeases.has('late-retry-token'), true);
+
+    await service.dispose();
+    assert.equal(finalizeAttempts, 2);
+    assert.equal(service.reportLeases.has('late-retry-token'), false);
+});

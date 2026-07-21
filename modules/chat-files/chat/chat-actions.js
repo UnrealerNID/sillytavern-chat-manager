@@ -27,7 +27,7 @@ import { stripJsonl } from '../../shared/files.js';
  */
 export function createChatActions({ getContext, api, backups, openRecord }) {
     return {
-        restoreBackup: (record, backup) => restoreBackup(record, backup),
+        restoreBackup,
         deleteRecord,
         renameRecord,
     };

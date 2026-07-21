@@ -218,7 +218,7 @@ export class SplitDialogs {
                 setPreviewStatus('创建失败', 'error');
                 this.notify('error', error.message);
                 if (error.task) this.#renderTask(preview, error.task);
-                refreshSource = error.message.includes('原聊天在预览后发生变化');
+                refreshSource = error.code === 'SOURCE_CHANGED';
             } finally {
                 dialog.setClosable(true);
                 stop.classList.add('cm-hidden');

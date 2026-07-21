@@ -56,9 +56,27 @@ export class ExtensionUpdater {
      */
     register(button, version) {
         this.views.add({ button, version });
-        button.addEventListener('click', () => void this.#update());
+        button.addEventListener('click', () => void this.#activate());
         this.#render();
-        this.checkTask ??= this.#check();
+        if (this.state.phase === 'checking') void this.#requestCheck();
+    }
+
+    /**
+     * 合并并发更新检查，并允许失败后重新执行
+     */
+    #requestCheck() {
+        this.checkTask ??= this.#check().finally(() => {
+            this.checkTask = null;
+        });
+        return this.checkTask;
+    }
+
+    /**
+     * 根据当前状态执行检查或更新
+     */
+    #activate() {
+        if (this.state.phase === 'check-failed') return this.#requestCheck();
+        return this.#update();
     }
 
     /**
@@ -74,12 +92,12 @@ export class ExtensionUpdater {
             updating: '更新中…',
             updated: '更新完成',
             retry: '重试更新',
-            failed: '检查失败',
+            'check-failed': '重试检查',
         };
         for (const view of this.views) {
             view.version.textContent = `version ${state.semanticVersion}${hash}`;
             view.button.textContent = labels[state.phase];
-            view.button.disabled = (state.phase !== 'available' && state.phase !== 'retry')
+            view.button.disabled = !['available', 'retry', 'check-failed'].includes(state.phase)
                 || (state.phase === 'available' && !state.canUpdate);
             view.button.title = state.phase === 'available' && state.remoteVersion
                 ? `更新至 version ${state.remoteVersion}`
@@ -104,7 +122,7 @@ export class ExtensionUpdater {
         }
         if (remote.status === 'rejected') {
             console.warn('[酒馆工具箱] 检查扩展更新失败', remote.reason);
-            this.state.phase = 'failed';
+            this.state.phase = 'check-failed';
             this.#render();
             return;
         }

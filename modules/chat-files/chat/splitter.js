@@ -133,7 +133,11 @@ export class SplitService {
             );
         }
         const current = await getSourceFingerprint(plan.record, this.api);
-        if (!fingerprintsEqual(plan.fingerprint, current)) throw new Error('原聊天在预览后发生变化，正在重新读取并更新预览');
+        if (!fingerprintsEqual(plan.fingerprint, current)) {
+            const error = new Error('原聊天在预览后发生变化，正在重新读取并更新预览');
+            error.code = 'SOURCE_CHANGED';
+            throw error;
+        }
         this.running = true;
         this.stopRequested = false;
         const task = options.resumeTask ?? this.#taskFromPlan(plan);
@@ -211,6 +215,10 @@ export class SplitService {
      */
     async reconcile() {
         const tasks = (await this.journal.list()).filter(task => task.status !== 'complete');
+        const groupTasks = tasks.some(task => task.record.ownerType === 'group');
+        const groups = groupTasks ? await this.api.getGroups() : [];
+        const groupById = new Map((Array.isArray(groups) ? groups : [])
+            .map(group => [String(group.id), group]));
         for (const task of tasks) {
             for (const part of task.parts) {
                 if (!['writing', 'verified', 'unregistered', 'complete'].includes(part.status)) continue;
@@ -221,9 +229,7 @@ export class SplitService {
                     continue;
                 }
                 if (task.record.ownerType === 'group') {
-                    const groups = await this.api.getGroups();
-                    const group = Array.isArray(groups)
-                        && groups.find(item => String(item.id) === String(task.record.ownerId));
+                    const group = groupById.get(String(task.record.ownerId));
                     part.status = group?.chats?.includes(part.fileId) ? 'complete' : 'unregistered';
                 } else {
                     part.status = 'complete';

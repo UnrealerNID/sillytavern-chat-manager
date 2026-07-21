@@ -118,17 +118,13 @@ export class BackupService {
         if (!this.backupListPromise) {
             const revision = this.catalogRevision;
             const task = this.#createCatalog().then(async ({ token, items }) => {
+                this.#trackToken(token);
                 if (revision !== this.catalogRevision) {
-                    await this.api.finalizeDataMaidReport(token);
+                    await this.#retireToken(token);
                     throw new Error('备份目录读取已取消');
                 }
                 const previousToken = this.reportToken;
                 this.reportToken = token;
-                this.reportLeases.set(token, {
-                    readers: 0,
-                    retired: false,
-                    finalizing: null,
-                });
                 this.backupListCache = { expiresAt: Date.now() + BACKUP_LIST_CACHE_MS, items };
                 if (previousToken && previousToken !== token) {
                     void this.#retireToken(previousToken).catch(error => {
@@ -151,7 +147,10 @@ export class BackupService {
     async #createCatalog() {
         const result = await this.api.createDataMaidReport();
         if (!result?.token || !Array.isArray(result.report?.chatBackups)) {
-            if (result?.token) await this.api.finalizeDataMaidReport(result.token);
+            if (result?.token) {
+                this.#trackToken(result.token);
+                await this.#retireToken(result.token);
+            }
             throw new Error('安全备份目录格式无效');
         }
         const items = result.report.chatBackups.map(item => ({
@@ -164,6 +163,19 @@ export class BackupService {
             hash: String(item.hash ?? ''),
         }));
         return { token: result.token, items };
+    }
+
+    /**
+     * 将新取得的报告令牌纳入统一租用生命周期
+     * @param {string} token 报告令牌
+     */
+    #trackToken(token) {
+        if (this.reportLeases.has(token)) return;
+        this.reportLeases.set(token, {
+            readers: 0,
+            retired: false,
+            finalizing: null,
+        });
     }
 
     /**

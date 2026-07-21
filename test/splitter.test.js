@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
 
 import { SplitService } from '../modules/chat-files/chat/splitter.js';
+import { digestMessages } from '../modules/shared/data.js';
 
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 
@@ -140,4 +141,35 @@ test('registers a verified group split only after saving it', async () => {
     assert.equal(task.status, 'complete');
     assert.ok(group.chats.includes(plan.parts[0].fileId));
     assert.ok(files.has(plan.parts[0].fileId));
+});
+
+test('reconcile reads the group list once for every pending group task', async () => {
+    const messages = [{ name: 'A', mes: 'same' }];
+    const digest = await digestMessages(messages);
+    let groupReads = 0;
+    const task = {
+        id: 'recovery',
+        status: 'partial',
+        record: { ownerType: 'group', ownerId: 'group-1' },
+        parts: [
+            { fileId: '卷一', count: 1, digest, status: 'writing' },
+            { fileId: '卷二', count: 1, digest, status: 'verified' },
+        ],
+    };
+    const api = {
+        getGroupChat: async () => [{ chat_metadata: {} }, ...messages],
+        getGroups: async () => {
+            groupReads++;
+            return [{ id: 'group-1', chats: ['卷一', '卷二'] }];
+        },
+    };
+    const journal = {
+        async list() { return [task]; },
+        async put() {},
+    };
+    const splitter = new SplitService(api, journal, () => 'unused');
+
+    const [reconciled] = await splitter.reconcile();
+    assert.equal(groupReads, 1);
+    assert.deepEqual(reconciled.parts.map(part => part.status), ['complete', 'complete']);
 });
