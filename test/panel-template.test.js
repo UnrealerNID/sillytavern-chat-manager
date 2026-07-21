@@ -6,6 +6,8 @@ test('panel template exposes all stable UI mounts', async () => {
     const html = await readFile(new URL('../templates/panel.html', import.meta.url), 'utf8');
     for (const marker of [
         'data-cm-search',
+        'data-cm-sort',
+        'data-cm-page-size',
         'data-cm-refresh',
         'data-cm-scope-current',
         'data-cm-scope-current-label',
@@ -43,6 +45,8 @@ test('panel template exposes all stable UI mounts', async () => {
     assert.match(html, /<i class="fa-solid fa-arrows-rotate"/);
     assert.match(html, /aria-pressed="false"[^>]*data-cm-batch-start/);
     assert.match(html, /fa-square-check/);
+    assert.match(html, /data-cm-batch-cancel[\s\S]{0,120}fa-eraser/);
+    assert.doesNotMatch(html, />取消选择<|>删除已选</);
     assert.match(html, /data-cm-selection-toolbar[\s\S]*data-cm-batch-count[\s\S]*data-cm-batch-cancel[\s\S]*data-cm-batch-confirm/);
     assert.match(html, /cm-panel-utilities[\s\S]*data-cm-data-maid-open/);
     assert.doesNotMatch(html, /data-cm-batch-start[^>]*[\s\S]{0,120}>批量删除</);
@@ -117,6 +121,8 @@ test('component templates expose every repeated card and action mount', async ()
     for (const marker of [
         'data-cm-component="chat-row"',
         'data-cm-chat-open',
+        'data-cm-chat-view',
+        'data-cm-chat-rename',
         'data-cm-chat-select',
         'data-cm-chat-delete',
         'cm-chat-owner-line',
@@ -151,6 +157,8 @@ test('component templates expose every repeated card and action mount', async ()
     }
     assert.doesNotMatch(html, /data-cm-group-toggle-text|>展开<|>收起</);
     assert.doesNotMatch(html, />进入聊天<|>查找备份<|>创建分卷<|>删除聊天</);
+    assert.match(html, /cm-chat-owner-line[\s\S]*data-cm-chat-owner[\s\S]*cm-chat-name-separator[\s\S]*data-cm-chat-file/);
+    assert.doesNotMatch(html, /data-cm-chat-pin/);
 });
 
 test('panel and settings share the same version update controls', async () => {
@@ -194,6 +202,8 @@ test('chat deletion uses SillyTavern native character and group workflows', asyn
     ]);
     assert.match(entry, /deleteCharacterChatByName\(String\(characterId\), record\.fileId\)/);
     assert.match(entry, /deleteGroupChatByName\(group\.id, record\.fileId\)/);
+    assert.match(entry, /renameGroupOrCharacterChat\(\{/);
+    assert.match(entry, /renderTemplateAsync\('chatRename'\)/);
     assert.match(entry, /refreshRecentChats: \(\) => openWelcomeScreen\(\{ force: true \}\)/);
     assert.match(ui, /if \(this\.loading\) return notify\('warning', '聊天清单正在读取，完成后才能删除聊天'\)/);
     assert.doesNotMatch(ui, /this\.loading \|\| this\.refreshTask[\s\S]*聊天清单正在读取，完成后才能删除聊天/);
@@ -201,6 +211,13 @@ test('chat deletion uses SillyTavern native character and group workflows', asyn
     assert.match(ui, /async #loadChatFiles\(target\)\s*{\s*this\.#setLoading\(true\)/);
     assert.match(ui, /finally\s*{\s*this\.#setLoading\(false\)/);
     assert.match(ui, /if \(succeeded > 0\)[\s\S]*await this\.refreshRecentChats\(\)/);
+    assert.match(ui, /if \(this\.selectionMode\) this\.#setSelectionMode\(false\)/);
+});
+
+test('chat viewer follows SillyTavern message rendering count', async () => {
+    const source = await readFile(new URL('../modules/ui.js', import.meta.url), 'utf8');
+    assert.match(source, /Number\(power_user\.chat_truncation\) \|\| Number\.MAX_SAFE_INTEGER/);
+    assert.match(source, /#viewChat\(record\)/);
 });
 
 test('chat inventory resynchronizes on every open and coalesces concurrent refreshes', async () => {

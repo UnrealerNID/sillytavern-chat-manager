@@ -5,10 +5,12 @@ import {
     getThumbnailUrl,
     importCharacterChat,
     isGenerating,
+    renameGroupOrCharacterChat,
     saveSettingsDebounced,
     setActiveCharacter,
     setActiveGroup,
     system_avatar,
+    updateRemoteChatName,
 } from '/script.js';
 import { deleteGroupChatByName, importGroupChat, openGroupById } from '/scripts/group-chats.js';
 import {
@@ -17,6 +19,8 @@ import {
     renderExtensionTemplateAsync,
 } from '/scripts/extensions.js';
 import { isAdmin } from '/scripts/user.js';
+import { callGenericPopup, POPUP_TYPE } from '/scripts/popup.js';
+import { renderTemplateAsync } from '/scripts/templates.js';
 import { openWelcomeScreen } from '/scripts/welcome-screen.js';
 
 import { ChatManagerApi } from './modules/api.js';
@@ -27,7 +31,7 @@ import { NativeChatPanel } from './modules/native-chat-panel.js';
 import { SplitService } from './modules/splitter.js';
 import { TaskJournal } from './modules/task-journal.js';
 import { ChatManagerUi } from './modules/ui.js';
-import { element, isNewerVersion } from './modules/utils.js';
+import { element, isNewerVersion, stripJsonl } from './modules/utils.js';
 
 let initialized = false;
 const extensionId = 'third-party/sillytavern-chat-manager';
@@ -56,6 +60,8 @@ let extensionUpdateCheck;
  * @property {'left'|'right'} [column] 首次选择并固定使用的扩展栏
  * @property {boolean} [groupOwners] 是否按角色或群组合并聊天
  * @property {boolean} [groupSplits] 是否合并分卷聊天
+ * @property {'newest'|'oldest'|'largest'|'messages'|'name'} [sortOrder] 聊天排序方式
+ * @property {20|50|100} [pageSize] 每页聊天数量
  */
 
 /**
@@ -364,6 +370,46 @@ async function deleteRecord(record) {
 }
 
 /**
+ * 复用酒馆最近聊天的原生链路重命名指定聊天
+ * @param {import('./modules/utils.js').ChatRecord} record 待重命名聊天
+ * @param {ChatManagerApi} api 酒馆接口
+ * @returns {Promise<boolean>} 是否提交了重命名
+ */
+async function renameRecord(record, api) {
+    const context = getContext();
+    const popupText = await renderTemplateAsync('chatRename');
+    const input = await callGenericPopup(popupText, POPUP_TYPE.INPUT, record.fileId);
+    if (typeof input !== 'string') return false;
+    const requestedFileId = stripJsonl(input.trim());
+    const newFileId = requestedFileId ? await api.sanitizeFileName(requestedFileId) : '';
+    if (!newFileId || newFileId === record.fileId) return false;
+    if (record.ownerType === 'character') {
+        const characterId = context.characters.findIndex(character => character.avatar === record.ownerId);
+        if (characterId < 0) throw new Error(`找不到角色：${record.ownerName}`);
+        await renameGroupOrCharacterChat({
+            characterId: String(characterId),
+            oldFileName: record.fileId,
+            newFileName: newFileId,
+            loader: false,
+        });
+        if (!await api.chatExists({ ...record, fileId: newFileId })) return false;
+        await updateRemoteChatName(characterId, newFileId);
+    } else {
+        const group = context.groups.find(item => String(item.id) === String(record.ownerId));
+        if (!group) throw new Error(`找不到群聊：${record.ownerName}`);
+        await renameGroupOrCharacterChat({
+            groupId: String(group.id),
+            oldFileName: record.fileId,
+            newFileName: newFileId,
+            loader: false,
+        });
+        if (!await api.chatExists({ ...record, fileId: newFileId })) return false;
+    }
+    await openWelcomeScreen({ force: true });
+    return true;
+}
+
+/**
  * 通过酒馆扩展清单钩子激活插件
  * @returns {Promise<void>}
  */
@@ -379,6 +425,8 @@ export async function init() {
     settings.enabled ??= true;
     settings.groupOwners ??= false;
     settings.groupSplits ??= false;
+    settings.sortOrder ??= 'newest';
+    settings.pageSize ??= 50;
     const [metadata, panelTemplate, dataMaidTemplate, dialogTemplates, componentTemplates] = await Promise.all([
         loadExtensionMetadata(),
         renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/panel'),
@@ -395,6 +443,7 @@ export async function init() {
         isGenerating,
         openRecord,
         deleteRecord,
+        renameRecord: record => renameRecord(record, api),
         refreshRecentChats: () => openWelcomeScreen({ force: true }),
         restoreBackup: (record, backup) => restoreBackup(record, backup, backups),
         openDataMaid: () => dataMaid.open(),
@@ -402,10 +451,17 @@ export async function init() {
         dialogTemplates,
         componentTemplates,
         getAvatarUrl: record => record.ownerType === 'group' ? system_avatar : getThumbnailUrl('avatar', record.ownerId),
-        viewOptions: { groupOwners: settings.groupOwners, groupSplits: settings.groupSplits },
+        viewOptions: {
+            groupOwners: settings.groupOwners,
+            groupSplits: settings.groupSplits,
+            sortOrder: settings.sortOrder,
+            pageSize: settings.pageSize,
+        },
         onViewOptionsChange: options => {
             settings.groupOwners = options.groupOwners;
             settings.groupSplits = options.groupSplits;
+            settings.sortOrder = options.sortOrder;
+            settings.pageSize = options.pageSize;
             saveSettingsDebounced();
         },
     });

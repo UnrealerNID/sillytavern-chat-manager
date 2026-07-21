@@ -1,3 +1,30 @@
+import { parseBytes } from './utils.js';
+
+/**
+ * 按聊天管理面板的排序方式返回新数组
+ * @param {object[]} records 聊天记录
+ * @param {'newest'|'oldest'|'largest'|'messages'|'name'} order 排序方式
+ * @returns {object[]} 排序后的聊天记录
+ */
+export function sortChatRecords(records, order = 'newest') {
+    const time = record => {
+        const value = new Date(record.lastMessageAt).valueOf();
+        return Number.isFinite(value) ? value : 0;
+    };
+    const name = record => `${record.ownerName}\u0000${record.fileId}`;
+    const newest = (left, right) => time(right) - time(left);
+    const tie = (left, right) => newest(left, right)
+        || name(left).localeCompare(name(right), 'zh-CN', { numeric: true });
+    const compare = {
+        newest,
+        oldest: (left, right) => time(left) - time(right),
+        largest: (left, right) => parseBytes(right.fileSize) - parseBytes(left.fileSize),
+        messages: (left, right) => Number(right.messageCount || 0) - Number(left.messageCount || 0),
+        name: (left, right) => name(left).localeCompare(name(right), 'zh-CN', { numeric: true }),
+    }[order] ?? newest;
+    return [...records].sort((left, right) => compare(left, right) || tie(left, right));
+}
+
 /**
  * 从酒馆上下文解析当前角色或群组
  * @param {object} context 酒馆上下文

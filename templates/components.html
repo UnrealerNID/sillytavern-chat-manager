@@ -13,13 +13,20 @@
                         <div class="cm-chat-owner-line">
                             <strong data-cm-chat-owner></strong>
                             <span class="cm-source-badge cm-hidden" data-cm-chat-source>源</span>
+                            <span class="cm-chat-name-separator" aria-hidden="true">-</span>
+                            <span class="cm-file-name" data-cm-chat-file></span>
                         </div>
-                        <span class="cm-file-name" data-cm-chat-file></span>
                     </div>
                     <time class="cm-chat-date" data-cm-chat-date></time>
                     <div class="cm-actions cm-chat-actions">
                         <button class="menu_button menu_button_icon cm-row-action" type="button" title="进入聊天" aria-label="进入聊天" data-cm-chat-open>
                             <i class="fa-solid fa-arrow-up-right-from-square fa-fw" aria-hidden="true"></i>
+                        </button>
+                        <button class="menu_button menu_button_icon cm-row-action" type="button" title="查看聊天内容" aria-label="查看聊天内容" data-cm-chat-view>
+                            <i class="fa-solid fa-eye fa-fw" aria-hidden="true"></i>
+                        </button>
+                        <button class="menu_button menu_button_icon cm-row-action" type="button" title="重命名聊天" aria-label="重命名聊天" data-cm-chat-rename>
+                            <i class="fa-solid fa-pen-to-square fa-fw" aria-hidden="true"></i>
                         </button>
                         <button class="menu_button menu_button_icon cm-row-action" type="button" title="查找对应备份" aria-label="查找对应备份" data-cm-chat-backups>
                             <i class="fa-solid fa-box-archive fa-fw" aria-hidden="true"></i>

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { deriveIncrementalSplit, filterChatRecords, getCurrentOwner, getStoredSplitConfigs, getStoredSplitIdentity, groupOwnerRecords, groupSplitRecords } from '../modules/grouping.js';
+import { deriveIncrementalSplit, filterChatRecords, getCurrentOwner, getStoredSplitConfigs, getStoredSplitIdentity, groupOwnerRecords, groupSplitRecords, sortChatRecords } from '../modules/grouping.js';
 
 function record(fileId, overrides = {}) {
     return {
@@ -30,6 +30,19 @@ function splitRecord(fileId, start, end, sequence, overrides = {}) {
         },
     });
 }
+
+test('sorts chat records by every persisted list order without mutating the source', () => {
+    const records = [
+        record('乙', { lastMessageAt: '2026-01-02', fileSize: '2 MiB', messageCount: 10 }),
+        record('甲', { lastMessageAt: '2026-01-01', fileSize: '1 MiB', messageCount: 20 }),
+    ];
+    assert.deepEqual(sortChatRecords(records, 'newest').map(item => item.fileId), ['乙', '甲']);
+    assert.deepEqual(sortChatRecords(records, 'oldest').map(item => item.fileId), ['甲', '乙']);
+    assert.deepEqual(sortChatRecords(records, 'largest').map(item => item.fileId), ['乙', '甲']);
+    assert.deepEqual(sortChatRecords(records, 'messages').map(item => item.fileId), ['甲', '乙']);
+    assert.deepEqual(sortChatRecords(records, 'name').map(item => item.fileId), ['甲', '乙']);
+    assert.deepEqual(records.map(item => item.fileId), ['乙', '甲']);
+});
 
 test('defaults to character index zero and can switch back to all chats', () => {
     const owner = getCurrentOwner({

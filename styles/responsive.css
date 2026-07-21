@@ -28,6 +28,10 @@
         flex-basis: 100%;
     }
 
+    .cm-list-options {
+        flex: 0 0 auto;
+    }
+
     .cm-toolbar-actions,
     .cm-delete-controls {
         flex: 0 0 auto;

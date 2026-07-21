@@ -1,8 +1,10 @@
 import { chatKey, element, formatBytes, parseBytes, stripJsonl } from './utils.js';
 import { describePart } from './splitter.js';
-import { deriveIncrementalSplit, filterChatRecords, getCurrentOwner, groupOwnerRecords, groupSplitRecords } from './grouping.js';
+import { deriveIncrementalSplit, filterChatRecords, getCurrentOwner, groupOwnerRecords, groupSplitRecords, sortChatRecords } from './grouping.js';
+import { power_user } from '/scripts/power-user.js';
 
-const PAGE_SIZE = 50;
+const SORT_ORDERS = ['newest', 'oldest', 'largest', 'messages', 'name'];
+const PAGE_SIZES = [20, 50, 100];
 
 function notify(type, message) {
     if (globalThis.toastr?.[type]) globalThis.toastr[type](message);
@@ -19,6 +21,7 @@ export class ChatManagerUi {
      * @param {()=>boolean} dependencies.isGenerating 是否正在生成
      * @param {(record:object)=>Promise<void>} dependencies.openRecord 打开聊天回调
      * @param {(record:object)=>Promise<void>} dependencies.deleteRecord 删除聊天回调
+     * @param {(record:object)=>Promise<boolean>} dependencies.renameRecord 重命名聊天回调
      * @param {()=>Promise<void>} dependencies.refreshRecentChats 刷新酒馆最近聊天回调
      * @param {(record:object,backup:object)=>Promise<string[]>} dependencies.restoreBackup 原生备份恢复回调
      * @param {()=>Promise<void>} dependencies.openDataMaid 打开酒馆原生数据清理面板
@@ -26,10 +29,10 @@ export class ChatManagerUi {
      * @param {string} dependencies.dialogTemplates 弹窗模板注册表
      * @param {string} dependencies.componentTemplates 重复内容组件模板注册表
      * @param {(record:object)=>string} dependencies.getAvatarUrl 头像地址生成器
-     * @param {{groupOwners?:boolean,groupSplits?:boolean}} dependencies.viewOptions 列表分组设置
-     * @param {(options:{groupOwners:boolean,groupSplits:boolean})=>void} dependencies.onViewOptionsChange 分组设置回调
+     * @param {{groupOwners?:boolean,groupSplits?:boolean,sortOrder?:string,pageSize?:number}} dependencies.viewOptions 列表显示设置
+     * @param {(options:{groupOwners:boolean,groupSplits:boolean,sortOrder:string,pageSize:number})=>void} dependencies.onViewOptionsChange 列表显示设置回调
      */
-    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, deleteRecord, refreshRecentChats, restoreBackup, openDataMaid, template, dialogTemplates, componentTemplates, getAvatarUrl, viewOptions = {}, onViewOptionsChange = () => {} }) {
+    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, deleteRecord, renameRecord, refreshRecentChats, restoreBackup, openDataMaid, template, dialogTemplates, componentTemplates, getAvatarUrl, viewOptions = {}, onViewOptionsChange = () => {} }) {
         this.getContext = getContext;
         this.api = api;
         this.backups = backups;
@@ -37,6 +40,7 @@ export class ChatManagerUi {
         this.isGenerating = isGenerating;
         this.openRecord = openRecord;
         this.deleteRecord = deleteRecord;
+        this.renameRecord = renameRecord;
         this.refreshRecentChats = refreshRecentChats;
         this.restoreBackup = restoreBackup;
         this.openDataMaid = openDataMaid;
@@ -55,6 +59,10 @@ export class ChatManagerUi {
         this.refreshTimer = null;
         this.groupOwners = Boolean(viewOptions.groupOwners);
         this.groupSplits = Boolean(viewOptions.groupSplits);
+        this.sortOrder = SORT_ORDERS.includes(viewOptions.sortOrder)
+            ? viewOptions.sortOrder
+            : 'newest';
+        this.pageSize = PAGE_SIZES.includes(Number(viewOptions.pageSize)) ? Number(viewOptions.pageSize) : 50;
         this.expandedOwners = new Set();
         this.expandedSplits = new Set();
         this.onViewOptionsChange = onViewOptionsChange;
@@ -82,6 +90,10 @@ export class ChatManagerUi {
 
         this.root = root;
         this.search = required(root, '[data-cm-search]', HTMLInputElement);
+        this.sort = required(root, '[data-cm-sort]', HTMLSelectElement);
+        this.sort.value = this.sortOrder;
+        this.pageSizeSelect = required(root, '[data-cm-page-size]', HTMLSelectElement);
+        this.pageSizeSelect.value = String(this.pageSize);
         this.state = required(root, '[data-cm-state]');
         this.list = required(root, '[data-cm-list]');
         this.previous = required(root, '[data-cm-previous]', HTMLButtonElement);
@@ -128,6 +140,20 @@ export class ChatManagerUi {
         this.batchCancelButton.addEventListener('click', () => this.#clearSelection());
         this.batchConfirmButton.addEventListener('click', () => this.#confirmDelete(Array.from(this.selectedRecords.values())));
         this.search.addEventListener('input', () => { this.page = 0; this.#filter(); });
+        this.sort.addEventListener('change', () => {
+            this.sortOrder = this.sort.value;
+            this.page = 0;
+            this.#filter();
+            this.#saveViewOptions();
+        });
+        this.pageSizeSelect.addEventListener('change', () => {
+            this.pageSize = PAGE_SIZES.includes(Number(this.pageSizeSelect.value))
+                ? Number(this.pageSizeSelect.value)
+                : 50;
+            this.page = 0;
+            this.#render();
+            this.#saveViewOptions();
+        });
         this.previous.addEventListener('click', () => { this.page--; this.#render(); });
         this.next.addEventListener('click', () => { this.page++; this.#render(); });
         this.#syncGroupingButtons();
@@ -156,6 +182,7 @@ export class ChatManagerUi {
     close() {
         if (this.refreshTimer !== null) clearTimeout(this.refreshTimer);
         this.refreshTimer = null;
+        if (this.selectionMode) this.#setSelectionMode(false);
         this.root.classList.add('cm-hidden');
     }
 
@@ -277,7 +304,10 @@ export class ChatManagerUi {
     }
 
     #filter() {
-        this.filtered = filterChatRecords(this.records ?? [], this.scope, this.currentOwner, this.search.value);
+        this.filtered = sortChatRecords(
+            filterChatRecords(this.records ?? [], this.scope, this.currentOwner, this.search.value),
+            this.sortOrder,
+        );
         this.#render();
     }
 
@@ -320,9 +350,9 @@ export class ChatManagerUi {
             : this.groupSplits
                 ? groupSplitRecords(this.filtered, this.records ?? [])
                 : this.filtered.map(record => ({ type: 'record', key: `record:${chatKey(record)}`, record }));
-        const totalPages = Math.max(1, Math.ceil(units.length / PAGE_SIZE));
+        const totalPages = Math.max(1, Math.ceil(units.length / this.pageSize));
         this.page = Math.max(0, Math.min(this.page, totalPages - 1));
-        const pageUnits = units.slice(this.page * PAGE_SIZE, (this.page + 1) * PAGE_SIZE);
+        const pageUnits = units.slice(this.page * this.pageSize, (this.page + 1) * this.pageSize);
         for (const unit of pageUnits) this.list.append(this.#renderUnit(unit));
         if (!pageUnits.length && !this.loading) this.list.append(this.#state('没有可显示的聊天', { empty: true }));
         const grouped = this.groupOwners || this.groupSplits ? ` · ${units.length} 组/项` : '';
@@ -344,7 +374,17 @@ export class ChatManagerUi {
         this.page = 0;
         this.#syncGroupingButtons();
         this.#render();
-        this.onViewOptionsChange({ groupOwners: this.groupOwners, groupSplits: this.groupSplits });
+        this.#saveViewOptions();
+    }
+
+    /** 保存列表显示设置 */
+    #saveViewOptions() {
+        this.onViewOptionsChange({
+            groupOwners: this.groupOwners,
+            groupSplits: this.groupSplits,
+            sortOrder: this.sortOrder,
+            pageSize: this.pageSize,
+        });
     }
 
     /** 同步分组按钮的可访问状态与视觉状态 */
@@ -564,6 +604,8 @@ export class ChatManagerUi {
         const count = this.#mount(row, '[data-cm-chat-count]');
         const size = this.#mount(row, '[data-cm-chat-size]');
         const open = this.#mount(row, '[data-cm-chat-open]', HTMLButtonElement);
+        const view = this.#mount(row, '[data-cm-chat-view]', HTMLButtonElement);
+        const rename = this.#mount(row, '[data-cm-chat-rename]', HTMLButtonElement);
         const backup = this.#mount(row, '[data-cm-chat-backups]', HTMLButtonElement);
         const split = this.#mount(row, '[data-cm-chat-split]', HTMLButtonElement);
         const remove = this.#mount(row, '[data-cm-chat-delete]', HTMLButtonElement);
@@ -599,10 +641,23 @@ export class ChatManagerUi {
             }
         };
         this.#bindButton(open, openRecord);
+        this.#bindButton(view, () => this.#viewChat(record));
+        this.#bindButton(rename, async () => {
+            try {
+                if (await this.renameRecord(record)) {
+                    await this.refresh();
+                    notify('success', '聊天已重命名');
+                }
+            } catch (error) {
+                notify('error', error.message);
+            }
+        });
         this.#bindButton(backup, () => this.openBackups(record));
         this.#bindButton(split, () => this.openSplit(record));
         this.#bindButton(remove, () => this.#confirmDelete([record]));
         open.disabled = this.isGenerating() || this.splitter.running;
+        view.disabled = this.loading || this.isGenerating() || this.splitter.running;
+        rename.disabled = this.loading || this.isGenerating() || this.splitter.running;
         backup.disabled = this.isGenerating() || this.splitter.running;
         split.disabled = this.isGenerating() || this.splitter.running || record.messageCount < 1;
         remove.disabled = this.loading || this.isGenerating() || this.splitter.running;
@@ -843,10 +898,16 @@ export class ChatManagerUi {
         restore.disabled = !['matched', 'confirm'].includes(backup.status);
     }
 
-    async #viewBackup(backup) {
-        const dialog = this.#dialog(`查看备份 · ${backup.file_name}`, 'backup-viewer');
+    /**
+     * 打开只读消息查看器
+     * @param {string|string[]} title 弹窗标题
+     * @param {number} total 消息总数
+     * @param {(page:number,pageSize:number,signal:AbortSignal)=>Promise<object[]>} readPage 分页读取器
+     */
+    async #viewMessages(title, total, readPage) {
+        const dialog = this.#dialog(title, 'backup-viewer');
         let page = 0;
-        const pageSize = 50;
+        const pageSize = Number(power_user.chat_truncation) || Number.MAX_SAFE_INTEGER;
         const content = this.#mount(dialog.body, '[data-cm-message-list]');
         const previous = this.#mount(dialog.body, '[data-cm-message-previous]', HTMLButtonElement);
         const label = this.#mount(dialog.body, '[data-cm-message-page]');
@@ -856,7 +917,7 @@ export class ChatManagerUi {
         const load = async () => {
             content.replaceChildren(this.#state('正在读取该页…'));
             try {
-                const messages = await this.backups.readPage(backup, page, pageSize, dialog.signal);
+                const messages = await readPage(page, pageSize, dialog.signal);
                 content.replaceChildren();
                 messages.forEach((message, index) => {
                     const item = this.#component('message');
@@ -865,7 +926,6 @@ export class ChatManagerUi {
                     this.#mount(item, '[data-cm-message-content]').textContent = String(message.mes ?? '');
                     content.append(item);
                 });
-                const total = Number(backup.chat_items);
                 const pages = Number.isFinite(total) ? Math.max(1, Math.ceil(total / pageSize)) : null;
                 label.textContent = pages ? `${page + 1} / ${pages}` : `第 ${page + 1} 页`;
                 previous.disabled = page <= 0;
@@ -876,6 +936,35 @@ export class ChatManagerUi {
             }
         };
         await load();
+    }
+
+    async #viewBackup(backup) {
+        await this.#viewMessages(
+            `查看备份 · ${backup.file_name}`,
+            Number(backup.chat_items),
+            (page, pageSize, signal) => this.backups.readPage(backup, page, pageSize, signal),
+        );
+    }
+
+    /** @param {object} record 待查看聊天 */
+    async #viewChat(record) {
+        let messagesTask;
+        const readPage = async (page, pageSize, signal) => {
+            messagesTask ??= (record.ownerType === 'character'
+                ? this.api.getCharacterChat(record.ownerId, record.fileId, signal)
+                : this.api.getGroupChat(record.fileId, signal))
+                .then(data => {
+                    if (!Array.isArray(data) || data.length < 1) throw new Error('聊天内容为空或不存在');
+                    return data.slice(1);
+                });
+            const messages = await messagesTask;
+            return messages.slice(page * pageSize, (page + 1) * pageSize);
+        };
+        await this.#viewMessages(
+            ['查看聊天', record.ownerName, record.fileId],
+            Number(record.messageCount),
+            readPage,
+        );
     }
 
     async openSplit(record, initialOptions = {}) {

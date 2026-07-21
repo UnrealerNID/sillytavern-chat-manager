@@ -108,6 +108,43 @@
     padding-left: 36px;
 }
 
+.cm-list-options,
+.cm-select-wrap {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+}
+
+.cm-list-options {
+    gap: 6px;
+}
+
+.cm-select-wrap {
+    position: relative;
+}
+
+.cm-select-wrap > i {
+    position: absolute;
+    left: 10px;
+    z-index: 1;
+    color: var(--grey70);
+    pointer-events: none;
+}
+
+.cm-sort,
+.cm-page-size {
+    height: var(--cm-toolbar-control-height);
+    padding-left: 32px;
+}
+
+.cm-sort {
+    width: 124px;
+}
+
+.cm-page-size {
+    width: 98px;
+}
+
 .cm-refresh-button {
     align-self: center;
     margin: 0;
@@ -233,11 +270,8 @@
 }
 
 .cm-chat-name {
-    display: flex;
     min-width: 0;
     flex: 1;
-    flex-direction: column;
-    gap: 2px;
     overflow: hidden;
 }
 
@@ -256,14 +290,19 @@
 }
 
 .cm-chat-owner-line strong {
+    flex: 0 1 auto;
     min-width: 0;
 }
 
 .cm-chat-name .cm-file-name {
-    display: block;
-    width: 100%;
+    min-width: 0;
+    flex: 1;
     color: var(--grey70);
-    font-size: calc(var(--mainFontSize) * 0.86);
+}
+
+.cm-chat-name-separator {
+    flex: 0 0 auto;
+    color: var(--grey70);
 }
 
 .cm-chat-date {
