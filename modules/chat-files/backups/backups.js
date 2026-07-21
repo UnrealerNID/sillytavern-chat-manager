@@ -23,9 +23,8 @@ export class BackupService {
         this.backupListCache = null;
         this.backupListPromise = null;
         this.reportToken = '';
-        this.reportTokens = new Set();
-        this.reportReaders = new Map();
-        this.retiredTokens = new Set();
+        // 同一状态对象同时记录读取计数、退休标记和释放任务，避免并行容器失步
+        this.reportLeases = new Map();
         this.resultCache = new Map();
         this.catalogRevision = 0;
     }
@@ -126,7 +125,11 @@ export class BackupService {
                 }
                 const previousToken = this.reportToken;
                 this.reportToken = token;
-                this.reportTokens.add(token);
+                this.reportLeases.set(token, {
+                    readers: 0,
+                    retired: false,
+                    finalizing: null,
+                });
                 this.backupListCache = { expiresAt: Date.now() + BACKUP_LIST_CACHE_MS, items };
                 if (previousToken && previousToken !== token) {
                     void this.#retireToken(previousToken).catch(error => {
@@ -183,7 +186,9 @@ export class BackupService {
         }
         if (!item?.hash || !this.reportToken) throw new Error('备份已不存在，请重新读取备份列表');
         const token = this.reportToken;
-        this.reportReaders.set(token, (this.reportReaders.get(token) ?? 0) + 1);
+        const lease = this.reportLeases.get(token);
+        if (!lease) throw new Error('备份目录已失效，请重新读取备份列表');
+        lease.readers++;
         try {
             const response = await this.api.readDataMaidFile(token, item.hash, signal);
             return await consume(response);
@@ -314,10 +319,10 @@ export class BackupService {
      * @param {string} token 报告令牌
      */
     async #releaseToken(token) {
-        const remaining = Math.max(0, (this.reportReaders.get(token) ?? 1) - 1);
-        if (remaining) this.reportReaders.set(token, remaining);
-        else this.reportReaders.delete(token);
-        if (!remaining && this.retiredTokens.has(token)) {
+        const lease = this.reportLeases.get(token);
+        if (!lease) return;
+        lease.readers = Math.max(0, lease.readers - 1);
+        if (!lease.readers && lease.retired) {
             try {
                 await this.#finalizeToken(token);
             } catch (error) {
@@ -331,12 +336,10 @@ export class BackupService {
      * @param {string} token 报告令牌
      */
     async #retireToken(token) {
-        if (!this.reportTokens.has(token)) return;
-        if (this.reportReaders.has(token)) {
-            this.retiredTokens.add(token);
-            return;
-        }
-        await this.#finalizeToken(token);
+        const lease = this.reportLeases.get(token);
+        if (!lease) return;
+        lease.retired = true;
+        if (!lease.readers) await this.#finalizeToken(token);
     }
 
     /**
@@ -344,10 +347,17 @@ export class BackupService {
      * @param {string} token 报告令牌
      */
     async #finalizeToken(token) {
-        if (!this.reportTokens.delete(token)) return;
-        this.retiredTokens.delete(token);
-        this.reportReaders.delete(token);
-        await this.api.finalizeDataMaidReport(token);
+        const lease = this.reportLeases.get(token);
+        if (!lease) return;
+        if (!lease.finalizing) {
+            lease.finalizing = this.api.finalizeDataMaidReport(token).then(() => {
+                if (this.reportLeases.get(token) === lease) this.reportLeases.delete(token);
+            }).catch(error => {
+                lease.finalizing = null;
+                throw error;
+            });
+        }
+        await lease.finalizing;
     }
 
     /**
@@ -369,7 +379,7 @@ export class BackupService {
         // 使仍在读取的旧目录只能释放自身令牌，不能重新写回缓存
         this.catalogRevision++;
         this.backupListPromise = null;
-        const tokens = Array.from(this.reportTokens);
+        const tokens = Array.from(this.reportLeases.keys());
         this.reportToken = '';
         this.backupListCache = null;
         this.resultCache.clear();

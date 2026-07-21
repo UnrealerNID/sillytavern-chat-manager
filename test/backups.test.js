@@ -245,3 +245,25 @@ test('superseded backup reports remain valid until their active response is cons
     await service.dispose();
     assert.deepEqual(finalized, ['report-1', 'report-2']);
 });
+
+test('failed backup report finalization remains tracked for a later retry', async () => {
+    let finalizeAttempts = 0;
+    const service = new BackupService({
+        createDataMaidReport: async () => ({
+            token: 'retry-token',
+            report: { chatBackups: [] },
+        }),
+        finalizeDataMaidReport: async () => {
+            finalizeAttempts++;
+            if (finalizeAttempts === 1) throw new Error('temporary failure');
+        },
+    });
+
+    await service.list();
+    await service.dispose();
+    assert.equal(service.reportLeases.has('retry-token'), true);
+
+    await service.dispose();
+    assert.equal(finalizeAttempts, 2);
+    assert.equal(service.reportLeases.has('retry-token'), false);
+});

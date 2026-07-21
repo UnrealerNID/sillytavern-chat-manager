@@ -29,7 +29,6 @@ export class DataMaidEnhancer {
     constructor({ api, template }) {
         this.api = api;
         this.token = '';
-        this.reportItems = [];
         this.items = new Map();
         this.category = null;
         this.container = null;
@@ -65,11 +64,11 @@ export class DataMaidEnhancer {
         };
         this.toolbarTemplate = required('[data-cm-maid-toolbar-template]', HTMLTemplateElement);
         this.controlsTemplate = required('[data-cm-maid-controls-template]', HTMLTemplateElement);
-        this.messageTemplate = required('[data-cm-maid-message-template]', HTMLTemplateElement);
+        const messageTemplate = required('[data-cm-maid-message-template]', HTMLTemplateElement);
         this.deleteTemplate = required('[data-cm-maid-delete-template]', HTMLTemplateElement);
         this.viewer = new DataMaidViewer({
             api: this.api,
-            messageTemplate: this.messageTemplate,
+            messageTemplate,
             required,
         });
         this.deleteDialog = required('[data-cm-maid-delete-dialog]');
@@ -142,8 +141,7 @@ export class DataMaidEnhancer {
             this.pendingCapture = null;
             if (!result?.token || !Array.isArray(result.report?.chatBackups)) throw new Error('酒馆数据清理报告格式无效');
             this.token = result.token;
-            this.reportItems = result.report.chatBackups;
-            await this.#enhanceCategory();
+            await this.#enhanceCategory(result.report.chatBackups);
         }).catch(error => {
             if (error?.name !== 'AbortError') notify('error', error.message);
         });
@@ -151,13 +149,14 @@ export class DataMaidEnhancer {
 
     /**
      * 定位聊天备份分类并插入增强控件
+     * @param {object[]} reportItems 备份报告条目
      */
-    async #enhanceCategory() {
-        if (!this.reportItems.length) {
+    async #enhanceCategory(reportItems) {
+        if (!reportItems.length) {
             notify('info', '当前没有聊天备份文件');
             return;
         }
-        const firstHash = CSS.escape(this.reportItems[0].hash);
+        const firstHash = CSS.escape(reportItems[0].hash);
         const item = await waitForElement(`.dataMaidItem[data-hash="${firstHash}"]`, {
             timeout: 30_000,
             signal: this.controller?.signal,
@@ -166,7 +165,7 @@ export class DataMaidEnhancer {
         if (!(category instanceof HTMLElement)) throw new Error('找不到酒馆聊天备份分类');
         this.category = category;
         category.classList.add('cm-data-maid-enhanced');
-        this.items = new Map(this.reportItems.map(record => [record.hash, {
+        this.items = new Map(reportItems.map(record => [record.hash, {
             record,
             state: 'unchecked',
             element: null,
@@ -389,7 +388,6 @@ export class DataMaidEnhancer {
         for (const view of nativeViews) view.classList.remove('cm-hidden');
         this.items.clear();
         this.token = '';
-        this.reportItems = [];
         this.busy = false;
         this.category = null;
         this.container = null;
