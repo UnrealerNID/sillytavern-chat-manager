@@ -9,6 +9,7 @@ import {
     getStoredSplitIdentity,
     groupOwnerRecords,
     groupSplitRecords,
+    orderSplitGroupRecords,
     sortChatRecords,
 } from '../modules/chat-files/chat/grouping.js';
 
@@ -93,6 +94,28 @@ test('groups split records independently inside stable owner groups', () => {
     assert.equal(owners[0].children[0].type, 'split-group');
     assert.equal(owners[0].records.length, 4);
     assert.equal(owners[0].allRecords.length, 4);
+});
+
+test('orders split groups with the newest volume first and source chat last', () => {
+    const source = record('长聊天');
+    const records = [
+        source,
+        splitRecord('长聊天 - 1', 0, 99, 1),
+        splitRecord('长聊天 - 3', 200, 299, 3),
+        splitRecord('长聊天 - 2', 100, 199, 2),
+    ];
+    const group = groupSplitRecords(records, records)
+        .find(unit => unit.type === 'split-group');
+
+    assert.deepEqual(
+        orderSplitGroupRecords(group).map(item => [item.record.fileId, item.source]),
+        [
+            ['长聊天 - 3', false],
+            ['长聊天 - 2', false],
+            ['长聊天 - 1', false],
+            ['长聊天', true],
+        ],
+    );
 });
 
 test('group selections retain every owner and split record outside the filtered subset', () => {

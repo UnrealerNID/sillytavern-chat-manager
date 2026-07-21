@@ -126,7 +126,11 @@ export class SplitService {
         if (this.running) throw new Error('已有分卷任务正在运行');
         if (!options.lockAcquired && globalThis.navigator?.locks?.request) {
             const lockName = `sillytavern-toolbox:${plan.record.ownerType}:${plan.record.ownerId}`;
-            return navigator.locks.request(lockName, { mode: 'exclusive' }, () => this.execute(plan, { ...options, lockAcquired: true }));
+            return navigator.locks.request(
+                lockName,
+                { mode: 'exclusive' },
+                () => this.execute(plan, { ...options, lockAcquired: true }),
+            );
         }
         const current = await getSourceFingerprint(plan.record, this.api);
         if (!fingerprintsEqual(plan.fingerprint, current)) throw new Error('原聊天在预览后发生变化，正在重新读取并更新预览');
@@ -218,7 +222,8 @@ export class SplitService {
                 }
                 if (task.record.ownerType === 'group') {
                     const groups = await this.api.getGroups();
-                    const group = Array.isArray(groups) && groups.find(item => String(item.id) === String(task.record.ownerId));
+                    const group = Array.isArray(groups)
+                        && groups.find(item => String(item.id) === String(task.record.ownerId));
                     part.status = group?.chats?.includes(part.fileId) ? 'complete' : 'unregistered';
                 } else {
                     part.status = 'complete';
@@ -253,7 +258,14 @@ export class SplitService {
                 digest,
                 integrity: saved.integrity,
                 messages,
-                header: this.#makeHeader(source.header, task.record, range, digest, saved.integrity, saved.splitConfig),
+                header: this.#makeHeader(
+                    source.header,
+                    task.record,
+                    range,
+                    digest,
+                    saved.integrity,
+                    saved.splitConfig,
+                ),
                 splitConfig: saved.splitConfig,
             });
         }

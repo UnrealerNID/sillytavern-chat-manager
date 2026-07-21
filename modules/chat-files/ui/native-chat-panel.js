@@ -1,4 +1,5 @@
 import { element } from '../../shared/dom.js';
+import { waitForElement } from '../../platform/dom.js';
 
 export class NativeChatPanel {
     /**
@@ -13,6 +14,7 @@ export class NativeChatPanel {
         this.isGenerating = isGenerating;
         this.enabled = false;
         this.clickHandler = event => this.#onClick(event);
+        this.mountController = null;
     }
 
     /**
@@ -36,14 +38,32 @@ export class NativeChatPanel {
     setEnabled(enabled) {
         this.enabled = enabled;
         if (enabled) {
-            if (!this.container?.isConnected && !this.init()) return;
-            this.#connect();
+            if (this.container?.isConnected || this.init()) return this.#connect();
+            this.#waitForContainer();
             return;
         }
+        this.mountController?.abort();
+        this.mountController = null;
         this.#disconnect();
         this.container?.querySelectorAll('[data-chat-manager-action]').forEach(button => button.remove());
         this.container?.querySelectorAll('[data-chat-manager-enhanced]').forEach(wrapper => {
             delete wrapper.dataset.chatManagerEnhanced;
+        });
+    }
+
+    /**
+     * 等待酒馆创建原生聊天文件容器
+     */
+    #waitForContainer() {
+        this.mountController?.abort();
+        const controller = new AbortController();
+        this.mountController = controller;
+        void waitForElement('#select_chat_div', { signal: controller.signal }).then(() => {
+            if (this.enabled && this.mountController === controller) this.init();
+        }).catch(error => {
+            if (error.name !== 'AbortError') console.error('[酒馆工具箱] 等待聊天文件面板失败', error);
+        }).finally(() => {
+            if (this.mountController === controller) this.mountController = null;
         });
     }
 
@@ -72,7 +92,10 @@ export class NativeChatPanel {
      */
     enhance() {
         if (!this.container || !this.enabled) return;
-        for (const wrapper of this.container.querySelectorAll('.select_chat_block_wrapper:not([data-chat-manager-enhanced])')) {
+        const pending = this.container.querySelectorAll(
+            '.select_chat_block_wrapper:not([data-chat-manager-enhanced])',
+        );
+        for (const wrapper of pending) {
             const actions = wrapper.querySelector('.select_chat_actions');
             if (!actions) continue;
             actions.append(

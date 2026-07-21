@@ -1,4 +1,5 @@
 import { element } from '../../shared/dom.js';
+import { DialogRegistry } from './dialog-registry.js';
 
 /**
  * 统一管理静态模板、挂载点和弹窗生命周期
@@ -12,6 +13,7 @@ export class UiTemplates {
     constructor(dialogTemplates, componentTemplates, notify) {
         this.notify = notify;
         this.dialogSequence = 0;
+        this.dialogs = new DialogRegistry();
         this.dialogTemplate = this.#registry(dialogTemplates, '[data-cm-dialog-shell]', '弹窗');
         this.dialogContents = this.#templateMap(dialogTemplates, 'data-cm-dialog-content');
         this.components = this.#templateMap(componentTemplates, 'data-cm-component');
@@ -84,13 +86,30 @@ export class UiTemplates {
         const contentTemplate = this.dialogContents.get(contentId);
         if (!(contentTemplate instanceof HTMLTemplateElement)) throw new Error(`未找到弹窗模板 ${contentId}`);
         body.append(contentTemplate.content.cloneNode(true));
-        const close = () => {
+        const lifecycle = this.dialogs.register(() => {
             controller.abort();
             root.remove();
-        };
-        closeButton.addEventListener('click', close);
+        }, value => {
+            closeButton.disabled = !value;
+        });
+        closeButton.addEventListener('click', lifecycle.close);
         document.body.append(root);
-        return { root, body, signal: controller.signal, close, setClosable: value => { closeButton.disabled = !value; } };
+        return {
+            root,
+            body,
+            signal: controller.signal,
+            close: lifecycle.close,
+            setClosable: lifecycle.setClosable,
+        };
+    }
+
+    /**
+     * 请求关闭当前模块创建的全部弹窗
+     *
+     * 不可关闭的写入弹窗会在操作结束并恢复可关闭状态后自动关闭
+     */
+    closeDialogs() {
+        this.dialogs.closeAll();
     }
 
     /**
@@ -164,7 +183,15 @@ export class UiTemplates {
         const match = String(fileName).match(/(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})\.jsonl$/i);
         if (!match) return '无法识别';
         const [, year, month, day, hour, minute, second] = match;
-        return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second)).toLocaleString();
+        const date = new Date(
+            Number(year),
+            Number(month) - 1,
+            Number(day),
+            Number(hour),
+            Number(minute),
+            Number(second),
+        );
+        return date.toLocaleString();
     }
 
     #registry(html, selector, label) {
@@ -174,6 +201,9 @@ export class UiTemplates {
 
     #templateMap(html, attribute) {
         const root = this.root(html, '聊天管理组件');
-        return new Map(Array.from(root.querySelectorAll(`[${attribute}]`), template => [template.getAttribute(attribute), template]));
+        return new Map(Array.from(
+            root.querySelectorAll(`[${attribute}]`),
+            template => [template.getAttribute(attribute), template],
+        ));
     }
 }

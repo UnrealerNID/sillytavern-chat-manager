@@ -62,7 +62,7 @@ export const chatFilesModuleDefinition = {
      * @param {object} options 配置项
      * @param {HTMLElement} options.root 模块设置根节点
      * @param {object} options.settings 工具箱设置
-     * @param {(root:HTMLElement,selector:string,read:()=>boolean,write:(value:boolean)=>void)=>void} options.bindSwitch 开关绑定器
+     * @param {Function} options.bindSwitch 开关绑定器
      */
     bindSettings({ root, settings, bindSwitch }) {
         const chatFiles = settings.modules.chatFiles;

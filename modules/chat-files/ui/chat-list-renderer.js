@@ -1,4 +1,7 @@
-import { deriveIncrementalSplit } from '../chat/grouping.js';
+import {
+    deriveIncrementalSplit,
+    orderSplitGroupRecords,
+} from '../chat/grouping.js';
 import { formatBytes, parseBytes } from '../../shared/files.js';
 import { chatKey } from '../chat/identity.js';
 
@@ -163,11 +166,8 @@ export class ChatListRenderer {
         });
         if (expanded) {
             children.classList.remove('cm-hidden');
-            const displayParts = [...group.records]
-                .sort((left, right) => right.split.sequence - left.split.sequence);
-            displayParts.forEach(item => children.append(this.#chatRow(item.record)));
-            if (group.sourceRecord) {
-                children.append(this.#chatRow(group.sourceRecord, { source: true }));
+            for (const item of orderSplitGroupRecords(group)) {
+                children.append(this.#chatRow(item.record, { source: item.source }));
             }
         }
         return root;

@@ -163,3 +163,30 @@ test('emits candidate rows before loading the source or scanning backup files', 
     assert.equal(matches.length, 2);
     assert.equal(emitted.length, 2);
 });
+
+test('disposing an in-flight backup catalog finalizes its late token without restoring cache', async () => {
+    let releaseReport;
+    const reportReady = new Promise(resolve => {
+        releaseReport = resolve;
+    });
+    const finalized = [];
+    const service = new BackupService({
+        createDataMaidReport: async () => {
+            await reportReady;
+            return {
+                token: 'late-token',
+                report: { chatBackups: [] },
+            };
+        },
+        finalizeDataMaidReport: async token => finalized.push(token),
+    });
+
+    const listing = service.list();
+    await service.dispose();
+    releaseReport();
+
+    await assert.rejects(listing, /备份目录读取已取消/);
+    assert.deepEqual(finalized, ['late-token']);
+    assert.equal(service.backupListCache, null);
+    assert.equal(service.reportToken, '');
+});

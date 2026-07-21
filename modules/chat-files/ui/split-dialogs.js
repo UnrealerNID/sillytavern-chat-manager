@@ -34,7 +34,11 @@ export class SplitDialogs {
         if (this.isGenerating()) return this.notify('warning', '聊天正在生成，当前不能分卷');
         this.activeClose?.();
         const incremental = Boolean(initialOptions.incremental);
-        const dialog = this.ui.dialog([incremental ? '继续分卷' : '创建分卷', record.ownerName, initialOptions.outputRootChatId ?? record.fileId], 'split');
+        const dialog = this.ui.dialog([
+            incremental ? '继续分卷' : '创建分卷',
+            record.ownerName,
+            initialOptions.outputRootChatId ?? record.fileId,
+        ], 'split');
         this.activeRoot = dialog.root;
         this.activeClose = dialog.close;
         const summary = this.ui.mount(dialog.body, '[data-cm-split-summary]');
@@ -52,7 +56,8 @@ export class SplitDialogs {
         const initialStart = Number(initialOptions.start ?? 0);
         const initialEnd = Number(initialOptions.end ?? maxFloor);
         const fixed = initialOptions.mode === 'fixed';
-        const initialChunk = fixed ? Number(initialOptions.chunkSize ?? Math.min(500, Math.max(1, record.messageCount))) : '';
+        const defaultChunk = Math.min(500, Math.max(1, record.messageCount));
+        const initialChunk = fixed ? Number(initialOptions.chunkSize ?? defaultChunk) : '';
         summary.textContent = incremental
             ? `增量来源：最后一卷新增楼层 · 本地 #${initialStart}–#${initialEnd}${fixed ? ` · 每卷 ${initialChunk} 层` : ''}`
             : `原聊天 ${record.fileSize} · ${record.messageCount} 层 · 可用范围 #0–#${maxFloor}`;
@@ -80,7 +85,9 @@ export class SplitDialogs {
 
         const syncGroupConfig = () => {
             if (!incremental) return;
-            const index = chunk.value === '' ? -1 : groupConfigs.findIndex(config => Number(config.chunkSize) === Number(chunk.value));
+            const index = chunk.value === ''
+                ? -1
+                : groupConfigs.findIndex(config => Number(config.chunkSize) === Number(chunk.value));
             if (index >= 0) {
                 groupConfig.value = String(index);
                 return;
@@ -98,7 +105,9 @@ export class SplitDialogs {
         };
         const readOptions = () => {
             const hasChunk = chunk.value.trim() !== '';
-            if ([start, end].some(input => input.value === '' || !input.checkValidity()) || (hasChunk && !chunk.checkValidity())) {
+            const invalidRange = [start, end]
+                .some(input => input.value === '' || !input.checkValidity());
+            if (invalidRange || (hasChunk && !chunk.checkValidity())) {
                 throw new Error('请输入有效的楼层范围');
             }
             return {
@@ -142,7 +151,9 @@ export class SplitDialogs {
                 plan = nextPlan;
                 stableSource ??= nextPlan.source;
                 preview.replaceChildren(...plan.parts.map(part => this.ui.splitPart(describePart(part))));
-                previewDetail.textContent = `${plan.parts.length} 个分卷 · 共 ${plan.parts.reduce((sum, part) => sum + part.messages.length, 0)} 层`;
+                const messageCount = plan.parts
+                    .reduce((sum, part) => sum + part.messages.length, 0);
+                previewDetail.textContent = `${plan.parts.length} 个分卷 · 共 ${messageCount} 层`;
                 setPreviewStatus('预览已更新', 'ready');
             } catch (error) {
                 if (controller.signal.aborted || dialog.signal.aborted || revision !== previewRevision) return;
@@ -195,9 +206,13 @@ export class SplitDialogs {
                 });
                 this.#renderTask(preview, task);
                 plan = null;
-                setPreviewStatus(task.status === 'complete' ? '创建完成' : '任务已暂停', task.status === 'complete' ? 'ready' : 'warning');
+                const completed = task.status === 'complete';
+                setPreviewStatus(completed ? '创建完成' : '任务已暂停', completed ? 'ready' : 'warning');
                 previewDetail.textContent = task.status === 'complete' ? '所有分卷均已写入并校验' : '可以从恢复任务继续执行';
-                this.notify(task.status === 'complete' ? 'success' : 'warning', task.status === 'complete' ? '分卷完成' : '任务已安全暂停');
+                this.notify(
+                    completed ? 'success' : 'warning',
+                    completed ? '分卷完成' : '任务已安全暂停',
+                );
                 await this.refresh();
             } catch (error) {
                 setPreviewStatus('创建失败', 'error');
@@ -253,8 +268,12 @@ export class SplitDialogs {
         const list = this.ui.mount(dialog.body, '[data-cm-recovery-list]');
         for (const task of tasks) {
             const card = this.ui.component('recovery-task');
-            this.ui.mount(card, '[data-cm-recovery-name]').textContent = `${task.record.ownerName} / ${task.record.fileId}`;
-            this.ui.mount(card, '[data-cm-recovery-parts]').textContent = task.parts.map(part => `${part.fileId}：${part.status}`).join('；');
+            const name = this.ui.mount(card, '[data-cm-recovery-name]');
+            const parts = this.ui.mount(card, '[data-cm-recovery-parts]');
+            name.textContent = `${task.record.ownerName} / ${task.record.fileId}`;
+            parts.textContent = task.parts
+                .map(part => `${part.fileId}：${part.status}`)
+                .join('；');
             const resume = this.ui.mount(card, '[data-cm-recovery-resume]', HTMLButtonElement);
             const clear = this.ui.mount(card, '[data-cm-recovery-clear]', HTMLButtonElement);
             this.ui.bindButton(resume, async () => {

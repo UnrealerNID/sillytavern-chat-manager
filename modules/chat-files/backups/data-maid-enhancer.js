@@ -100,7 +100,8 @@ export class DataMaidEnhancer {
         this.deleteList = required('[data-cm-maid-delete-list]');
         this.deleteCancel = required('[data-cm-maid-delete-cancel]', HTMLButtonElement);
         this.deleteConfirm = required('[data-cm-maid-delete-confirm]', HTMLButtonElement);
-        required('[data-cm-maid-delete-close]', HTMLButtonElement).addEventListener('click', () => this.#closeDelete());
+        const closeDelete = required('[data-cm-maid-delete-close]', HTMLButtonElement);
+        closeDelete.addEventListener('click', () => this.#closeDelete());
         this.deleteCancel.addEventListener('click', () => this.#closeDelete());
         this.deleteConfirm.addEventListener('click', () => void this.#executeDelete());
         document.body.append(root);
@@ -184,7 +185,11 @@ export class DataMaidEnhancer {
         if (!(category instanceof HTMLElement)) throw new Error('找不到酒馆聊天备份分类');
         this.category = category;
         category.classList.add('cm-data-maid-enhanced');
-        this.items = new Map(this.reportItems.map(record => [record.hash, { record, state: 'unchecked', element: null }]));
+        this.items = new Map(this.reportItems.map(record => [record.hash, {
+            record,
+            state: 'unchecked',
+            element: null,
+        }]));
         const content = category.querySelector('.dataMaidCategoryContent');
         if (!(content instanceof HTMLElement)) throw new Error('酒馆聊天备份分类结构无效');
         const toolbar = this.toolbarTemplate.content.firstElementChild.cloneNode(true);
@@ -326,7 +331,8 @@ export class DataMaidEnhancer {
             row.querySelector('[data-cm-delete-state]').textContent = labels[item.state] ?? '待确认';
             return row;
         }));
-        this.deleteSummary.textContent = `${unique.length} 个聊天备份 · ${formatBytes(unique.reduce((sum, item) => sum + Number(item.record.size ?? 0), 0))}`;
+        const bytes = unique.reduce((sum, item) => sum + Number(item.record.size ?? 0), 0);
+        this.deleteSummary.textContent = `${unique.length} 个聊天备份 · ${formatBytes(bytes)}`;
         this.deleteConfirm.disabled = false;
         this.deleteCancel.disabled = false;
         this.deleteDialog.classList.remove('cm-hidden');
@@ -361,7 +367,8 @@ export class DataMaidEnhancer {
         const records = Array.from(this.items.values()).filter(item => item.element?.isConnected);
         const info = this.category.querySelectorAll('.dataMaidCategoryInfo small');
         if (info[0]) info[0].lastChild.textContent = ` ${records.length}`;
-        if (info[1]) info[1].lastChild.textContent = ` ${formatBytes(records.reduce((sum, item) => sum + Number(item.record.size ?? 0), 0))}`;
+        const bytes = records.reduce((sum, item) => sum + Number(item.record.size ?? 0), 0);
+        if (info[1]) info[1].lastChild.textContent = ` ${formatBytes(bytes)}`;
     }
 
     #setBusy(busy) {
@@ -406,7 +413,8 @@ export class DataMaidEnhancer {
         this.category?.classList.remove('cm-data-maid-enhanced', 'cm-data-maid-busy', 'cm-data-maid-selection-mode');
         this.category?.querySelector('.cm-data-maid-tools')?.remove();
         for (const controls of this.category?.querySelectorAll('.cm-data-maid-controls') ?? []) controls.remove();
-        for (const view of this.category?.querySelectorAll('.dataMaidItemView') ?? []) view.classList.remove('cm-hidden');
+        const nativeViews = this.category?.querySelectorAll('.dataMaidItemView') ?? [];
+        for (const view of nativeViews) view.classList.remove('cm-hidden');
         this.items.clear();
         this.token = '';
         this.reportItems = [];

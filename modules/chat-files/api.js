@@ -268,6 +268,8 @@ export class ChatManagerApi {
     async chatExists(record) {
         if (record.ownerType === 'group') return this.groupChatExists(record.fileId);
         const chats = await this.getCharacterChats(record.ownerId, { simple: true });
-        return Array.isArray(chats) && chats.some(item => String(item.file_name ?? '').replace(/\.jsonl$/i, '') === record.fileId);
+        return Array.isArray(chats) && chats.some(item => (
+            String(item.file_name ?? '').replace(/\.jsonl$/i, '') === record.fileId
+        ));
     }
 }

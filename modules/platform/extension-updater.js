@@ -7,10 +7,11 @@ import {
 import { isAdmin } from '/scripts/user.js';
 
 import { isNewerVersion } from './version.js';
-
-const EXTENSION_ID = 'third-party/sillytavern-toolbox';
-const EXTENSION_FOLDER = 'sillytavern-toolbox';
-const REMOTE_MANIFEST_URL = 'https://raw.githubusercontent.com/UnrealerNID/sillytavern-toolbox/main/manifest.json';
+import {
+    EXTENSION_FOLDER,
+    EXTENSION_ID,
+    REMOTE_MANIFEST_URL,
+} from './extension-identity.js';
 
 /**
  * 读取插件自身清单

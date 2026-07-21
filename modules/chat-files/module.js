@@ -11,6 +11,8 @@ import { renderExtensionTemplateAsync } from '/scripts/extensions.js';
 import { accountStorage } from '/scripts/util/AccountStorage.js';
 import { openWelcomeScreen } from '/scripts/welcome-screen.js';
 
+import { waitForElement } from '../platform/dom.js';
+import { EXTENSION_ID } from '../platform/extension-identity.js';
 import { element } from '../shared/dom.js';
 import { ChatManagerApi } from './api.js';
 import { BackupService } from './backups/backups.js';
@@ -22,8 +24,6 @@ import { TaskJournal } from './chat/task-journal.js';
 import { ChatManagerUi } from './ui/ui.js';
 import { NativeChatPanel } from './ui/native-chat-panel.js';
 import { WelcomeRecentEnhancer } from './ui/welcome-recent.js';
-
-const EXTENSION_ID = 'third-party/sillytavern-toolbox';
 
 /**
  * 装配并管理聊天文件模块的完整生命周期
@@ -42,6 +42,7 @@ export class ChatFilesModule {
         this.initialized = false;
         this.eventBindings = [];
         this.eventsBound = false;
+        this.entryController = null;
     }
 
     /**
@@ -122,9 +123,6 @@ export class ChatFilesModule {
             isGenerating,
         });
 
-        this.#insertEntryWithRetry();
-        if (!this.nativePanel.init()) setTimeout(() => this.nativePanel.init(), 1000);
-        if (!this.welcomeRecent.init()) setTimeout(() => this.welcomeRecent.init(), 1000);
         this.#prepareEventBindings(context);
         this.initialized = true;
     }
@@ -145,9 +143,10 @@ export class ChatFilesModule {
         const wasEnabled = this.enabled;
         this.enabled = enabled;
         const integrations = this.settings.integrations;
-        document.querySelector('#chat_manager_open')?.classList.toggle('displayNone', !enabled);
+        this.#setEntryEnabled(enabled);
         if (wasEnabled && !enabled) {
-            this.ui.close();
+            this.splitter.requestStop();
+            this.ui.deactivate();
             void this.backups.dispose();
         }
         this.#setEventsEnabled(enabled);
@@ -182,13 +181,27 @@ export class ChatFilesModule {
     }
 
     /**
-     * 插入聊天文件原生入口并在酒馆延迟渲染时重试一次
+     * 根据模块状态挂载或隐藏聊天管理入口
+     * @param {boolean} enabled 是否启用
      */
-    #insertEntryWithRetry() {
-        if (this.#insertEntry()) return;
-        setTimeout(() => {
-            if (!this.#insertEntry()) globalThis.toastr?.error?.('聊天管理无法找到原生聊天文件入口');
-        }, 1000);
+    #setEntryEnabled(enabled) {
+        const entry = document.querySelector('#chat_manager_open');
+        entry?.classList.toggle('displayNone', !enabled);
+        if (!enabled || entry) {
+            this.entryController?.abort();
+            this.entryController = null;
+            return;
+        }
+        this.entryController?.abort();
+        const controller = new AbortController();
+        this.entryController = controller;
+        void waitForElement('#option_select_chat', { signal: controller.signal }).then(() => {
+            if (this.enabled && this.entryController === controller) this.#insertEntry();
+        }).catch(error => {
+            if (error.name !== 'AbortError') console.error('[酒馆工具箱] 等待聊天文件入口失败', error);
+        }).finally(() => {
+            if (this.entryController === controller) this.entryController = null;
+        });
     }
 
     /**

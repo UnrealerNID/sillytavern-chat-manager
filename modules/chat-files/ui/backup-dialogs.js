@@ -57,13 +57,21 @@ export class BackupDialogs {
         const applyView = () => {
             const query = search.value.trim().toLowerCase();
             const entries = Array.from(rows.values()).sort((left, right) => {
-                if (sort.value === 'oldest') return Number(left.backup.last_mes ?? 0) - Number(right.backup.last_mes ?? 0);
-                if (sort.value === 'largest') return Number(right.backup.file_bytes ?? 0) - Number(left.backup.file_bytes ?? 0);
+                if (sort.value === 'oldest') {
+                    return Number(left.backup.last_mes ?? 0) - Number(right.backup.last_mes ?? 0);
+                }
+                if (sort.value === 'largest') {
+                    return Number(right.backup.file_bytes ?? 0) - Number(left.backup.file_bytes ?? 0);
+                }
                 return Number(right.backup.last_mes ?? 0) - Number(left.backup.last_mes ?? 0);
             });
             let visible = 0;
             for (const entry of entries) {
-                const haystack = `${entry.backup.file_name} ${entry.backup.reason ?? ''} ${entry.backup.mes ?? ''}`.toLowerCase();
+                const haystack = [
+                    entry.backup.file_name,
+                    entry.backup.reason ?? '',
+                    entry.backup.mes ?? '',
+                ].join(' ').toLowerCase();
                 const matches = !query || haystack.includes(query);
                 entry.row.classList.toggle('cm-hidden', !matches);
                 if (matches) visible++;
@@ -177,8 +185,10 @@ export class BackupDialogs {
                 restore.disabled = !['matched', 'confirm'].includes(backup.status);
             }
         });
-        this.ui.bindButton(this.ui.mount(row, '[data-cm-backup-view]', HTMLButtonElement), () => this.#viewBackup(backup));
-        this.ui.bindButton(this.ui.mount(row, '[data-cm-backup-download]', HTMLButtonElement), () => this.backups.download(backup));
+        const view = this.ui.mount(row, '[data-cm-backup-view]', HTMLButtonElement);
+        const download = this.ui.mount(row, '[data-cm-backup-download]', HTMLButtonElement);
+        this.ui.bindButton(view, () => this.#viewBackup(backup));
+        this.ui.bindButton(download, () => this.backups.download(backup));
         return row;
     }
 
@@ -190,10 +200,14 @@ export class BackupDialogs {
         status.dataset.state = statusView.state;
         this.ui.mount(row, '[data-cm-backup-created]').textContent = this.ui.formatBackupDate(backup.file_name);
         this.ui.mount(row, '[data-cm-backup-last-message]').textContent = this.ui.formatDate(backup.last_mes);
-        this.ui.mount(row, '[data-cm-backup-size]').textContent = `${backup.file_size} · ${backup.chat_items ?? '未知'} 层`;
+        this.ui.mount(row, '[data-cm-backup-size]').textContent = [
+            backup.file_size,
+            `${backup.chat_items ?? '未知'} 层`,
+        ].join(' · ');
         this.ui.mount(row, '[data-cm-backup-reason]').textContent = `匹配依据：${backup.reason ?? '未提供'}`;
         this.ui.mount(row, '[data-cm-backup-preview]').textContent = String(backup.mes ?? '没有可显示的最后消息');
-        this.ui.mount(row, '[data-cm-backup-restore]', HTMLButtonElement).disabled = !['matched', 'confirm'].includes(backup.status);
+        const restore = this.ui.mount(row, '[data-cm-backup-restore]', HTMLButtonElement);
+        restore.disabled = !['matched', 'confirm'].includes(backup.status);
     }
 
     async #viewBackup(backup) {
@@ -220,8 +234,10 @@ export class BackupDialogs {
                 content.replaceChildren();
                 messages.forEach((message, index) => {
                     const item = this.ui.component('message');
-                    this.ui.mount(item, '[data-cm-message-name]').textContent = `#${page * pageSize + index} ${message.name ?? ''}`;
-                    this.ui.mount(item, '[data-cm-message-date]', HTMLTimeElement).textContent = this.ui.formatDate(message.send_date);
+                    const name = this.ui.mount(item, '[data-cm-message-name]');
+                    const date = this.ui.mount(item, '[data-cm-message-date]', HTMLTimeElement);
+                    name.textContent = `#${page * pageSize + index} ${message.name ?? ''}`;
+                    date.textContent = this.ui.formatDate(message.send_date);
                     this.ui.mount(item, '[data-cm-message-content]').textContent = String(message.mes ?? '');
                     content.append(item);
                 });

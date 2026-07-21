@@ -26,6 +26,7 @@ export class BackupService {
         this.reportTokens = new Set();
         this.report = null;
         this.resultCache = new Map();
+        this.catalogRevision = 0;
     }
 
     /**
@@ -107,20 +108,28 @@ export class BackupService {
      */
     async list(signal, refresh = false) {
         if (refresh) {
+            this.catalogRevision++;
             this.backupListCache = null;
+            this.backupListPromise = null;
             this.resultCache.clear();
         }
         if (this.backupListCache?.expiresAt > Date.now()) return this.backupListCache.items;
         if (!this.backupListPromise) {
-            this.backupListPromise = this.#createCatalog(signal).then(({ token, report, items }) => {
+            const revision = this.catalogRevision;
+            const task = this.#createCatalog(signal).then(async ({ token, report, items }) => {
+                if (revision !== this.catalogRevision) {
+                    await this.api.finalizeDataMaidReport(token);
+                    throw new Error('备份目录读取已取消');
+                }
                 this.reportToken = token;
                 this.reportTokens.add(token);
                 this.report = report;
                 this.backupListCache = { expiresAt: Date.now() + BACKUP_LIST_CACHE_MS, items };
                 return items;
             }).finally(() => {
-                this.backupListPromise = null;
+                if (this.backupListPromise === task) this.backupListPromise = null;
             });
+            this.backupListPromise = task;
         }
         return this.backupListPromise;
     }
@@ -312,6 +321,9 @@ export class BackupService {
      * 释放安全备份目录的临时令牌
      */
     async dispose() {
+        // 使仍在读取的旧目录只能释放自身令牌，不能重新写回缓存
+        this.catalogRevision++;
+        this.backupListPromise = null;
         this.reportToken = '';
         this.report = null;
         this.backupListCache = null;

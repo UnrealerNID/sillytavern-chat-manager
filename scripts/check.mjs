@@ -33,6 +33,13 @@ for (const file of scriptFiles) {
     if (/@(?:param|returns|property)\s+\{\{/.test(source)) {
         throw new Error(`对象参数字段必须逐行展开：${relative(root, file)}`);
     }
+    const relativePath = relative(root, file);
+    if (relativePath.split(/[\\/]/)[0] !== 'test') {
+        const longLine = source.split(/\r?\n/).findIndex(line => line.length > 120);
+        if (longLine >= 0) {
+            throw new Error(`生产代码单行超过 120 字符：${relativePath}:${longLine + 1}`);
+        }
+    }
 }
 
 // 嵌套模板节点分行排列，避免图标、文案和控件挤在同一行

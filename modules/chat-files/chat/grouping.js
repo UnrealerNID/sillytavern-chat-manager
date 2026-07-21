@@ -126,6 +126,19 @@ export function groupSplitRecords(records, allRecords = records) {
 }
 
 /**
+ * 生成统一的分卷展示顺序，新卷在前且源聊天固定在末尾
+ * @param {object} group 分卷组
+ * @returns {Array<{record:object,source:boolean}>} 展示记录
+ */
+export function orderSplitGroupRecords(group) {
+    const ordered = [...group.records]
+        .sort((left, right) => right.split.sequence - left.split.sequence)
+        .map(item => ({ record: item.record, source: false }));
+    if (group.sourceRecord) ordered.push({ record: group.sourceRecord, source: true });
+    return ordered;
+}
+
+/**
  * 按稳定所有者 ID 合并聊天，并可继续在组内合并分卷
  * @param {object[]} records 已按时间排序的聊天记录
  * @param {boolean} groupSplits 是否合并分卷
@@ -202,7 +215,9 @@ export function getStoredSplitConfigs(series) {
     const occurrences = new Map();
     for (const part of series.records) {
         const metadata = part.record.chatManager;
-        if (metadata?.splitMode !== 'fixed' || !Number.isInteger(metadata.chunkSize) || metadata.chunkSize < 1) continue;
+        if (metadata?.splitMode !== 'fixed'
+            || !Number.isInteger(metadata.chunkSize)
+            || metadata.chunkSize < 1) continue;
         occurrences.set(metadata.chunkSize, (occurrences.get(metadata.chunkSize) ?? 0) + 1);
     }
     return Array.from(occurrences, ([chunkSize, count]) => ({ mode: 'fixed', chunkSize, occurrences: count }))

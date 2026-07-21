@@ -32,8 +32,7 @@
 .cm-toolbar-actions,
 .cm-scope-controls,
 .cm-view-controls,
-.cm-delete-controls,
-.cm-panel-utilities {
+.cm-delete-controls {
     display: flex;
     flex: 0 0 auto;
     align-items: center;
@@ -405,6 +404,7 @@ body.big-avatars .cm-chat-preview {
 
 .cm-panel-utilities {
     min-width: 0;
+    flex: 0 0 auto;
 }
 
 .cm-pagination .menu_button {

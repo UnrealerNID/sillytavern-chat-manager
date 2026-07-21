@@ -1,7 +1,7 @@
 import { saveSettingsDebounced } from '/script.js';
 import { renderExtensionTemplateAsync } from '/scripts/extensions.js';
-
-const EXTENSION_ID = 'third-party/sillytavern-toolbox';
+import { waitForDom } from '../platform/dom.js';
+import { EXTENSION_ID } from '../platform/extension-identity.js';
 
 /**
  * 管理工具箱设置卡片及开关层级
@@ -28,8 +28,7 @@ export class ToolboxSettingsPanel {
      */
     async insert() {
         if (document.querySelector('#tavern_toolbox_settings')) return true;
-        const container = selectExtensionColumn(this.settings.column);
-        if (!container) return false;
+        const container = await waitForDom(() => selectExtensionColumn(this.settings.column));
 
         const selectedColumn = container.id === 'extensions_settings' ? 'left' : 'right';
         if (this.settings.column !== selectedColumn) {

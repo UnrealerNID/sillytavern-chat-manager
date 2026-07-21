@@ -4,6 +4,7 @@ import { chatFilesModuleDefinition } from './modules/chat-files/definition.js';
 import { ToolboxModuleRegistry } from './modules/core/module-registry.js';
 import { initializeToolboxSettings } from './modules/core/settings.js';
 import { ToolboxSettingsPanel } from './modules/core/settings-panel.js';
+import { TOOLBOX_SETTINGS_KEY } from './modules/platform/extension-identity.js';
 import {
     ExtensionUpdater,
     loadExtensionMetadata,
@@ -32,7 +33,7 @@ export async function init() {
  */
 async function initializeToolbox() {
     runtime ??= await createRuntime();
-    await insertSettingsWithRetry(runtime.settingsPanel);
+    await runtime.settingsPanel.insert();
     await runtime.modules.applySettings();
 }
 
@@ -42,7 +43,7 @@ async function initializeToolbox() {
  */
 async function createRuntime() {
     const settings = initializeToolboxSettings(
-        extension_settings.tavernToolbox ??= {},
+        extension_settings[TOOLBOX_SETTINGS_KEY] ??= {},
         moduleDefinitions,
     );
     const metadata = await loadExtensionMetadata();
@@ -63,22 +64,4 @@ async function createRuntime() {
         onChange: () => modules.applySettings(),
     });
     return { modules, settingsPanel };
-}
-
-/**
- * 插入设置卡片并兼容酒馆设置栏的延迟渲染
- * @param {ToolboxSettingsPanel} settingsPanel 设置面板
- * @returns {Promise<void>}
- */
-async function insertSettingsWithRetry(settingsPanel) {
-    try {
-        if (await settingsPanel.insert()) return;
-        setTimeout(() => {
-            settingsPanel.insert().catch(error => {
-                console.error('[酒馆工具箱] 插入扩展设置失败', error);
-            });
-        }, 1000);
-    } catch (error) {
-        console.error('[酒馆工具箱] 插入扩展设置失败', error);
-    }
 }

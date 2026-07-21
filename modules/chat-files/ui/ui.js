@@ -192,7 +192,8 @@ export class ChatManagerUi {
         required(root, '[data-cm-close]', HTMLButtonElement).addEventListener('click', () => this.close());
         this.refreshButton = required(root, '[data-cm-refresh]', HTMLButtonElement);
         this.refreshButton.addEventListener('click', () => this.refresh());
-        required(root, '[data-cm-data-maid-open]', HTMLButtonElement).addEventListener('click', () => void this.openDataMaid());
+        const dataMaidOpen = required(root, '[data-cm-data-maid-open]', HTMLButtonElement);
+        dataMaidOpen.addEventListener('click', () => void this.openDataMaid());
         this.scopeCurrentButton.addEventListener('click', () => void this.#setScope('current'));
         this.scopeAllButton.addEventListener('click', () => void this.#setScope('all'));
         this.groupOwnersButton.addEventListener('click', () => this.#toggleGrouping('owners'));
@@ -260,6 +261,14 @@ export class ChatManagerUi {
         this.refreshTimer = null;
         if (this.selectionMode) this.#setSelectionMode(false);
         this.root.classList.add('cm-hidden');
+    }
+
+    /**
+     * 停用聊天文件模块并结束当前界面会话
+     */
+    deactivate() {
+        this.close();
+        this.ui.closeDialogs();
     }
 
     /**
@@ -376,7 +385,11 @@ export class ChatManagerUi {
     #syncScopeButtons() {
         this.scopeCurrentLabel.textContent = this.currentOwner?.label ?? '当前角色';
         this.scopeCurrentButton.disabled = !this.currentOwner;
-        for (const [button, active] of [[this.scopeCurrentButton, this.scope === 'current'], [this.scopeAllButton, this.scope === 'all']]) {
+        const states = [
+            [this.scopeCurrentButton, this.scope === 'current'],
+            [this.scopeAllButton, this.scope === 'all'],
+        ];
+        for (const [button, active] of states) {
             button.setAttribute('aria-checked', String(active));
             button.classList.toggle('active', active);
         }
@@ -445,7 +458,11 @@ export class ChatManagerUi {
      * 同步分组按钮状态
      */
     #syncGroupingButtons() {
-        for (const [button, active] of [[this.groupOwnersButton, this.groupOwners], [this.groupSplitsButton, this.groupSplits]]) {
+        const states = [
+            [this.groupOwnersButton, this.groupOwners],
+            [this.groupSplitsButton, this.groupSplits],
+        ];
+        for (const [button, active] of states) {
             button.setAttribute('aria-checked', String(active));
             button.classList.toggle('active', active);
             button.disabled = this.selectionMode;

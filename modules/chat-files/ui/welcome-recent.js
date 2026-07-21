@@ -1,11 +1,13 @@
 import {
     groupOwnerRecords,
     groupSplitRecords,
+    orderSplitGroupRecords,
 } from '../chat/grouping.js';
 import {
     stripJsonl,
 } from '../../shared/files.js';
 import { element } from '../../shared/dom.js';
+import { waitForElement } from '../../platform/dom.js';
 import { chatKey } from '../chat/identity.js';
 
 /**
@@ -30,6 +32,7 @@ export class WelcomeRecentEnhancer {
         this.session = null;
         this.expandedOwners = new Set();
         this.expandedSplits = new Set();
+        this.mountController = null;
     }
 
     /**
@@ -51,11 +54,29 @@ export class WelcomeRecentEnhancer {
     setEnabled(enabled) {
         this.enabled = enabled;
         if (!enabled) {
+            this.mountController?.abort();
+            this.mountController = null;
             this.#disconnect();
             return;
         }
-        if (!this.chat?.isConnected && !this.init()) return;
-        this.#connect();
+        if (this.chat?.isConnected || this.init()) return this.#connect();
+        this.#waitForChat();
+    }
+
+    /**
+     * 等待酒馆创建欢迎页聊天容器
+     */
+    #waitForChat() {
+        this.mountController?.abort();
+        const controller = new AbortController();
+        this.mountController = controller;
+        void waitForElement('#chat', { signal: controller.signal }).then(() => {
+            if (this.enabled && this.mountController === controller) this.init();
+        }).catch(error => {
+            if (error.name !== 'AbortError') console.error('[酒馆工具箱] 等待欢迎页失败', error);
+        }).finally(() => {
+            if (this.mountController === controller) this.mountController = null;
+        });
     }
 
     /**
@@ -256,7 +277,8 @@ export class WelcomeRecentEnhancer {
         const toggle = this.templates.mount(root, '[data-cm-split-toggle]', HTMLButtonElement);
         this.templates.mount(root, '[data-cm-split-continue]').classList.add('cm-hidden');
         this.#text(root, '[data-cm-split-group-name]', group.rootChatId);
-        this.#text(root, '[data-cm-split-group-summary]', `${group.records.length} 个分卷${group.sourceRecord ? ' · 含源聊天' : ''}`);
+        const sourceSummary = group.sourceRecord ? ' · 含源聊天' : '';
+        this.#text(root, '[data-cm-split-group-summary]', `${group.records.length} 个分卷${sourceSummary}`);
         this.#text(root, '[data-cm-split-group-latest]', `最新：${group.records.at(-1)?.record.fileId ?? ''}`);
         this.templates.mount(root, '[data-cm-split-group-incremental]').classList.add('cm-hidden');
         const expanded = this.expandedSplits.has(group.key);
@@ -266,13 +288,10 @@ export class WelcomeRecentEnhancer {
         });
         if (expanded) {
             children.classList.remove('cm-hidden');
-            [...group.records]
-                .sort((left, right) => right.split.sequence - left.split.sequence)
-                .forEach(item => children.append(session.rowByKey.get(chatKey(item.record))));
-            if (group.sourceRecord) {
-                const sourceRow = session.rowByKey.get(chatKey(group.sourceRecord));
-                this.#markSource(sourceRow);
-                children.append(sourceRow);
+            for (const item of orderSplitGroupRecords(group)) {
+                const row = session.rowByKey.get(chatKey(item.record));
+                if (item.source) this.#markSource(row);
+                children.append(row);
             }
         }
         return root;

@@ -35,7 +35,11 @@
 
 .cm-panel .menu_button,
 .cm-dialog .menu_button {
+    width: auto;
+    min-width: max-content;
+    flex-wrap: nowrap;
     font-weight: 600;
+    white-space: nowrap;
 }
 
 .cm-dialog-overlay {
@@ -66,6 +70,7 @@
 
 .cm-icon-button,
 .cm-native-action {
+    padding: 0;
     border: 0;
     color: inherit;
     background: transparent;
@@ -223,14 +228,6 @@
     border-top: 1px solid var(--SmartThemeBorderColor);
 }
 
-.cm-panel .menu_button,
-.cm-dialog .menu_button {
-    width: auto;
-    min-width: max-content;
-    flex-wrap: nowrap;
-    white-space: nowrap;
-}
-
 .cm-actions {
     flex: 0 0 auto;
     flex-wrap: nowrap;
@@ -277,10 +274,6 @@
 .cm-primary-action {
     border-color: var(--SmartThemeQuoteColor) !important;
     background: rgb(255 255 255 / 8%) !important;
-}
-
-.cm-native-action {
-    padding: 0;
 }
 
 .cm-native-disabled {
