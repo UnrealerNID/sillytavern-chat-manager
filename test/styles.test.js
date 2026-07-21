@@ -44,6 +44,8 @@ test('toolbar controls share one fixed height without stretching refresh', async
     assert.match(panel, /--cm-toolbar-control-height:\s*34px/);
     assert.match(base, /\.cm-icon-action\s*{[\s\S]*height:\s*34px\s*!important/);
     assert.doesNotMatch(panel, /\.cm-refresh-button\s*{[^}]*align-self:\s*stretch/s);
+    assert.doesNotMatch(panel, /\.cm-select-wrap > i/);
+    assert.doesNotMatch(panel, /\.cm-(?:sort|page-size)\s*{[^}]*padding-left/s);
 });
 
 test('toolbar toggles reuse the native active state without custom color mapping', async () => {

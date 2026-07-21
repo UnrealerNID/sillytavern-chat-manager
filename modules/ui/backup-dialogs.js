@@ -167,8 +167,9 @@ export class BackupDialogs {
 
     async #viewMessages(title, total, readPage) {
         const dialog = this.ui.dialog(title, 'backup-viewer');
-        let page = 0;
         const pageSize = Number(power_user.chat_truncation) || Number.MAX_SAFE_INTEGER;
+        const pages = Number.isFinite(total) ? Math.max(1, Math.ceil(total / pageSize)) : null;
+        let page = pages ? pages - 1 : 0;
         const content = this.ui.mount(dialog.body, '[data-cm-message-list]');
         const previous = this.ui.mount(dialog.body, '[data-cm-message-previous]', HTMLButtonElement);
         const label = this.ui.mount(dialog.body, '[data-cm-message-page]');
@@ -185,7 +186,6 @@ export class BackupDialogs {
                     this.ui.mount(item, '[data-cm-message-content]').textContent = String(message.mes ?? '');
                     content.append(item);
                 });
-                const pages = Number.isFinite(total) ? Math.max(1, Math.ceil(total / pageSize)) : null;
                 label.textContent = pages ? `${page + 1} / ${pages}` : `第 ${page + 1} 页`;
                 previous.disabled = page <= 0;
                 next.disabled = pages ? page >= pages - 1 : messages.length < pageSize;

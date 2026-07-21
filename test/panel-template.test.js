@@ -30,6 +30,7 @@ test('panel template exposes all stable UI mounts', async () => {
         assert.match(html, new RegExp(`\\b${marker}\\b`));
     }
     assert.match(html, /class="cm-scope-controls" role="radiogroup"/);
+    assert.match(html, /data-cm-search[\s\S]*data-cm-scope-current[\s\S]*data-cm-sort[\s\S]*data-cm-page-size[\s\S]*class="cm-toolbar-actions"/);
     assert.match(html, /role="radio"[^>]*data-cm-scope-current/);
     assert.match(html, /role="radio"[^>]*data-cm-scope-all/);
     assert.match(html, /role="switch"[^>]*data-cm-group-owners/);
@@ -46,6 +47,8 @@ test('panel template exposes all stable UI mounts', async () => {
     assert.match(html, /aria-pressed="false"[^>]*data-cm-batch-start/);
     assert.match(html, /fa-square-check/);
     assert.match(html, /data-cm-batch-cancel[\s\S]{0,120}fa-eraser/);
+    assert.match(html, /value="10">10 条<[\s\S]*value="25">25 条<[\s\S]*value="1000">1000 条</);
+    assert.doesNotMatch(html, /fa-arrow-down-wide-short|fa-table-list/);
     assert.doesNotMatch(html, />取消选择<|>删除已选</);
     assert.match(html, /data-cm-selection-toolbar[\s\S]*data-cm-batch-count[\s\S]*data-cm-batch-cancel[\s\S]*data-cm-batch-confirm/);
     assert.match(html, /cm-panel-utilities[\s\S]*data-cm-data-maid-open/);
@@ -241,7 +244,19 @@ test('chat deletion uses SillyTavern native character and group workflows', asyn
 test('chat viewer follows SillyTavern message rendering count', async () => {
     const source = await readFile(new URL('../modules/ui/backup-dialogs.js', import.meta.url), 'utf8');
     assert.match(source, /Number\(power_user\.chat_truncation\) \|\| Number\.MAX_SAFE_INTEGER/);
+    assert.match(source, /const pages = Number\.isFinite\(total\)[\s\S]*let page = pages \? pages - 1 : 0/);
     assert.match(source, /async viewChat\(record\)/);
+});
+
+test('chat list pagination shares SillyTavern character page size', async () => {
+    const [entry, ui] = await Promise.all([
+        readFile(new URL('../index.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/ui.js', import.meta.url), 'utf8'),
+    ]);
+    assert.match(entry, /accountStorage\.getItem\('Characters_PerPage'\)/);
+    assert.match(entry, /accountStorage\.setItem\('Characters_PerPage', String\(options\.pageSize\)\)/);
+    assert.doesNotMatch(entry, /settings\.pageSize\s*=/);
+    assert.match(ui, /normalizePageSize\(viewOptions\.pageSize\)/);
 });
 
 test('main UI delegates dialog workflows to focused modules', async () => {

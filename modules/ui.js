@@ -5,7 +5,13 @@ import { SplitDialogs } from './ui/split-dialogs.js';
 import { UiTemplates } from './ui/templates.js';
 
 const SORT_ORDERS = ['newest', 'oldest', 'largest', 'messages', 'name'];
-const PAGE_SIZES = [20, 50, 100];
+const DEFAULT_PAGE_SIZE = 50;
+
+/** @param {unknown} value 分页数量 */
+function normalizePageSize(value) {
+    const size = Number(value);
+    return Number.isInteger(size) && size > 0 ? size : DEFAULT_PAGE_SIZE;
+}
 
 function notify(type, message) {
     if (globalThis.toastr?.[type]) globalThis.toastr[type](message);
@@ -63,7 +69,7 @@ export class ChatManagerUi {
         this.sortOrder = SORT_ORDERS.includes(viewOptions.sortOrder)
             ? viewOptions.sortOrder
             : 'newest';
-        this.pageSize = PAGE_SIZES.includes(Number(viewOptions.pageSize)) ? Number(viewOptions.pageSize) : 50;
+        this.pageSize = normalizePageSize(viewOptions.pageSize);
         this.expandedOwners = new Set();
         this.expandedSplits = new Set();
         this.onViewOptionsChange = onViewOptionsChange;
@@ -80,6 +86,9 @@ export class ChatManagerUi {
         this.sort = required(root, '[data-cm-sort]', HTMLSelectElement);
         this.sort.value = this.sortOrder;
         this.pageSizeSelect = required(root, '[data-cm-page-size]', HTMLSelectElement);
+        if (!Array.from(this.pageSizeSelect.options).some(option => Number(option.value) === this.pageSize)) {
+            this.pageSizeSelect.add(new Option(`${this.pageSize} 条`, String(this.pageSize)));
+        }
         this.pageSizeSelect.value = String(this.pageSize);
         this.state = required(root, '[data-cm-state]');
         this.list = required(root, '[data-cm-list]');
@@ -135,9 +144,7 @@ export class ChatManagerUi {
             this.#saveViewOptions();
         });
         this.pageSizeSelect.addEventListener('change', () => {
-            this.pageSize = PAGE_SIZES.includes(Number(this.pageSizeSelect.value))
-                ? Number(this.pageSizeSelect.value)
-                : 50;
+            this.pageSize = normalizePageSize(this.pageSizeSelect.value);
             this.page = 0;
             this.#render();
             this.#saveViewOptions();

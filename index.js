@@ -21,6 +21,7 @@ import {
 import { isAdmin } from '/scripts/user.js';
 import { callGenericPopup, POPUP_TYPE } from '/scripts/popup.js';
 import { renderTemplateAsync } from '/scripts/templates.js';
+import { accountStorage } from '/scripts/util/AccountStorage.js';
 import { openWelcomeScreen } from '/scripts/welcome-screen.js';
 
 import { ChatManagerApi } from './modules/api.js';
@@ -61,7 +62,6 @@ let extensionUpdateCheck;
  * @property {boolean} [groupOwners] 是否按角色或群组合并聊天
  * @property {boolean} [groupSplits] 是否合并分卷聊天
  * @property {'newest'|'oldest'|'largest'|'messages'|'name'} [sortOrder] 聊天排序方式
- * @property {20|50|100} [pageSize] 每页聊天数量
  */
 
 /**
@@ -426,7 +426,11 @@ export async function init() {
     settings.groupOwners ??= false;
     settings.groupSplits ??= false;
     settings.sortOrder ??= 'newest';
-    settings.pageSize ??= 50;
+    if (Object.hasOwn(settings, 'pageSize')) {
+        delete settings.pageSize;
+        saveSettingsDebounced();
+    }
+    const nativePageSize = Number(accountStorage.getItem('Characters_PerPage')) || 50;
     const [metadata, panelTemplate, dataMaidTemplate, dialogTemplates, componentTemplates] = await Promise.all([
         loadExtensionMetadata(),
         renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/panel'),
@@ -455,13 +459,13 @@ export async function init() {
             groupOwners: settings.groupOwners,
             groupSplits: settings.groupSplits,
             sortOrder: settings.sortOrder,
-            pageSize: settings.pageSize,
+            pageSize: nativePageSize,
         },
         onViewOptionsChange: options => {
             settings.groupOwners = options.groupOwners;
             settings.groupSplits = options.groupSplits;
             settings.sortOrder = options.sortOrder;
-            settings.pageSize = options.pageSize;
+            accountStorage.setItem('Characters_PerPage', String(options.pageSize));
             saveSettingsDebounced();
         },
     });

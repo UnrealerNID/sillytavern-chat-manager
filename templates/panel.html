@@ -17,9 +17,18 @@
                 <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
                 <input class="text_pole cm-search" type="search" placeholder="筛选角色、群组或聊天文件名" data-cm-search>
             </label>
+            <div class="cm-scope-controls" role="radiogroup" aria-label="聊天显示范围">
+                <button class="menu_button" type="button" role="radio" aria-checked="false" data-cm-scope-current>
+                    <i class="fa-solid fa-address-card" aria-hidden="true"></i>
+                    <span data-cm-scope-current-label>当前角色</span>
+                </button>
+                <button class="menu_button" type="button" role="radio" aria-checked="false" data-cm-scope-all>
+                    <i class="fa-solid fa-comments" aria-hidden="true"></i>
+                    <span>全部聊天</span>
+                </button>
+            </div>
             <div class="cm-list-options" role="group" aria-label="列表显示设置">
                 <label class="cm-select-wrap" title="聊天排序方式">
-                    <i class="fa-solid fa-arrow-down-wide-short" aria-hidden="true"></i>
                     <select class="text_pole cm-sort" aria-label="聊天排序方式" data-cm-sort>
                         <option value="newest">最新</option>
                         <option value="oldest">最早</option>
@@ -29,25 +38,18 @@
                     </select>
                 </label>
                 <label class="cm-select-wrap cm-page-size-wrap" title="每页显示条数">
-                    <i class="fa-solid fa-table-list" aria-hidden="true"></i>
                     <select class="text_pole cm-page-size" aria-label="每页显示条数" data-cm-page-size>
-                        <option value="20">20 条</option>
+                        <option value="10">10 条</option>
+                        <option value="25">25 条</option>
                         <option value="50">50 条</option>
                         <option value="100">100 条</option>
+                        <option value="250">250 条</option>
+                        <option value="500">500 条</option>
+                        <option value="1000">1000 条</option>
                     </select>
                 </label>
             </div>
             <div class="cm-toolbar-actions">
-                <div class="cm-scope-controls" role="radiogroup" aria-label="聊天显示范围">
-                    <button class="menu_button" type="button" role="radio" aria-checked="false" data-cm-scope-current>
-                        <i class="fa-solid fa-address-card" aria-hidden="true"></i>
-                        <span data-cm-scope-current-label>当前角色</span>
-                    </button>
-                    <button class="menu_button" type="button" role="radio" aria-checked="false" data-cm-scope-all>
-                        <i class="fa-solid fa-comments" aria-hidden="true"></i>
-                        <span>全部聊天</span>
-                    </button>
-                </div>
                 <div class="cm-view-controls" role="group" aria-label="聊天列表显示方式">
                     <button class="menu_button cm-icon-action" type="button" role="switch" title="按角色或群组分组显示" aria-label="按角色或群组分组显示" aria-checked="false" data-cm-group-owners>
                         <i class="fa-solid fa-address-book" aria-hidden="true"></i>

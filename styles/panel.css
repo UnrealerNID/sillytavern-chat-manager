@@ -123,26 +123,17 @@
     position: relative;
 }
 
-.cm-select-wrap > i {
-    position: absolute;
-    left: 10px;
-    z-index: 1;
-    color: var(--grey70);
-    pointer-events: none;
-}
-
 .cm-sort,
 .cm-page-size {
     height: var(--cm-toolbar-control-height);
-    padding-left: 32px;
 }
 
 .cm-sort {
-    width: 124px;
+    width: 104px;
 }
 
 .cm-page-size {
-    width: 98px;
+    width: 84px;
 }
 
 .cm-refresh-button {
