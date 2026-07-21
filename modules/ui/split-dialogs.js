@@ -31,10 +31,10 @@ export class SplitDialogs {
      * @param {object} initialOptions 初始分卷配置
      */
     async open(record, initialOptions = {}) {
-        if (this.isGenerating()) return this.notify('warning', '聊天正在生成，当前不能分割');
+        if (this.isGenerating()) return this.notify('warning', '聊天正在生成，当前不能分卷');
         this.activeClose?.();
         const incremental = Boolean(initialOptions.incremental);
-        const dialog = this.ui.dialog([incremental ? '继续分卷' : '分割聊天', record.ownerName, initialOptions.outputRootChatId ?? record.fileId], 'split');
+        const dialog = this.ui.dialog([incremental ? '继续分卷' : '创建分卷', record.ownerName, initialOptions.outputRootChatId ?? record.fileId], 'split');
         this.activeRoot = dialog.root;
         this.activeClose = dialog.close;
         const summary = this.ui.mount(dialog.body, '[data-cm-split-summary]');
@@ -197,7 +197,7 @@ export class SplitDialogs {
                 plan = null;
                 setPreviewStatus(task.status === 'complete' ? '创建完成' : '任务已暂停', task.status === 'complete' ? 'ready' : 'warning');
                 previewDetail.textContent = task.status === 'complete' ? '所有分卷均已写入并校验' : '可以从恢复任务继续执行';
-                this.notify(task.status === 'complete' ? 'success' : 'warning', task.status === 'complete' ? '分割完成' : '任务已安全暂停');
+                this.notify(task.status === 'complete' ? 'success' : 'warning', task.status === 'complete' ? '分卷完成' : '任务已安全暂停');
                 await this.refresh();
             } catch (error) {
                 setPreviewStatus('创建失败', 'error');
@@ -249,7 +249,7 @@ export class SplitDialogs {
      */
     async showRecovery(tasks) {
         if (!tasks.length) return;
-        const dialog = this.ui.dialog('检测到未完成的分割任务', 'recovery');
+        const dialog = this.ui.dialog('检测到未完成的分卷任务', 'recovery');
         const list = this.ui.mount(dialog.body, '[data-cm-recovery-list]');
         for (const task of tasks) {
             const card = this.ui.component('recovery-task');

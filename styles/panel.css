@@ -339,7 +339,7 @@
 .cm-chat-message-row {
     justify-content: space-between;
     gap: 8px;
-    font-size: calc(var(--mainFontSize) * 0.88);
+    font-size: calc(var(--mainFontSize) * 0.85);
 }
 
 .cm-chat-preview {
@@ -353,6 +353,11 @@
     -webkit-line-clamp: 2;
     line-clamp: 2;
     white-space: normal !important;
+}
+
+body.big-avatars .cm-chat-preview {
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
 }
 
 .cm-chat-stats {

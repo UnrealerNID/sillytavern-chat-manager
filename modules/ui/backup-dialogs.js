@@ -32,7 +32,7 @@ export class BackupDialogs {
      */
     async open(record) {
         if (this.isGenerating()) return this.notify('warning', '聊天正在生成，结束后才能读取备份');
-        if (this.isSplitting()) return this.notify('warning', '分割任务正在写入聊天，完成后才能读取备份');
+        if (this.isSplitting()) return this.notify('warning', '分卷任务正在写入聊天，完成后才能读取备份');
         const dialog = this.ui.dialog(['对应备份', record.ownerName, record.fileId], 'backups');
         const search = this.ui.mount(dialog.body, '[data-cm-backup-search]', HTMLInputElement);
         const sort = this.ui.mount(dialog.body, '[data-cm-backup-sort]', HTMLSelectElement);

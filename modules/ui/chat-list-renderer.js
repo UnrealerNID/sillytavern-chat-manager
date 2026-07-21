@@ -34,7 +34,7 @@ export class ChatListRenderer {
      * @param {()=>boolean} dependencies.isSelectionMode 是否处于批量选择
      * @param {()=>boolean} dependencies.isLoading 清单是否加载中
      * @param {()=>boolean} dependencies.isGenerating 酒馆是否正在生成
-     * @param {()=>boolean} dependencies.isSplitting 是否正在分割
+     * @param {()=>boolean} dependencies.isSplitting 是否正在分卷
      * @param {()=>void} dependencies.render 重新渲染列表
      * @param {()=>void} dependencies.syncSelection 同步选择控件
      * @param {()=>void} dependencies.closePanel 关闭主面板
@@ -250,7 +250,7 @@ export class ChatListRenderer {
         name.title = `${record.ownerName} - ${record.fileId}`;
         owner.textContent = record.ownerName;
         file.textContent = record.fileId;
-        date.textContent = this.ui.formatShortDate(record.lastMessageAt);
+        date.textContent = this.ui.formatDate(record.lastMessageAt);
         date.title = this.ui.formatDate(record.lastMessageAt);
         preview.textContent = record.preview;
         preview.title = record.preview;

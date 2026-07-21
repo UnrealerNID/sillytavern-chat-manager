@@ -78,5 +78,7 @@ test('chat and backup rows follow the compact recent-chat rhythm', async () => {
     assert.match(panel, /\.cm-chat-list\s*{[^}]*gap:\s*2px/s);
     assert.match(panel, /\.cm-chat-row\s*{[^}]*padding:\s*5px 10px[^}]*border-radius:\s*10px[^}]*background:\s*transparent/s);
     assert.match(panel, /\.cm-chat-row:hover,[\s\S]*background:\s*var\(--white30a\)/);
+    assert.match(panel, /\.cm-chat-message-row\s*{[^}]*font-size:\s*calc\(var\(--mainFontSize\) \* 0\.85\)/s);
+    assert.match(panel, /body\.big-avatars \.cm-chat-preview\s*{[^}]*line-clamp:\s*4/s);
     assert.match(components, /\.cm-backup-row\s*{[^}]*margin:\s*0 0 2px[^}]*padding:\s*5px 10px[^}]*border-radius:\s*10px[^}]*background:\s*transparent/s);
 });

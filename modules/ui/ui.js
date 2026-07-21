@@ -36,7 +36,7 @@ export class ChatManagerUi {
      * @param {()=>any} dependencies.getContext 上下文提供器
      * @param {import('../platform/api.js').ChatManagerApi} dependencies.api 酒馆接口
      * @param {import('../backups/backups.js').BackupService} dependencies.backups 备份服务
-     * @param {import('../chat/splitter.js').SplitService} dependencies.splitter 分割服务
+     * @param {import('../chat/splitter.js').SplitService} dependencies.splitter 分卷服务
      * @param {()=>boolean} dependencies.isGenerating 是否正在生成
      * @param {(record:object)=>Promise<void>} dependencies.openRecord 打开聊天回调
      * @param {(record:object)=>Promise<void>} dependencies.deleteRecord 删除聊天回调
@@ -288,7 +288,7 @@ export class ChatManagerUi {
         const generating = this.isGenerating();
         this.#setState(generating
             ? '聊天正在生成：当前仅允许浏览'
-            : this.splitter.running ? '分割任务正在执行' : '');
+            : this.splitter.running ? '分卷任务正在执行' : '');
         this.splitDialogs.updateRuntimeState();
         this.#syncSelectionControls();
         this.#render();

@@ -35,10 +35,10 @@ export class SplitService {
     }
 
     /**
-     * 创建只读分割计划
+     * 创建只读分卷计划
      * @param {object} record 聊天记录
-     * @param {object} options 分割参数
-     * @param {'range'|'fixed'} options.mode 分割方式
+     * @param {object} options 分卷参数
+     * @param {'range'|'fixed'} options.mode 分卷方式
      * @param {number} options.start 起始楼层
      * @param {number} options.end 结束楼层
      * @param {number} [options.chunkSize] 每卷楼层数
@@ -48,12 +48,12 @@ export class SplitService {
      * @param {number} [options.rangeOffset] 楼层偏移
      * @param {AbortSignal} [signal] 取消信号
      * @param {object} [stableSource] 已读取并校验过的来源快照
-     * @returns {Promise<object>} 分割计划
+     * @returns {Promise<object>} 分卷计划
      */
     async prepare(record, options, signal, stableSource = null) {
-        if (this.running) throw new Error('已有分割任务正在运行');
+        if (this.running) throw new Error('已有分卷任务正在运行');
         const source = stableSource ?? await loadStableSource(record, this.api, signal);
-        if (source.messages.length === 0) throw new Error('空聊天不能分割');
+        if (source.messages.length === 0) throw new Error('空聊天不能分卷');
         const ranges = buildRanges(options.start, options.end, options.mode === 'fixed' ? options.chunkSize : null);
         if (options.end >= source.messages.length) throw new Error('楼层范围超出聊天长度');
         const occupied = await this.#occupiedNames(record);
@@ -114,8 +114,8 @@ export class SplitService {
     }
 
     /**
-     * 串行执行已确认的分割计划
-     * @param {object} plan 分割计划
+     * 串行执行已确认的分卷计划
+     * @param {object} plan 分卷计划
      * @param {object} options 执行参数
      * @param {()=>boolean} [options.shouldPause] 是否暂停任务
      * @param {(task:object)=>void} [options.onUpdate] 任务进度回调
@@ -124,7 +124,7 @@ export class SplitService {
      * @returns {Promise<object>} 任务结果
      */
     async execute(plan, options = {}) {
-        if (this.running) throw new Error('已有分割任务正在运行');
+        if (this.running) throw new Error('已有分卷任务正在运行');
         if (!options.lockAcquired && globalThis.navigator?.locks?.request) {
             const lockName = `sillytavern-chat-manager:${plan.record.ownerType}:${plan.record.ownerId}`;
             return navigator.locks.request(lockName, { mode: 'exclusive' }, () => this.execute(plan, { ...options, lockAcquired: true }));
@@ -233,7 +233,7 @@ export class SplitService {
     /**
      * 根据任务日志重建可恢复计划
      * @param {object} task 日志任务
-     * @returns {Promise<object>} 分割计划
+     * @returns {Promise<object>} 分卷计划
      */
     async restorePlan(task) {
         const source = await loadStableSource(task.record, this.api);

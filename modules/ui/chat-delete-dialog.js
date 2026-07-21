@@ -15,7 +15,7 @@ export class ChatDeleteDialog {
      * @param {()=>void} dependencies.resetSelection 重置批量选择
      * @param {()=>boolean} dependencies.isLoading 是否读取清单
      * @param {()=>boolean} dependencies.isGenerating 是否正在生成
-     * @param {()=>boolean} dependencies.isSplitting 是否正在分割
+     * @param {()=>boolean} dependencies.isSplitting 是否正在分卷
      * @param {(type:string,message:string)=>void} dependencies.notify 消息提示
      */
     constructor(dependencies) {
@@ -79,7 +79,7 @@ export class ChatDeleteDialog {
             return false;
         }
         if (this.isSplitting()) {
-            this.notify('warning', '分割任务正在写入聊天，完成后才能删除聊天');
+            this.notify('warning', '分卷任务正在写入聊天，完成后才能删除聊天');
             return false;
         }
         return true;

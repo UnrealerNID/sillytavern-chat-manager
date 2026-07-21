@@ -32,8 +32,8 @@ export class TaskJournal {
     }
 
     /**
-     * 保存分割任务
-     * @param {object} task 分割任务
+     * 保存分卷任务
+     * @param {object} task 分卷任务
      */
     async put(task) {
         const store = await this.#store('readwrite');
@@ -58,7 +58,7 @@ export class TaskJournal {
     }
 
     /**
-     * 删除分割任务
+     * 删除分卷任务
      * @param {string} id 任务 ID
      */
     async remove(id) {

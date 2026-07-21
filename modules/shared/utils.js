@@ -150,11 +150,11 @@ export function parseBytes(value) {
 }
 
 /**
- * 构建包含首尾楼层的分割范围
+ * 构建包含首尾楼层的分卷范围
  * @param {number} start 起始楼层
  * @param {number} end 结束楼层
  * @param {number|null} chunkSize 可选的固定楼层数
- * @returns {object[]} 分割范围，每项包含 start、end 和 count
+ * @returns {object[]} 分卷范围，每项包含 start、end 和 count
  */
 export function buildRanges(start, end, chunkSize = null) {
     if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start) {

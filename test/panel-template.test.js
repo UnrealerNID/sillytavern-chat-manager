@@ -227,7 +227,7 @@ test('backup listing is only requested explicitly while chat files are stable', 
     const listRenderer = await readFile(new URL('../modules/ui/chat-list-renderer.js', import.meta.url), 'utf8');
     assert.match(listRenderer, /backup\.disabled\s*=\s*blocked/);
     assert.match(backupDialogs, /async open\(record\)\s*{\s*if \(this\.isGenerating\(\)\)/);
-    assert.match(backupDialogs, /if \(this\.isSplitting\(\)\) return this\.notify\('warning', '分割任务正在写入聊天/);
+    assert.match(backupDialogs, /if \(this\.isSplitting\(\)\) return this\.notify\('warning', '分卷任务正在写入聊天/);
     assert.match(backupDialogs, /search\.addEventListener\('input', refreshSummary\)/);
     assert.match(backupDialogs, /sort\.addEventListener\('change', refreshSummary\)/);
     assert.doesNotMatch(backupDialogs, /row\.addEventListener\('click'/);

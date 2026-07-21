@@ -55,7 +55,7 @@ export class NativeChatPanel {
             if (!actions) continue;
             actions.append(
                 this.#icon('backup', 'fa-box-archive', '识别对应备份'),
-                this.#icon('split', 'fa-scissors', '分割聊天'),
+                this.#icon('split', 'fa-scissors', '创建分卷'),
             );
             wrapper.dataset.chatManagerEnhanced = 'true';
         }
@@ -133,7 +133,7 @@ export class NativeChatPanel {
             const record = this.#recordFromRow(row);
             if (button.dataset.chatManagerAction === 'backup') this.ui.openBackups(record);
             if (button.dataset.chatManagerAction === 'split') {
-                if (this.isGenerating()) throw new Error('聊天正在生成，当前不能分割');
+                if (this.isGenerating()) throw new Error('聊天正在生成，当前不能分卷');
                 this.ui.openSplit(record);
             }
         } catch (error) {
