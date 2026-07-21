@@ -305,7 +305,7 @@ export class ChatManagerUi {
         this.scopeCurrentButton.disabled = !this.currentOwner;
         for (const [button, active] of [[this.scopeCurrentButton, this.scope === 'current'], [this.scopeAllButton, this.scope === 'all']]) {
             button.setAttribute('aria-checked', String(active));
-            button.classList.toggle('cm-active', active);
+            button.classList.toggle('active', active);
         }
     }
 
@@ -348,7 +348,7 @@ export class ChatManagerUi {
     #syncGroupingButtons() {
         for (const [button, active] of [[this.groupOwnersButton, this.groupOwners], [this.groupSplitsButton, this.groupSplits]]) {
             button.setAttribute('aria-checked', String(active));
-            button.classList.toggle('cm-active', active);
+            button.classList.toggle('active', active);
             button.disabled = this.selectionMode;
         }
     }
@@ -409,7 +409,7 @@ export class ChatManagerUi {
         summaryNode.title = summary;
         latestNode.textContent = latest;
         latestNode.title = latest;
-        this.#configureGroupToggle(toggle, expanded, () => {
+        this.#configureGroupToggle(toggle, expanded, '聊天', () => {
             expanded ? this.expandedOwners.delete(group.key) : this.expandedOwners.add(group.key);
             this.#render();
         });
@@ -461,7 +461,7 @@ export class ChatManagerUi {
         continueButton.disabled = !incremental.available || this.isGenerating() || this.splitter.running;
         continueButton.title = incremental.available ? incremental.reason : `暂不可增量分卷：${incremental.reason}`;
         this.#bindButton(continueButton, () => this.openSplit(incremental.sourceRecord, incremental.options));
-        this.#configureGroupToggle(toggle, expanded, () => {
+        this.#configureGroupToggle(toggle, expanded, '分卷', () => {
             expanded ? this.expandedSplits.delete(group.key) : this.expandedSplits.add(group.key);
             this.#render();
         });
@@ -520,14 +520,17 @@ export class ChatManagerUi {
     }
 
     /**
-     * 配置折叠按钮并保持图标、文案和 aria 状态一致
+     * 配置折叠按钮并保持图标和无障碍提示一致
      * @param {HTMLButtonElement} button 按钮
      * @param {boolean} expanded 是否展开
+     * @param {string} label 折叠内容名称
      * @param {()=>void} handler 点击处理
      */
-    #configureGroupToggle(button, expanded, handler) {
+    #configureGroupToggle(button, expanded, label, handler) {
+        const action = expanded ? '收起' : '展开';
         button.setAttribute('aria-expanded', String(expanded));
-        this.#mount(button, '[data-cm-group-toggle-text]').textContent = expanded ? '收起' : '展开';
+        button.setAttribute('aria-label', `${action}${label}`);
+        button.title = `${action}${label}`;
         this.#mount(button, '[data-cm-group-chevron]').classList.toggle('fa-chevron-up', expanded);
         this.#mount(button, '[data-cm-group-chevron]').classList.toggle('fa-chevron-down', !expanded);
         this.#bindButton(button, handler);

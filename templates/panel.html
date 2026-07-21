@@ -20,38 +20,38 @@
             <div class="cm-toolbar-actions">
                 <div class="cm-scope-controls" role="radiogroup" aria-label="聊天显示范围">
                     <button class="menu_button" type="button" role="radio" aria-checked="false" data-cm-scope-current>
-                        <i class="fa-solid fa-user" aria-hidden="true"></i>
+                        <i class="fa-solid fa-address-card" aria-hidden="true"></i>
                         <span data-cm-scope-current-label>当前角色</span>
                     </button>
                     <button class="menu_button" type="button" role="radio" aria-checked="false" data-cm-scope-all>
-                        <i class="fa-solid fa-globe" aria-hidden="true"></i>
+                        <i class="fa-solid fa-comments" aria-hidden="true"></i>
                         <span>全部聊天</span>
                     </button>
                 </div>
                 <div class="cm-view-controls" role="group" aria-label="聊天列表显示方式">
-                    <button class="menu_button cm-toolbar-icon-action" type="button" role="switch" title="按角色或群组分组显示" aria-label="按角色或群组分组显示" aria-checked="false" data-cm-group-owners>
-                        <i class="fa-solid fa-users" aria-hidden="true"></i>
+                    <button class="menu_button cm-icon-action" type="button" role="switch" title="按角色或群组分组显示" aria-label="按角色或群组分组显示" aria-checked="false" data-cm-group-owners>
+                        <i class="fa-solid fa-address-book" aria-hidden="true"></i>
                     </button>
-                    <button class="menu_button cm-toolbar-icon-action" type="button" role="switch" title="按分卷组分组显示" aria-label="按分卷组分组显示" aria-checked="false" data-cm-group-splits>
+                    <button class="menu_button cm-icon-action" type="button" role="switch" title="按分卷组分组显示" aria-label="按分卷组分组显示" aria-checked="false" data-cm-group-splits>
                         <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
                     </button>
                 </div>
                 <div class="cm-delete-controls" role="group" aria-label="批量删除聊天">
-                    <button class="menu_button" type="button" data-cm-batch-start>
-                        <i class="fa-solid fa-list-check" aria-hidden="true"></i>
+                    <button class="menu_button cm-danger-action" type="button" data-cm-batch-start>
+                        <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
                         <span>批量删除</span>
                     </button>
                     <button class="menu_button cm-hidden" type="button" data-cm-batch-cancel>取消选择</button>
                     <button class="menu_button cm-danger-action cm-hidden" type="button" disabled data-cm-batch-confirm>
-                        <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                        <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
                         <span data-cm-batch-count>删除已选（0）</span>
                     </button>
                 </div>
-                <button class="menu_button cm-toolbar-icon-action" type="button" title="打开酒馆数据清理" aria-label="打开酒馆数据清理" data-cm-data-maid-open>
+                <button class="menu_button cm-icon-action" type="button" title="打开酒馆数据清理" aria-label="打开酒馆数据清理" data-cm-data-maid-open>
                     <i class="fa-solid fa-broom" aria-hidden="true"></i>
                 </button>
-                <button class="menu_button cm-toolbar-icon-action cm-refresh-button" type="button" title="重新加载聊天列表" aria-label="重新加载聊天列表" data-cm-refresh>
-                    <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+                <button class="menu_button cm-icon-action cm-refresh-button" type="button" title="重新加载聊天列表" aria-label="重新加载聊天列表" data-cm-refresh>
+                    <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>
                 </button>
             </div>
         </div>
@@ -65,13 +65,11 @@
                 <button class="chat-manager-update-action" type="button" disabled data-cm-update>检查更新…</button>
             </div>
             <nav class="cm-pagination" aria-label="聊天分页">
-                <button class="menu_button" type="button" data-cm-previous>
+                <button class="menu_button cm-icon-action" type="button" title="上一页" aria-label="上一页" data-cm-previous>
                     <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
-                    <span>上一页</span>
                 </button>
                 <span class="cm-page-label" data-cm-page></span>
-                <button class="menu_button" type="button" data-cm-next>
-                    <span>下一页</span>
+                <button class="menu_button cm-icon-action" type="button" title="下一页" aria-label="下一页" data-cm-next>
                     <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
                 </button>
             </nav>

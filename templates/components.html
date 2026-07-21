@@ -18,21 +18,17 @@
                     </div>
                     <time class="cm-chat-date" data-cm-chat-date></time>
                     <div class="cm-actions cm-chat-actions">
-                        <button class="menu_button menu_button_icon cm-row-action" type="button" title="切换到该聊天记录" aria-label="进入聊天" data-cm-chat-open>
+                        <button class="menu_button menu_button_icon cm-row-action" type="button" title="进入聊天" aria-label="进入聊天" data-cm-chat-open>
                             <i class="fa-solid fa-arrow-up-right-from-square fa-fw" aria-hidden="true"></i>
-                            <span>进入聊天</span>
                         </button>
-                        <button class="menu_button menu_button_icon cm-row-action" type="button" title="匹配该聊天对应的酒馆原生备份" aria-label="查找备份" data-cm-chat-backups>
+                        <button class="menu_button menu_button_icon cm-row-action" type="button" title="查找对应备份" aria-label="查找对应备份" data-cm-chat-backups>
                             <i class="fa-solid fa-box-archive fa-fw" aria-hidden="true"></i>
-                            <span>查找备份</span>
                         </button>
-                        <button class="menu_button menu_button_icon cm-row-action" type="button" title="基于原记录生成新的分卷聊天" aria-label="创建分卷" data-cm-chat-split>
+                        <button class="menu_button menu_button_icon cm-row-action" type="button" title="创建聊天分卷" aria-label="创建聊天分卷" data-cm-chat-split>
                             <i class="fa-solid fa-scissors fa-fw" aria-hidden="true"></i>
-                            <span>创建分卷</span>
                         </button>
                         <button class="menu_button menu_button_icon cm-row-action cm-danger-action" type="button" title="永久删除这条聊天记录" aria-label="删除聊天" data-cm-chat-delete>
-                            <i class="fa-solid fa-trash fa-fw" aria-hidden="true"></i>
-                            <span>删除聊天</span>
+                            <i class="fa-solid fa-trash-can fa-fw" aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>
@@ -64,9 +60,8 @@
                     <span data-cm-owner-summary></span>
                     <small data-cm-owner-latest></small>
                 </div>
-                <button class="menu_button cm-group-toggle" type="button" aria-expanded="false" data-cm-owner-toggle>
+                <button class="menu_button cm-icon-action cm-group-toggle" type="button" title="展开聊天" aria-label="展开聊天" aria-expanded="false" data-cm-owner-toggle>
                     <i class="fa-solid fa-chevron-down" aria-hidden="true" data-cm-group-chevron></i>
-                    <span data-cm-group-toggle-text>展开</span>
                 </button>
             </header>
             <div class="cm-group-children cm-hidden" data-cm-owner-children></div>
@@ -93,9 +88,8 @@
                         <i class="fa-solid fa-forward-step" aria-hidden="true"></i>
                         <span>增量分卷</span>
                     </button>
-                    <button class="menu_button cm-group-toggle" type="button" aria-expanded="false" data-cm-split-toggle>
+                    <button class="menu_button cm-icon-action cm-group-toggle" type="button" title="展开分卷" aria-label="展开分卷" aria-expanded="false" data-cm-split-toggle>
                         <i class="fa-solid fa-chevron-down" aria-hidden="true" data-cm-group-chevron></i>
-                        <span data-cm-group-toggle-text>展开</span>
                     </button>
                 </div>
             </header>

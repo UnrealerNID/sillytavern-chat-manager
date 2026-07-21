@@ -82,6 +82,16 @@
     font-size: calc(var(--mainFontSize) * 1.15);
 }
 
+.cm-icon-action {
+    display: inline-grid !important;
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 !important;
+    place-items: center;
+}
+
 .cm-icon-button:not(:disabled):hover {
     background: var(--white20a);
 }

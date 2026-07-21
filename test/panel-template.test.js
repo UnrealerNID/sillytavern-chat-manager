@@ -36,6 +36,12 @@ test('panel template exposes all stable UI mounts', async () => {
     assert.match(html, /title="按分卷组分组显示"/);
     assert.match(html, /title="打开酒馆数据清理"/);
     assert.match(html, /title="重新加载聊天列表"/);
+    assert.match(html, /<i class="fa-solid fa-comments"/);
+    assert.match(html, /<i class="fa-solid fa-address-card"/);
+    assert.match(html, /<i class="fa-solid fa-address-book"/);
+    assert.match(html, /<i class="fa-solid fa-arrows-rotate"/);
+    assert.match(html, /class="[^"]*cm-danger-action[^"]*"[^>]*data-cm-batch-start/);
+    assert.doesNotMatch(html, /fa-globe|fa-user"|fa-users|fa-list-check|fa-rotate-right/);
     assert.doesNotMatch(html, />范围<|>显示<|>数据清理<|>刷新</);
 });
 
@@ -60,6 +66,7 @@ test('data maid enhancement mounts after either native or plugin-triggered scans
     }
     assert.match(html, /检查孤立备份/);
     assert.match(html, /type="checkbox"/);
+    assert.doesNotMatch(html, />上一页<|>下一页<|fa-trash"/);
     assert.match(source, /document\.querySelector\('#data_maid_button'\)/);
     assert.match(source, /document\.addEventListener\('click', this\.documentClick, true\)/);
     assert.match(source, /closest\('\.dataMaidStartButton'\)/);
@@ -97,6 +104,7 @@ test('dialog templates expose every static dialog and dynamic mount', async () =
     assert.doesNotMatch(html, /data-cm-split-acknowledge/);
     assert.match(html, /不会修改或删除原聊天/);
     assert.match(html, /旧备份可能因保留数量上限被轮换清理/);
+    assert.doesNotMatch(html, />上一页<|>下一页<|fa-trash"/);
 });
 
 test('component templates expose every repeated card and action mount', async () => {
@@ -136,6 +144,8 @@ test('component templates expose every repeated card and action mount', async ()
     ]) {
         assert.match(html, new RegExp(marker));
     }
+    assert.doesNotMatch(html, /data-cm-group-toggle-text|>展开<|>收起</);
+    assert.doesNotMatch(html, />进入聊天<|>查找备份<|>创建分卷<|>删除聊天</);
 });
 
 test('panel and settings share the same version update controls', async () => {

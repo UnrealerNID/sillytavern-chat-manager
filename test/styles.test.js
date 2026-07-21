@@ -37,8 +37,22 @@ test('all plugin panels use the same readable disabled button style', async () =
 });
 
 test('toolbar controls share one fixed height without stretching refresh', async () => {
-    const css = await readFile(new URL('../styles/panel.css', import.meta.url), 'utf8');
-    assert.match(css, /--cm-toolbar-control-height:\s*34px/);
-    assert.match(css, /\.cm-toolbar-icon-action\s*{[\s\S]*height:\s*var\(--cm-toolbar-control-height\)\s*!important/);
-    assert.doesNotMatch(css, /\.cm-refresh-button\s*{[^}]*align-self:\s*stretch/s);
+    const [base, panel] = await Promise.all([
+        readFile(new URL('../styles/base.css', import.meta.url), 'utf8'),
+        readFile(new URL('../styles/panel.css', import.meta.url), 'utf8'),
+    ]);
+    assert.match(panel, /--cm-toolbar-control-height:\s*34px/);
+    assert.match(base, /\.cm-icon-action\s*{[\s\S]*height:\s*34px\s*!important/);
+    assert.doesNotMatch(panel, /\.cm-refresh-button\s*{[^}]*align-self:\s*stretch/s);
+});
+
+test('toolbar toggles reuse the native active state without custom color mapping', async () => {
+    const [ui, css] = await Promise.all([
+        readFile(new URL('../modules/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../styles/panel.css', import.meta.url), 'utf8'),
+    ]);
+    assert.match(ui, /button\.classList\.toggle\('active', active\)/);
+    assert.doesNotMatch(ui, /button\.classList\.toggle\('cm-active'/);
+    assert.doesNotMatch(css, /cm-active|cm-(?:owner|split|cleanup)-accent|cm-control-accent/);
+    assert.doesNotMatch(css, /\.cm-view-controls \.menu_button::after/);
 });

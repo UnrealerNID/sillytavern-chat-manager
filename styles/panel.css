@@ -84,39 +84,6 @@
     background: rgb(180 45 45 / 14%) !important;
 }
 
-.cm-scope-controls .cm-active {
-    color: var(--SmartThemeQuoteColor);
-    background: var(--white20a);
-    box-shadow: 0 1px 4px var(--black50a);
-}
-
-.cm-view-controls .menu_button {
-    position: relative;
-    color: var(--grey70);
-}
-
-.cm-view-controls .menu_button::after {
-    position: absolute;
-    right: 4px;
-    bottom: 4px;
-    width: 7px;
-    height: 7px;
-    border: 1px solid currentColor;
-    border-radius: 50%;
-    content: "";
-}
-
-.cm-view-controls .cm-active {
-    border-color: var(--SmartThemeQuoteColor);
-    color: var(--SmartThemeQuoteColor);
-    background: rgb(255 255 255 / 8%);
-}
-
-.cm-view-controls .cm-active::after {
-    background: currentColor;
-    box-shadow: 0 0 5px currentColor;
-}
-
 .cm-search-wrap {
     position: relative;
     display: flex;
@@ -138,16 +105,6 @@
     height: var(--cm-toolbar-control-height);
     width: 100%;
     padding-left: 36px;
-}
-
-.cm-toolbar-icon-action {
-    display: inline-grid !important;
-    width: var(--cm-toolbar-control-height) !important;
-    min-width: var(--cm-toolbar-control-height) !important;
-    height: var(--cm-toolbar-control-height) !important;
-    min-height: var(--cm-toolbar-control-height) !important;
-    padding: 0 !important;
-    place-items: center;
 }
 
 .cm-refresh-button {
@@ -297,14 +254,12 @@
 }
 
 .cm-row-action {
-    width: auto;
-    min-width: max-content;
+    width: 30px;
+    min-width: 30px;
     height: 30px;
-    flex: 0 0 auto;
-    gap: 4px;
+    flex: 0 0 30px;
     margin: 0;
-    padding: 3px 7px;
-    white-space: nowrap;
+    padding: 3px;
 }
 
 .cm-chat-message-row {

@@ -10,9 +10,13 @@
             <div class="cm-result-summary" data-cm-maid-viewer-summary></div>
             <div class="cm-message-list" data-cm-maid-messages></div>
             <footer class="cm-footer cm-dialog-pagination">
-                <button class="menu_button" type="button" data-cm-maid-message-previous>上一页</button>
+                <button class="menu_button cm-icon-action" type="button" title="上一页" aria-label="上一页" data-cm-maid-message-previous>
+                    <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+                </button>
                 <span data-cm-maid-message-page></span>
-                <button class="menu_button" type="button" data-cm-maid-message-next>下一页</button>
+                <button class="menu_button cm-icon-action" type="button" title="下一页" aria-label="下一页" data-cm-maid-message-next>
+                    <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                </button>
             </footer>
         </section>
     </div>
@@ -35,7 +39,7 @@
                 <div class="cm-dialog-actions">
                     <button class="menu_button" type="button" data-cm-maid-delete-cancel>取消</button>
                     <button class="menu_button cm-danger-action" type="button" data-cm-maid-delete-confirm>
-                        <i class="fa-solid fa-trash" aria-hidden="true"></i><span>确认删除</span>
+                        <i class="fa-solid fa-trash-can" aria-hidden="true"></i><span>确认删除</span>
                     </button>
                 </div>
             </div>
@@ -63,7 +67,7 @@
             <span class="cm-data-maid-progress" role="status" aria-live="polite" data-cm-maid-progress>尚未检查对应关系</span>
             <button class="menu_button" type="button" data-cm-maid-select-all>全选当前结果</button>
             <button class="menu_button cm-danger-action" type="button" disabled data-cm-maid-delete-selected>
-                <i class="fa-solid fa-trash" aria-hidden="true"></i><span data-cm-maid-selected-count>删除已选（0）</span>
+                <i class="fa-solid fa-trash-can" aria-hidden="true"></i><span data-cm-maid-selected-count>删除已选（0）</span>
             </button>
         </div>
     </template>
@@ -72,7 +76,7 @@
         <div class="cm-data-maid-controls">
             <label title="选择该备份"><input type="checkbox" data-cm-maid-select></label>
             <span class="cm-status-badge" data-state="unchecked" data-cm-maid-state>未检查</span>
-            <button class="menu_button menu_button_icon margin0" type="button" title="分页查看聊天内容" data-cm-maid-view>
+            <button class="menu_button menu_button_icon margin0" type="button" title="分页查看聊天内容" aria-label="分页查看聊天内容" data-cm-maid-view>
                 <i class="fa-solid fa-eye" aria-hidden="true"></i>
             </button>
         </div>

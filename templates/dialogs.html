@@ -31,9 +31,13 @@
     <template data-cm-dialog-content="backup-viewer">
         <div class="cm-message-list" data-cm-message-list></div>
         <div class="cm-footer cm-dialog-pagination">
-            <button class="menu_button" type="button" data-cm-message-previous>上一页</button>
+            <button class="menu_button cm-icon-action" type="button" title="上一页" aria-label="上一页" data-cm-message-previous>
+                <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+            </button>
             <span data-cm-message-page></span>
-            <button class="menu_button" type="button" data-cm-message-next>下一页</button>
+            <button class="menu_button cm-icon-action" type="button" title="下一页" aria-label="下一页" data-cm-message-next>
+                <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+            </button>
         </div>
     </template>
 
@@ -107,7 +111,7 @@
         <div class="cm-dialog-actions">
             <button class="menu_button" type="button" data-cm-delete-cancel>取消</button>
             <button class="menu_button cm-danger-action" type="button" data-cm-delete-confirm>
-                <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
                 <span data-cm-delete-confirm-text>确认删除</span>
             </button>
         </div>
