@@ -46,6 +46,28 @@
     z-index: 32000;
 }
 
+dialog.cm-top-dialog {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    padding: 3vh 3vw;
+    border: 0;
+    color: var(--SmartThemeBodyColor);
+    background: transparent;
+}
+
+dialog.cm-top-dialog[open] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+dialog.cm-top-dialog::backdrop {
+    background: rgb(0 0 0 / 58%);
+}
+
 .cm-header,
 .cm-toolbar,
 .cm-footer,

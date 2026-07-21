@@ -1,5 +1,4 @@
 import { power_user } from '/scripts/power-user.js';
-import { Popup, POPUP_TYPE } from '/scripts/popup.js';
 import { parseJsonlResponse } from '../../shared/data.js';
 import { formatBytes } from '../../shared/files.js';
 
@@ -32,7 +31,7 @@ export class DataMaidViewer {
         this.template = template;
         this.messageTemplate = messageTemplate;
         this.controller = null;
-        this.popup = null;
+        this.dialog = null;
     }
 
     /**
@@ -45,6 +44,7 @@ export class DataMaidViewer {
         this.controller = new AbortController();
         const signal = this.controller.signal;
         const root = this.template.content.firstElementChild.cloneNode(true);
+        if (!(root instanceof HTMLDialogElement)) throw new Error('备份查看模板根节点无效');
         const required = (selector, type = HTMLElement) => {
             const node = root.querySelector(selector);
             if (!(node instanceof type)) throw new Error(`备份查看模板缺少 ${selector}`);
@@ -55,6 +55,12 @@ export class DataMaidViewer {
         this.previous = required('[data-cm-maid-message-previous]', HTMLButtonElement);
         this.next = required('[data-cm-maid-message-next]', HTMLButtonElement);
         this.pageLabel = required('[data-cm-maid-message-page]');
+        required('[data-cm-maid-viewer-close]', HTMLButtonElement)
+            .addEventListener('click', () => this.close());
+        root.addEventListener('cancel', event => {
+            event.preventDefault();
+            this.close();
+        });
         const pageSize = Number(power_user.chat_truncation) || Number.MAX_SAFE_INTEGER;
         let page = 0;
         let loadRevision = 0;
@@ -62,19 +68,9 @@ export class DataMaidViewer {
             item.record.name,
             formatBytes(Number(item.record.size ?? 0)),
         ].join(' · ');
-        const popup = new Popup(root, POPUP_TYPE.DISPLAY, '', {
-            large: true,
-            wide: true,
-            allowVerticalScrolling: false,
-            onClose: () => {
-                if (this.popup !== popup) return;
-                this.controller?.abort();
-                this.controller = null;
-                this.popup = null;
-            },
-        });
-        this.popup = popup;
-        const popupTask = popup.show();
+        this.dialog = root;
+        document.body.append(root);
+        root.showModal();
 
         const load = async () => {
             const revision = ++loadRevision;
@@ -118,7 +114,6 @@ export class DataMaidViewer {
             void load();
         };
         await load();
-        await popupTask;
     }
 
     /**
@@ -127,9 +122,10 @@ export class DataMaidViewer {
     close() {
         this.controller?.abort();
         this.controller = null;
-        const popup = this.popup;
-        this.popup = null;
-        if (popup) void popup.completeCancelled();
+        const dialog = this.dialog;
+        this.dialog = null;
+        if (dialog?.open) dialog.close();
+        dialog?.remove();
     }
 
     /**

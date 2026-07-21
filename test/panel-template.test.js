@@ -276,9 +276,11 @@ test('chat viewer follows SillyTavern message rendering count', async () => {
     assert.match(dialogs, /const revision = \+\+loadRevision[\s\S]*revision !== loadRevision/);
     assert.match(dataMaidViewer, /Number\(power_user\.chat_truncation\) \|\| Number\.MAX_SAFE_INTEGER/);
     assert.match(dataMaidViewer, /const revision = \+\+loadRevision[\s\S]*revision !== loadRevision/);
-    assert.match(dataMaidViewer, /new Popup\(root, POPUP_TYPE\.DISPLAY/);
-    assert.match(dataMaidViewer, /if \(popup\) void popup\.completeCancelled\(\)/);
+    assert.match(dataMaidViewer, /root instanceof HTMLDialogElement/);
+    assert.match(dataMaidViewer, /root\.showModal\(\)/);
+    assert.match(dataMaidViewer, /if \(dialog\?\.open\) dialog\.close\(\)/);
     assert.doesNotMatch(dataMaidViewer, /classList\.remove\('cm-hidden'\)/);
+    assert.doesNotMatch(dataMaidViewer, /POPUP_TYPE|new Popup/);
     assert.doesNotMatch(dataMaidViewer, /constructor\(\{ root,/);
 });
 
