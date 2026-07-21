@@ -2,6 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
+test('all sort controls use the same concise labels', async () => {
+    const templates = await Promise.all([
+        readFile(new URL('../templates/chat-files/panel.html', import.meta.url), 'utf8'),
+        readFile(new URL('../templates/chat-files/dialogs.html', import.meta.url), 'utf8'),
+        readFile(new URL('../templates/chat-files/data-maid-enhancer.html', import.meta.url), 'utf8'),
+    ]);
+
+    for (const html of templates) {
+        assert.match(html, /<option value="(?:newest|latest)">最新<\/option>/);
+        assert.match(html, /<option value="oldest">最旧<\/option>/);
+        assert.match(html, /<option value="largest">最大<\/option>/);
+        assert.doesNotMatch(html, /优先|文件最大|最早/);
+    }
+});
+
 test('panel template exposes all stable UI mounts', async () => {
     const html = await readFile(new URL('../templates/chat-files/panel.html', import.meta.url), 'utf8');
     for (const marker of [
