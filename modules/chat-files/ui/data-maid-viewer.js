@@ -1,4 +1,5 @@
 import { power_user } from '/scripts/power-user.js';
+import { removeModalDialog, showModalDialog } from '../../platform/dom.js';
 import { parseJsonlResponse } from '../../shared/data.js';
 import { formatBytes } from '../../shared/files.js';
 
@@ -57,10 +58,6 @@ export class DataMaidViewer {
         this.pageLabel = required('[data-cm-maid-message-page]');
         required('[data-cm-maid-viewer-close]', HTMLButtonElement)
             .addEventListener('click', () => this.close());
-        root.addEventListener('cancel', event => {
-            event.preventDefault();
-            this.close();
-        });
         const pageSize = Number(power_user.chat_truncation) || Number.MAX_SAFE_INTEGER;
         let page = 0;
         let loadRevision = 0;
@@ -69,8 +66,7 @@ export class DataMaidViewer {
             formatBytes(Number(item.record.size ?? 0)),
         ].join(' · ');
         this.dialog = root;
-        document.body.append(root);
-        root.showModal();
+        showModalDialog(root, () => this.close());
 
         const load = async () => {
             const revision = ++loadRevision;
@@ -124,8 +120,7 @@ export class DataMaidViewer {
         this.controller = null;
         const dialog = this.dialog;
         this.dialog = null;
-        if (dialog?.open) dialog.close();
-        dialog?.remove();
+        removeModalDialog(dialog);
     }
 
     /**

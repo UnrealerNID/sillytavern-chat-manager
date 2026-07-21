@@ -99,6 +99,7 @@ test('data maid enhancement mounts after either native or plugin-triggered scans
 
 test('dialog templates expose every static dialog and dynamic mount', async () => {
     const html = await readFile(new URL('../templates/chat-files/dialogs.html', import.meta.url), 'utf8');
+    assert.match(html, /<dialog class="cm-top-dialog" data-cm-modal-dialog>/);
     for (const marker of [
         'data-cm-dialog-shell',
         'data-cm-dialog-content="backups"',
@@ -219,6 +220,9 @@ test('panels and dialogs do not close from backdrop clicks', async () => {
     assert.doesNotMatch(source, /event\.target\s*===\s*root/);
     assert.doesNotMatch(source, /event\.target\s*===\s*this\.root/);
     assert.doesNotMatch(templates, /event\.target\s*===\s*root/);
+    assert.match(templates, /root instanceof HTMLDialogElement/);
+    assert.match(templates, /showModalDialog\(root, lifecycle\.close\)/);
+    assert.match(templates, /removeModalDialog\(root\)/);
 });
 
 test('backup listing is only requested explicitly while chat files are stable', async () => {
@@ -277,8 +281,8 @@ test('chat viewer follows SillyTavern message rendering count', async () => {
     assert.match(dataMaidViewer, /Number\(power_user\.chat_truncation\) \|\| Number\.MAX_SAFE_INTEGER/);
     assert.match(dataMaidViewer, /const revision = \+\+loadRevision[\s\S]*revision !== loadRevision/);
     assert.match(dataMaidViewer, /root instanceof HTMLDialogElement/);
-    assert.match(dataMaidViewer, /root\.showModal\(\)/);
-    assert.match(dataMaidViewer, /if \(dialog\?\.open\) dialog\.close\(\)/);
+    assert.match(dataMaidViewer, /showModalDialog\(root, \(\) => this\.close\(\)\)/);
+    assert.match(dataMaidViewer, /removeModalDialog\(dialog\)/);
     assert.doesNotMatch(dataMaidViewer, /classList\.remove\('cm-hidden'\)/);
     assert.doesNotMatch(dataMaidViewer, /POPUP_TYPE|new Popup/);
     assert.doesNotMatch(dataMaidViewer, /constructor\(\{ root,/);

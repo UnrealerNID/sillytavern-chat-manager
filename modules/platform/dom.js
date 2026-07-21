@@ -52,3 +52,27 @@ export function waitForElement(selector, options = {}) {
     const queryRoot = options.queryRoot ?? document;
     return waitForDom(() => queryRoot.querySelector(selector), options);
 }
+
+/**
+ * 将对话框挂载到浏览器顶层并统一接管 Esc
+ * @param {HTMLDialogElement} dialog 对话框
+ * @param {()=>void} onCancel Esc 关闭请求
+ */
+export function showModalDialog(dialog, onCancel) {
+    dialog.addEventListener('cancel', event => {
+        event.preventDefault();
+        onCancel();
+    });
+    document.body.append(dialog);
+    dialog.showModal();
+}
+
+/**
+ * 关闭并移除顶层对话框
+ * @param {HTMLDialogElement|null} dialog 对话框
+ */
+export function removeModalDialog(dialog) {
+    if (!dialog) return;
+    if (dialog.open) dialog.close();
+    dialog.remove();
+}

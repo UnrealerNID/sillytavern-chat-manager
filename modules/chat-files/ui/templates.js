@@ -1,4 +1,5 @@
 import { element } from '../../shared/dom.js';
+import { removeModalDialog, showModalDialog } from '../../platform/dom.js';
 import { DialogRegistry } from './dialog-registry.js';
 
 /**
@@ -68,7 +69,8 @@ export class UiTemplates {
     dialog(title, contentId) {
         const controller = new AbortController();
         const fragment = this.dialogTemplate.content.cloneNode(true);
-        const root = this.mount(fragment, '[data-cm-dialog-overlay]');
+        const root = this.mount(fragment, '[data-cm-modal-dialog]');
+        if (!(root instanceof HTMLDialogElement)) throw new Error('聊天管理弹窗根节点无效');
         const panel = this.mount(fragment, '[data-cm-dialog-panel]');
         const heading = this.mount(fragment, '[data-cm-dialog-title]');
         const closeButton = this.mount(fragment, '[data-cm-dialog-close]', HTMLButtonElement);
@@ -88,12 +90,12 @@ export class UiTemplates {
         body.append(contentTemplate.content.cloneNode(true));
         const lifecycle = this.dialogs.register(() => {
             controller.abort();
-            root.remove();
+            removeModalDialog(root);
         }, value => {
             closeButton.disabled = !value;
         });
         closeButton.addEventListener('click', lifecycle.close);
-        document.body.append(root);
+        showModalDialog(root, lifecycle.close);
         return {
             root,
             body,

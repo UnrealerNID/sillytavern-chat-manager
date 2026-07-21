@@ -19,12 +19,12 @@ test('style entry imports every responsibility module', async () => {
     await Promise.all(imports.map(path => access(new URL(path, entryUrl))));
 });
 
-test('chat manager overlay dialogs reserve stable panel and child layers', async () => {
+test('chat manager panels and modal dialogs use their dedicated layers', async () => {
     const base = await readFile(new URL('../styles/chat-files/base.css', import.meta.url), 'utf8');
     assert.match(base, /\.cm-overlay\s*\{[^}]*z-index:\s*31000/s);
-    assert.match(base, /\.cm-dialog-overlay\s*\{[^}]*z-index:\s*32000/s);
     assert.match(base, /dialog\.cm-top-dialog\[open\][\s\S]*display:\s*flex/);
     assert.match(base, /dialog\.cm-top-dialog::backdrop/);
+    assert.doesNotMatch(base, /\.cm-dialog-overlay/);
 });
 
 test('all plugin panels use the same readable disabled button style', async () => {

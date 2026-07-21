@@ -42,10 +42,6 @@
     white-space: nowrap;
 }
 
-.cm-dialog-overlay {
-    z-index: 32000;
-}
-
 dialog.cm-top-dialog {
     width: 100vw;
     max-width: none;
