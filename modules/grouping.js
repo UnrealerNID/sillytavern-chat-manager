@@ -90,26 +90,33 @@ export function groupSplitRecords(records, allRecords = records) {
     for (const record of records) {
         const split = getStoredSplitIdentity(record);
         if (!split) {
-            const unit = { type: 'record', key: `record:${record.ownerType}:${record.ownerId}:${record.fileId}`, record };
-            units.push(unit);
+            units.push(recordUnit(record));
             continue;
         }
         const key = `split:${record.ownerType}:${record.ownerId}:${split.rootChatId}`;
         let series = seriesByKey.get(key);
         if (!series) {
-            series = { type: 'split-group', key, ownerType: record.ownerType, ownerId: record.ownerId, ownerName: record.ownerName, rootChatId: split.rootChatId, records: [] };
+            series = {
+                type: 'split-group',
+                key,
+                ownerType: record.ownerType,
+                ownerId: record.ownerId,
+                ownerName: record.ownerName,
+                rootChatId: split.rootChatId,
+                records: [],
+            };
             seriesByKey.set(key, series);
             units.push(series);
         }
         series.records.push({ record, split });
     }
     for (const series of seriesByKey.values()) {
-        series.records.sort((a, b) => a.split.start - b.split.start || (a.split.sequence ?? 0) - (b.split.sequence ?? 0));
+        series.records.sort(compareSplitItems);
         series.allRecords = allRecords.flatMap(record => {
             if (record.ownerType !== series.ownerType || String(record.ownerId) !== String(series.ownerId)) return [];
             const split = getStoredSplitIdentity(record);
             return split?.rootChatId === series.rootChatId ? [{ record, split }] : [];
-        }).sort((a, b) => a.split.start - b.split.start || (a.split.sequence ?? 0) - (b.split.sequence ?? 0));
+        }).sort(compareSplitItems);
         series.sourceRecord = allRecords.find(record => record.ownerType === series.ownerType
             && String(record.ownerId) === String(series.ownerId)
             && record.fileId === series.rootChatId);
@@ -132,23 +139,58 @@ export function groupOwnerRecords(records, groupSplits, allRecords = records) {
         const key = `owner:${record.ownerType}:${record.ownerId}`;
         let owner = ownerByKey.get(key);
         if (!owner) {
-            owner = { type: 'owner-group', key, ownerType: record.ownerType, ownerId: record.ownerId, ownerName: record.ownerName, avatarUrl: record.avatarUrl, records: [] };
+            owner = {
+                type: 'owner-group',
+                key,
+                ownerType: record.ownerType,
+                ownerId: record.ownerId,
+                ownerName: record.ownerName,
+                avatarUrl: record.avatarUrl,
+                records: [],
+            };
             ownerByKey.set(key, owner);
             owners.push(owner);
         }
         owner.records.push(record);
     }
     for (const owner of owners) {
-        const allOwnerRecords = allRecords.filter(record => record.ownerType === owner.ownerType && String(record.ownerId) === String(owner.ownerId));
+        const allOwnerRecords = allRecords.filter(record => (
+            record.ownerType === owner.ownerType
+            && String(record.ownerId) === String(owner.ownerId)
+        ));
         owner.allRecords = allOwnerRecords;
         owner.splitGroupCount = groupSplits
             ? groupSplitRecords(allOwnerRecords, allOwnerRecords).filter(unit => unit.type === 'split-group').length
             : 0;
         owner.children = groupSplits
             ? groupSplitRecords(owner.records, allOwnerRecords)
-            : owner.records.map(record => ({ type: 'record', key: `record:${record.ownerType}:${record.ownerId}:${record.fileId}`, record }));
+            : owner.records.map(recordUnit);
     }
     return owners;
+}
+
+/**
+ * 创建聊天记录显示单元
+ * @param {object} record 聊天记录
+ * @returns {object} 显示单元
+ */
+function recordUnit(record) {
+    return {
+        type: 'record',
+        key: `record:${record.ownerType}:${record.ownerId}:${record.fileId}`,
+        record,
+    };
+}
+
+/**
+ * 按楼层和卷号排列分卷
+ * @param {object} left 左侧分卷
+ * @param {object} right 右侧分卷
+ * @returns {number} 排序结果
+ */
+function compareSplitItems(left, right) {
+    return left.split.start - right.split.start
+        || (left.split.sequence ?? 0) - (right.split.sequence ?? 0);
 }
 
 /**

@@ -18,13 +18,20 @@ export class TaskJournal {
         });
     }
 
-    /** @param {IDBTransactionMode} mode 事务模式 */
+    /**
+     * 打开任务存储事务
+     * @param {IDBTransactionMode} mode 事务模式
+     * @returns {Promise<IDBObjectStore>} 对象存储
+     */
     async #store(mode) {
         const db = await this.#dbPromise;
         return db.transaction(STORE_NAME, mode).objectStore(STORE_NAME);
     }
 
-    /** @param {object} task 分割任务 */
+    /**
+     * 保存分割任务
+     * @param {object} task 分割任务
+     */
     async put(task) {
         const store = await this.#store('readwrite');
         return new Promise((resolve, reject) => {
@@ -43,7 +50,10 @@ export class TaskJournal {
         });
     }
 
-    /** @param {string} id 任务 ID */
+    /**
+     * 删除分割任务
+     * @param {string} id 任务 ID
+     */
     async remove(id) {
         const store = await this.#store('readwrite');
         return new Promise((resolve, reject) => {

@@ -15,12 +15,17 @@ export class HttpError extends Error {
 }
 
 export class ChatManagerApi {
-    /** @param {()=>any} getContext 酒馆上下文提供器 */
+    /**
+     * @param {()=>any} getContext 酒馆上下文提供器
+     */
     constructor(getContext) {
         this.getContext = getContext;
     }
 
-    /** @returns {Record<string,string>} 原生请求头 */
+    /**
+     * 获取酒馆原生请求头
+     * @returns {Record<string,string>} 请求头
+     */
     headers(options = {}) {
         return this.getContext().getRequestHeaders(options);
     }

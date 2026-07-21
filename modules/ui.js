@@ -1,13 +1,25 @@
-import { chatKey, formatBytes, parseBytes, stripJsonl } from './utils.js';
-import { deriveIncrementalSplit, filterChatRecords, getCurrentOwner, groupOwnerRecords, groupSplitRecords, sortChatRecords } from './grouping.js';
+import { chatKey, stripJsonl } from './utils.js';
+import {
+    filterChatRecords,
+    getCurrentOwner,
+    groupOwnerRecords,
+    groupSplitRecords,
+    sortChatRecords,
+} from './grouping.js';
 import { BackupDialogs } from './ui/backup-dialogs.js';
+import { ChatDeleteDialog } from './ui/chat-delete-dialog.js';
+import { ChatListRenderer } from './ui/chat-list-renderer.js';
 import { SplitDialogs } from './ui/split-dialogs.js';
 import { UiTemplates } from './ui/templates.js';
 
 const SORT_ORDERS = ['newest', 'oldest', 'largest', 'messages', 'name'];
 const DEFAULT_PAGE_SIZE = 50;
 
-/** @param {unknown} value 分页数量 */
+/**
+ * 规范化分页数量
+ * @param {unknown} value 分页数量
+ * @returns {number} 有效分页数量
+ */
 function normalizePageSize(value) {
     const size = Number(value);
     return Number.isInteger(size) && size > 0 ? size : DEFAULT_PAGE_SIZE;
@@ -36,10 +48,28 @@ export class ChatManagerUi {
      * @param {string} dependencies.dialogTemplates 弹窗模板注册表
      * @param {string} dependencies.componentTemplates 重复内容组件模板注册表
      * @param {(record:object)=>string} dependencies.getAvatarUrl 头像地址生成器
-     * @param {{groupOwners?:boolean,groupSplits?:boolean,sortOrder?:string,pageSize?:number}} dependencies.viewOptions 列表显示设置
-     * @param {(options:{groupOwners:boolean,groupSplits:boolean,sortOrder:string,pageSize:number})=>void} dependencies.onViewOptionsChange 列表显示设置回调
+     * @param {object} dependencies.viewOptions 列表显示设置
+     * @param {(options:object)=>void} dependencies.onViewOptionsChange 设置保存回调
      */
-    constructor({ getContext, api, backups, splitter, isGenerating, openRecord, deleteRecord, renameRecord, refreshRecentChats, restoreBackup, openDataMaid, template, dialogTemplates, componentTemplates, getAvatarUrl, viewOptions = {}, onViewOptionsChange = () => {} }) {
+    constructor({
+        getContext,
+        api,
+        backups,
+        splitter,
+        isGenerating,
+        openRecord,
+        deleteRecord,
+        renameRecord,
+        refreshRecentChats,
+        restoreBackup,
+        openDataMaid,
+        template,
+        dialogTemplates,
+        componentTemplates,
+        getAvatarUrl,
+        viewOptions = {},
+        onViewOptionsChange = () => {},
+    }) {
         this.getContext = getContext;
         this.api = api;
         this.backups = backups;
@@ -57,7 +87,6 @@ export class ChatManagerUi {
         this.page = 0;
         this.scope = 'all';
         this.currentOwner = null;
-        this.openingKey = null;
         this.selectionMode = false;
         this.selectedRecords = new Map();
         this.loading = false;
@@ -70,8 +99,6 @@ export class ChatManagerUi {
             ? viewOptions.sortOrder
             : 'newest';
         this.pageSize = normalizePageSize(viewOptions.pageSize);
-        this.expandedOwners = new Set();
-        this.expandedSplits = new Set();
         this.onViewOptionsChange = onViewOptionsChange;
         this.#build(template, dialogTemplates, componentTemplates);
     }
@@ -124,6 +151,37 @@ export class ChatManagerUi {
             refresh: () => this.refresh(),
             notify,
         });
+        this.deleteDialog = new ChatDeleteDialog({
+            ui: this.ui,
+            api: this.api,
+            deleteRecord: this.deleteRecord,
+            refreshRecentChats: this.refreshRecentChats,
+            refresh: () => this.refresh(),
+            resetSelection: () => this.#setSelectionMode(false),
+            isLoading: () => this.loading,
+            isGenerating: this.isGenerating,
+            isSplitting: () => this.splitter.running,
+            notify,
+        });
+        this.listRenderer = new ChatListRenderer({
+            ui: this.ui,
+            selectedRecords: this.selectedRecords,
+            isSelectionMode: () => this.selectionMode,
+            isLoading: () => this.loading,
+            isGenerating: this.isGenerating,
+            isSplitting: () => this.splitter.running,
+            render: () => this.#render(),
+            syncSelection: () => this.#syncSelectionControls(),
+            closePanel: () => this.close(),
+            openRecord: this.openRecord,
+            viewRecord: record => this.backupDialogs.viewChat(record),
+            renameRecord: this.renameRecord,
+            openBackups: record => this.openBackups(record),
+            openSplit: (record, options) => this.openSplit(record, options),
+            confirmDelete: records => this.deleteDialog.open(records),
+            refresh: () => this.refresh(),
+            notify,
+        });
 
         required(root, '[data-cm-close]', HTMLButtonElement).addEventListener('click', () => this.close());
         this.refreshButton = required(root, '[data-cm-refresh]', HTMLButtonElement);
@@ -135,7 +193,9 @@ export class ChatManagerUi {
         this.groupSplitsButton.addEventListener('click', () => this.#toggleGrouping('splits'));
         this.batchStartButton.addEventListener('click', () => this.#setSelectionMode(!this.selectionMode));
         this.batchCancelButton.addEventListener('click', () => this.#clearSelection());
-        this.batchConfirmButton.addEventListener('click', () => this.#confirmDelete(Array.from(this.selectedRecords.values())));
+        this.batchConfirmButton.addEventListener('click', () => (
+            this.deleteDialog.open(Array.from(this.selectedRecords.values()))
+        ));
         this.search.addEventListener('input', () => { this.page = 0; this.#filter(); });
         this.sort.addEventListener('change', () => {
             this.sortOrder = this.sort.value;
@@ -201,7 +261,10 @@ export class ChatManagerUi {
         this.state.classList.toggle('cm-error', error);
     }
 
-    /** @param {boolean} loading 聊天清单是否正在加载 */
+    /**
+     * 设置聊天清单加载状态
+     * @param {boolean} loading 聊天清单是否正在加载
+     */
     #setLoading(loading) {
         if (this.loading === loading) return;
         this.loading = loading;
@@ -242,7 +305,10 @@ export class ChatManagerUi {
         }
     }
 
-    /** @returns {string} 当前清单范围的稳定键 */
+    /**
+     * 获取当前清单范围的稳定键
+     * @returns {string} 稳定键
+     */
     #inventoryKey() {
         return this.scope === 'current' && this.currentOwner
             ? `current:${this.currentOwner.ownerType}:${this.currentOwner.ownerId}`
@@ -306,7 +372,9 @@ export class ChatManagerUi {
         this.#render();
     }
 
-    /** 根据酒馆当前上下文选择打开面板时的默认显示范围 */
+    /**
+     * 根据酒馆当前上下文选择默认显示范围
+     */
     #useDefaultScope() {
         this.currentOwner = getCurrentOwner(this.getContext());
         this.scope = this.currentOwner ? 'current' : 'all';
@@ -327,7 +395,9 @@ export class ChatManagerUi {
         await this.refresh();
     }
 
-    /** 同步互斥的聊天范围选项 */
+    /**
+     * 同步互斥的聊天范围选项
+     */
     #syncScopeButtons() {
         this.scopeCurrentLabel.textContent = this.currentOwner?.label ?? '当前角色';
         this.scopeCurrentButton.disabled = !this.currentOwner;
@@ -348,7 +418,7 @@ export class ChatManagerUi {
         const totalPages = Math.max(1, Math.ceil(units.length / this.pageSize));
         this.page = Math.max(0, Math.min(this.page, totalPages - 1));
         const pageUnits = units.slice(this.page * this.pageSize, (this.page + 1) * this.pageSize);
-        for (const unit of pageUnits) this.list.append(this.#renderUnit(unit));
+        for (const unit of pageUnits) this.list.append(this.listRenderer.renderUnit(unit));
         if (!pageUnits.length && !this.loading) this.list.append(this.ui.state('没有可显示的聊天', { empty: true }));
         const grouped = this.groupOwners || this.groupSplits ? ` · ${units.length} 组/项` : '';
         this.pageLabel.textContent = `第 ${this.page + 1} / ${totalPages} 页 · ${this.filtered.length} 条${grouped}`;
@@ -356,13 +426,10 @@ export class ChatManagerUi {
         this.next.disabled = this.page >= totalPages - 1;
     }
 
-    #renderUnit(unit) {
-        if (unit.type === 'owner-group') return this.#ownerGroup(unit);
-        if (unit.type === 'split-group') return this.#splitGroup(unit);
-        return this.#chatRow(unit.record);
-    }
-
-    /** @param {'owners'|'splits'} type 要切换的分组维度 */
+    /**
+     * 切换分组方式
+     * @param {'owners'|'splits'} type 分组维度
+     */
     #toggleGrouping(type) {
         if (type === 'owners') this.groupOwners = !this.groupOwners;
         if (type === 'splits') this.groupSplits = !this.groupSplits;
@@ -372,7 +439,9 @@ export class ChatManagerUi {
         this.#saveViewOptions();
     }
 
-    /** 保存列表显示设置 */
+    /**
+     * 保存列表显示设置
+     */
     #saveViewOptions() {
         this.onViewOptionsChange({
             groupOwners: this.groupOwners,
@@ -382,7 +451,9 @@ export class ChatManagerUi {
         });
     }
 
-    /** 同步分组按钮的可访问状态与视觉状态 */
+    /**
+     * 同步分组按钮状态
+     */
     #syncGroupingButtons() {
         for (const [button, active] of [[this.groupOwnersButton, this.groupOwners], [this.groupSplitsButton, this.groupSplits]]) {
             button.setAttribute('aria-checked', String(active));
@@ -391,7 +462,10 @@ export class ChatManagerUi {
         }
     }
 
-    /** @param {boolean} enabled 是否进入批量选择模式 */
+    /**
+     * 切换批量选择模式
+     * @param {boolean} enabled 是否启用
+     */
     #setSelectionMode(enabled) {
         if (enabled && (this.isGenerating() || this.splitter.running)) return;
         this.selectionMode = enabled;
@@ -402,14 +476,18 @@ export class ChatManagerUi {
         this.#render();
     }
 
-    /** 清除当前勾选，但保留批量选择模式 */
+    /**
+     * 清除当前勾选并保留批量选择模式
+     */
     #clearSelection() {
         this.selectedRecords.clear();
         this.#syncSelectionControls();
         this.#render();
     }
 
-    /** 同步批量删除按钮和面板选择状态 */
+    /**
+     * 同步批量删除按钮和选择状态
+     */
     #syncSelectionControls() {
         const blocked = this.isGenerating() || this.splitter.running || this.loading;
         this.root.classList.toggle('cm-selection-mode', this.selectionMode);
@@ -426,333 +504,10 @@ export class ChatManagerUi {
     }
 
     /**
-     * 创建角色或群组的折叠显示单元
-     * @param {object} group 所有者分组
-     * @returns {HTMLElement} 分组节点
+     * 打开聊天对应备份
+     * @param {object} record 原聊天记录
+     * @returns {Promise<void>} 弹窗任务
      */
-    #ownerGroup(group) {
-        const root = this.ui.component('owner-group');
-        this.#configureGroupSelection(
-            this.ui.mount(root, '[data-cm-owner-select-wrap]'),
-            this.ui.mount(root, '[data-cm-owner-select]', HTMLInputElement),
-            group.allRecords ?? group.records,
-        );
-        const image = this.ui.mount(root, '[data-cm-owner-avatar]', HTMLImageElement);
-        const toggle = this.ui.mount(root, '[data-cm-owner-toggle]', HTMLButtonElement);
-        const children = this.ui.mount(root, '[data-cm-owner-children]');
-        const expanded = this.expandedOwners.has(group.key);
-        image.src = group.avatarUrl;
-        image.alt = group.ownerName;
-        this.ui.mount(root, '[data-cm-owner-name]').textContent = group.ownerName;
-        const splitCount = group.splitGroupCount ?? group.children.filter(child => child.type === 'split-group').length;
-        const ownerRecords = group.allRecords ?? group.records;
-        const aggregate = this.#recordAggregate(ownerRecords);
-        const summary = `${ownerRecords.length} 条聊天${splitCount ? ` · ${splitCount} 个分卷组` : ''} · 文件合计 ${aggregate.messageCount} 层 / ${formatBytes(aggregate.bytes)}`;
-        const latest = aggregate.latest
-            ? `最近：${aggregate.latest.fileId} · ${this.ui.formatDate(aggregate.latest.lastMessageAt)}`
-            : '没有可用的聊天记录';
-        const summaryNode = this.ui.mount(root, '[data-cm-owner-summary]');
-        const latestNode = this.ui.mount(root, '[data-cm-owner-latest]');
-        summaryNode.textContent = summary;
-        summaryNode.title = summary;
-        latestNode.textContent = latest;
-        latestNode.title = latest;
-        this.#configureGroupToggle(toggle, expanded, '聊天', () => {
-            expanded ? this.expandedOwners.delete(group.key) : this.expandedOwners.add(group.key);
-            this.#render();
-        });
-        if (expanded) {
-            children.classList.remove('cm-hidden');
-            group.children.forEach(child => children.append(this.#renderUnit(child)));
-        }
-        return root;
-    }
-
-    /**
-     * 创建分卷组显示单元并连接增量分卷入口
-     * @param {object} group 分卷组
-     * @returns {HTMLElement} 分组节点
-     */
-    #splitGroup(group) {
-        const root = this.ui.component('split-group');
-        const splitRecords = group.allRecords ?? group.records;
-        const selectableRecords = group.sourceRecord
-            ? [group.sourceRecord, ...splitRecords.map(item => item.record)]
-            : splitRecords.map(item => item.record);
-        this.#configureGroupSelection(
-            this.ui.mount(root, '[data-cm-split-select-wrap]'),
-            this.ui.mount(root, '[data-cm-split-select]', HTMLInputElement),
-            selectableRecords,
-        );
-        const toggle = this.ui.mount(root, '[data-cm-split-toggle]', HTMLButtonElement);
-        const children = this.ui.mount(root, '[data-cm-split-children]');
-        const continueButton = this.ui.mount(root, '[data-cm-split-continue]', HTMLButtonElement);
-        const incremental = deriveIncrementalSplit(group);
-        const expanded = this.expandedSplits.has(group.key);
-        const first = splitRecords[0].split;
-        const last = splitRecords.at(-1).split;
-        const aggregate = this.#recordAggregate(splitRecords.map(item => item.record));
-        this.ui.mount(root, '[data-cm-split-group-name]').textContent = group.rootChatId;
-        const summary = `${splitRecords.length} 个分卷 · 覆盖 #${first.start}–#${last.end} · 分卷合计 ${aggregate.messageCount} 层 / ${formatBytes(aggregate.bytes)} · ${group.sourceRecord ? '源聊天存在' : '仅保留分卷'}`;
-        const latest = aggregate.latest
-            ? `最近：${aggregate.latest.fileId} · ${this.ui.formatDate(aggregate.latest.lastMessageAt)}`
-            : '没有可用的分卷记录';
-        const summaryNode = this.ui.mount(root, '[data-cm-split-group-summary]');
-        const latestNode = this.ui.mount(root, '[data-cm-split-group-latest]');
-        const incrementalNode = this.ui.mount(root, '[data-cm-split-group-incremental]');
-        summaryNode.textContent = summary;
-        summaryNode.title = summary;
-        latestNode.textContent = latest;
-        latestNode.title = latest;
-        incrementalNode.textContent = `增量：${incremental.reason}`;
-        incrementalNode.title = incrementalNode.textContent;
-        continueButton.disabled = !incremental.available || this.isGenerating() || this.splitter.running;
-        continueButton.title = incremental.available ? incremental.reason : `暂不可增量分卷：${incremental.reason}`;
-        this.ui.bindButton(continueButton, () => this.openSplit(incremental.sourceRecord, incremental.options));
-        this.#configureGroupToggle(toggle, expanded, '分卷', () => {
-            expanded ? this.expandedSplits.delete(group.key) : this.expandedSplits.add(group.key);
-            this.#render();
-        });
-        if (expanded) {
-            children.classList.remove('cm-hidden');
-            if (group.sourceRecord) children.append(this.#chatRow(group.sourceRecord, { source: true }));
-            group.records.forEach(item => children.append(this.#chatRow(item.record)));
-        }
-        return root;
-    }
-
-    /**
-     * 将组复选框绑定到组内全部实际聊天文件，并同步全选和半选状态
-     * @param {HTMLElement} wrap 复选框容器
-     * @param {HTMLInputElement} input 组复选框
-     * @param {object[]} records 组内聊天记录
-     */
-    #configureGroupSelection(wrap, input, records) {
-        const unique = Array.from(new Map(records.map(record => [chatKey(record), record])).values());
-        const selectedCount = unique.filter(record => this.selectedRecords.has(chatKey(record))).length;
-        wrap.classList.toggle('cm-hidden', !this.selectionMode);
-        input.checked = unique.length > 0 && selectedCount === unique.length;
-        input.indeterminate = selectedCount > 0 && selectedCount < unique.length;
-        wrap.closest('.cm-record-group')?.classList.toggle('cm-selected', selectedCount > 0);
-        input.addEventListener('change', () => {
-            for (const record of unique) {
-                const key = chatKey(record);
-                if (input.checked) this.selectedRecords.set(key, record);
-                else this.selectedRecords.delete(key);
-            }
-            this.#syncSelectionControls();
-            this.#render();
-        });
-    }
-
-    /**
-     * 汇总一组聊天文件的规模与最近记录
-     * @param {object[]} records 聊天记录
-     * @returns {{messageCount:number,bytes:number,latest:object|null}} 聚合信息
-     */
-    #recordAggregate(records) {
-        let messageCount = 0;
-        let bytes = 0;
-        let latest = null;
-        let latestTime = Number.NEGATIVE_INFINITY;
-        for (const record of records) {
-            messageCount += Number(record.messageCount) || 0;
-            bytes += parseBytes(record.fileSize);
-            const time = new Date(record.lastMessageAt).valueOf();
-            if (Number.isFinite(time) && time > latestTime) {
-                latest = record;
-                latestTime = time;
-            }
-        }
-        return { messageCount, bytes, latest };
-    }
-
-    /**
-     * 配置折叠按钮并保持图标和无障碍提示一致
-     * @param {HTMLButtonElement} button 按钮
-     * @param {boolean} expanded 是否展开
-     * @param {string} label 折叠内容名称
-     * @param {()=>void} handler 点击处理
-     */
-    #configureGroupToggle(button, expanded, label, handler) {
-        const action = expanded ? '收起' : '展开';
-        button.setAttribute('aria-expanded', String(expanded));
-        button.setAttribute('aria-label', `${action}${label}`);
-        button.title = `${action}${label}`;
-        this.ui.mount(button, '[data-cm-group-chevron]').classList.toggle('fa-chevron-up', expanded);
-        this.ui.mount(button, '[data-cm-group-chevron]').classList.toggle('fa-chevron-down', !expanded);
-        this.ui.bindButton(button, handler);
-    }
-
-    #chatRow(record, { source = false } = {}) {
-        const row = this.ui.component('chat-row');
-        const selectWrap = this.ui.mount(row, '[data-cm-chat-select-wrap]');
-        const select = this.ui.mount(row, '[data-cm-chat-select]', HTMLInputElement);
-        const image = this.ui.mount(row, '[data-cm-chat-avatar]', HTMLImageElement);
-        const name = this.ui.mount(row, '[data-cm-chat-name]');
-        const owner = this.ui.mount(row, '[data-cm-chat-owner]');
-        const file = this.ui.mount(row, '[data-cm-chat-file]');
-        const sourceBadge = this.ui.mount(row, '[data-cm-chat-source]');
-        const date = this.ui.mount(row, '[data-cm-chat-date]', HTMLTimeElement);
-        const preview = this.ui.mount(row, '[data-cm-chat-preview]');
-        const countWrap = this.ui.mount(row, '[data-cm-chat-count-wrap]');
-        const count = this.ui.mount(row, '[data-cm-chat-count]');
-        const size = this.ui.mount(row, '[data-cm-chat-size]');
-        const open = this.ui.mount(row, '[data-cm-chat-open]', HTMLButtonElement);
-        const view = this.ui.mount(row, '[data-cm-chat-view]', HTMLButtonElement);
-        const rename = this.ui.mount(row, '[data-cm-chat-rename]', HTMLButtonElement);
-        const backup = this.ui.mount(row, '[data-cm-chat-backups]', HTMLButtonElement);
-        const split = this.ui.mount(row, '[data-cm-chat-split]', HTMLButtonElement);
-        const remove = this.ui.mount(row, '[data-cm-chat-delete]', HTMLButtonElement);
-        const key = chatKey(record);
-        selectWrap.classList.toggle('cm-hidden', !this.selectionMode);
-        select.checked = this.selectedRecords.has(key);
-        row.classList.toggle('cm-source-record', source);
-        sourceBadge.classList.toggle('cm-hidden', !source);
-        image.src = record.avatarUrl;
-        image.alt = record.ownerName;
-        name.title = `${record.ownerName} - ${record.fileId}`;
-        owner.textContent = record.ownerName;
-        file.textContent = record.fileId;
-        date.textContent = this.ui.formatShortDate(record.lastMessageAt);
-        date.title = this.ui.formatDate(record.lastMessageAt);
-        preview.textContent = record.preview;
-        preview.title = record.preview;
-        countWrap.title = `${record.messageCount} 层消息`;
-        count.textContent = String(record.messageCount);
-        size.textContent = record.fileSize;
-        const openRecord = async () => {
-            if (this.openingKey) return;
-            this.openingKey = key;
-            row.classList.add('cm-opening');
-            open.disabled = true;
-            try {
-                await this.openRecord(record);
-                this.close();
-            } finally {
-                this.openingKey = null;
-                row.classList.remove('cm-opening');
-                open.disabled = this.isGenerating() || this.splitter.running;
-            }
-        };
-        this.ui.bindButton(open, openRecord);
-        this.ui.bindButton(view, () => this.backupDialogs.viewChat(record));
-        this.ui.bindButton(rename, async () => {
-            try {
-                if (await this.renameRecord(record)) {
-                    await this.refresh();
-                    notify('success', '聊天已重命名');
-                }
-            } catch (error) {
-                notify('error', error.message);
-            }
-        });
-        this.ui.bindButton(backup, () => this.openBackups(record));
-        this.ui.bindButton(split, () => this.openSplit(record));
-        this.ui.bindButton(remove, () => this.#confirmDelete([record]));
-        open.disabled = this.isGenerating() || this.splitter.running;
-        view.disabled = this.loading || this.isGenerating() || this.splitter.running;
-        rename.disabled = this.loading || this.isGenerating() || this.splitter.running;
-        backup.disabled = this.isGenerating() || this.splitter.running;
-        split.disabled = this.isGenerating() || this.splitter.running || record.messageCount < 1;
-        remove.disabled = this.loading || this.isGenerating() || this.splitter.running;
-
-        select.addEventListener('change', () => {
-            if (select.checked) this.selectedRecords.set(key, record);
-            else this.selectedRecords.delete(key);
-            row.classList.toggle('cm-selected', select.checked);
-            this.#syncSelectionControls();
-            this.#render();
-        });
-        row.classList.toggle('cm-selected', select.checked);
-
-        row.addEventListener('click', event => {
-            if (event.target.closest('button, label')) return;
-            if (!this.selectionMode) return;
-            select.checked = !select.checked;
-            select.dispatchEvent(new Event('change'));
-        });
-        return row;
-    }
-
-    /**
-     * 显示删除清单，并在确认后串行调用酒馆原生删除链路
-     * @param {object[]} records 待删除聊天
-     * @returns {Promise<void>}
-     */
-    async #confirmDelete(records) {
-        if (!records.length) return;
-        if (this.loading) return notify('warning', '聊天清单正在读取，完成后才能删除聊天');
-        if (this.isGenerating()) return notify('warning', '聊天正在生成，结束后才能删除聊天');
-        if (this.splitter.running) return notify('warning', '分割任务正在写入聊天，完成后才能删除聊天');
-        const unique = Array.from(new Map(records.map(record => [chatKey(record), record])).values());
-        const dialog = this.ui.dialog([
-            unique.length === 1 ? '删除聊天' : '批量删除聊天',
-            unique.length === 1 ? unique[0].ownerName : `已选择 ${unique.length} 条聊天`,
-            unique.length === 1 ? unique[0].fileId : '确认后将按列表顺序逐条删除',
-        ], 'delete-chats');
-        const summary = this.ui.mount(dialog.body, '[data-cm-delete-summary]');
-        const list = this.ui.mount(dialog.body, '[data-cm-delete-list]');
-        const cancel = this.ui.mount(dialog.body, '[data-cm-delete-cancel]', HTMLButtonElement);
-        const confirm = this.ui.mount(dialog.body, '[data-cm-delete-confirm]', HTMLButtonElement);
-        const confirmText = this.ui.mount(dialog.body, '[data-cm-delete-confirm-text]');
-        const aggregate = this.#recordAggregate(unique);
-        const rows = new Map();
-        summary.textContent = `${unique.length} 个聊天文件 · 合计 ${aggregate.messageCount} 层 / ${formatBytes(aggregate.bytes)}`;
-        confirmText.textContent = unique.length === 1 ? '确认删除' : `确认删除 ${unique.length} 条`;
-        for (const record of unique) {
-            const row = this.ui.component('delete-target');
-            this.ui.mount(row, '[data-cm-delete-owner]').textContent = record.ownerName;
-            this.ui.mount(row, '[data-cm-delete-file]').textContent = record.fileId;
-            this.ui.mount(row, '[data-cm-delete-facts]').textContent = `${record.messageCount} 层 · ${record.fileSize}`;
-            rows.set(chatKey(record), row);
-            list.append(row);
-        }
-        this.ui.bindButton(cancel, () => dialog.close());
-        this.ui.bindButton(confirm, async () => {
-            confirm.disabled = true;
-            cancel.disabled = true;
-            dialog.setClosable(false);
-            let succeeded = 0;
-            let failed = 0;
-            for (const record of unique) {
-                const row = rows.get(chatKey(record));
-                const status = this.ui.mount(row, '[data-cm-delete-status]');
-                status.textContent = '正在删除';
-                status.dataset.state = 'loading';
-                try {
-                    await this.deleteRecord(record);
-                    if (await this.api.chatExists(record)) throw new Error('酒馆原生删除链路未删除该文件');
-                    succeeded++;
-                    status.textContent = '已删除';
-                    status.dataset.state = 'ready';
-                } catch (error) {
-                    failed++;
-                    status.textContent = '删除失败';
-                    status.dataset.state = 'error';
-                    row.title = error.message;
-                }
-                summary.textContent = `正在处理 ${succeeded + failed} / ${unique.length} · 已删除 ${succeeded} 条${failed ? ` · 失败 ${failed} 条` : ''}`;
-            }
-            dialog.setClosable(true);
-            cancel.disabled = false;
-            cancel.textContent = '关闭';
-            confirm.classList.add('cm-hidden');
-            summary.textContent = `处理完成 · 已删除 ${succeeded} 条${failed ? ` · 失败 ${failed} 条` : ''}`;
-            this.#setSelectionMode(false);
-            if (succeeded > 0) {
-                try {
-                    await this.refreshRecentChats();
-                } catch (error) {
-                    console.warn('[聊天文件管理] 刷新最近聊天失败', error);
-                }
-            }
-            await this.refresh();
-            notify(failed ? 'warning' : 'success', failed ? `已删除 ${succeeded} 条，${failed} 条失败` : `已删除 ${succeeded} 条聊天`);
-        });
-    }
-
-    /** @param {object} record 原聊天记录 */
     openBackups(record) {
         return this.backupDialogs.open(record);
     }
@@ -765,7 +520,11 @@ export class ChatManagerUi {
         return this.splitDialogs.open(record, initialOptions);
     }
 
-    /** @param {object[]} tasks 未完成分卷任务 */
+    /**
+     * 显示未完成分卷任务
+     * @param {object[]} tasks 未完成任务
+     * @returns {Promise<void>} 弹窗任务
+     */
     showRecovery(tasks) {
         return this.splitDialogs.showRecovery(tasks);
     }

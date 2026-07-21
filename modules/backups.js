@@ -6,7 +6,9 @@ const MATCH_RESULT_CACHE_MS = 60_000;
 const MATCH_CONCURRENCY = 4;
 
 export class BackupService {
-    /** @param {import('./api.js').ChatManagerApi} api 接口实例 */
+    /**
+     * @param {import('./api.js').ChatManagerApi} api 接口实例
+     */
     constructor(api) {
         this.api = api;
         this.backupListCache = null;
@@ -259,7 +261,10 @@ export class BackupService {
         return messages;
     }
 
-    /** @param {object|string} backup 备份条目或文件名 */
+    /**
+     * 下载备份文件
+     * @param {object|string} backup 备份条目或文件名
+     */
     async download(backup) {
         const blob = await this.readBlob(backup);
         const url = URL.createObjectURL(blob);
@@ -282,7 +287,10 @@ export class BackupService {
         return response.blob();
     }
 
-    /** @param {Iterable<string>} names 已删除的备份文件名 */
+    /**
+     * 移除已删除备份的缓存
+     * @param {Iterable<string>} names 已删除的备份文件名
+     */
     forget(names) {
         const removed = new Set(names);
         if (this.backupListCache) {
@@ -291,7 +299,9 @@ export class BackupService {
         this.resultCache.clear();
     }
 
-    /** 释放安全备份目录的临时令牌 */
+    /**
+     * 释放安全备份目录的临时令牌
+     */
     async dispose() {
         this.reportToken = '';
         this.report = null;

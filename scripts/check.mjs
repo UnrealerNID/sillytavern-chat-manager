@@ -12,9 +12,28 @@ function files(directory) {
     });
 }
 
-for (const file of files(root).filter(path => /\.(?:js|mjs)$/.test(path))) {
+const projectFiles = files(root);
+const scriptFiles = projectFiles.filter(path => /\.(?:js|mjs)$/.test(path));
+
+for (const file of scriptFiles) {
     execFileSync(process.execPath, ['--check', file], { stdio: 'inherit' });
     console.log(`checked ${relative(root, file)}`);
+}
+
+// 源码注释保持标准块格式，避免接口契约退化为难读的单行注释
+for (const file of scriptFiles) {
+    const source = readFileSync(file, 'utf8');
+    if (/\/\*\*[^\r\n]*\*\//.test(source)) {
+        throw new Error(`JSDoc 必须使用多行格式：${relative(root, file)}`);
+    }
+}
+
+// 嵌套模板节点分行排列，避免图标、文案和控件挤在同一行
+for (const file of projectFiles.filter(path => path.endsWith('.html'))) {
+    const source = readFileSync(file, 'utf8');
+    if (/<\/[^>]+>[\t ]*</.test(source)) {
+        throw new Error(`HTML 相邻子节点必须分行：${relative(root, file)}`);
+    }
 }
 
 const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8'));

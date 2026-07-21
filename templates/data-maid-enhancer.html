@@ -1,6 +1,11 @@
 <div id="chat_manager_data_maid_enhancer" class="cm-data-maid-root">
     <div class="cm-overlay cm-dialog-overlay cm-hidden" role="presentation" data-cm-maid-viewer>
-        <section class="cm-dialog cm-data-maid-viewer" role="dialog" aria-modal="true" aria-labelledby="chat_manager_maid_viewer_title">
+        <section
+            class="cm-dialog cm-data-maid-viewer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="chat_manager_maid_viewer_title"
+        >
             <header class="cm-header">
                 <h3 id="chat_manager_maid_viewer_title" data-cm-maid-viewer-title>查看聊天备份</h3>
                 <button class="cm-icon-button" type="button" title="关闭" aria-label="关闭" data-cm-maid-viewer-close>
@@ -22,7 +27,12 @@
     </div>
 
     <div class="cm-overlay cm-dialog-overlay cm-hidden" role="presentation" data-cm-maid-delete-dialog>
-        <section class="cm-dialog cm-data-maid-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="chat_manager_maid_delete_title">
+        <section
+            class="cm-dialog cm-data-maid-delete-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="chat_manager_maid_delete_title"
+        >
             <header class="cm-header">
                 <h3 id="chat_manager_maid_delete_title">批量删除聊天备份</h3>
                 <button class="cm-icon-button" type="button" title="关闭" aria-label="关闭" data-cm-maid-delete-close>
@@ -39,7 +49,8 @@
                 <div class="cm-dialog-actions">
                     <button class="menu_button" type="button" data-cm-maid-delete-cancel>取消</button>
                     <button class="menu_button cm-danger-action" type="button" data-cm-maid-delete-confirm>
-                        <i class="fa-solid fa-trash-can" aria-hidden="true"></i><span>确认删除</span>
+                        <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                        <span>确认删除</span>
                     </button>
                 </div>
             </div>
@@ -49,7 +60,13 @@
     <template data-cm-maid-toolbar-template>
         <div class="cm-data-maid-tools">
             <div class="cm-data-maid-primary">
-                <button class="menu_button cm-icon-action" type="button" title="检查备份对应关系" aria-label="检查备份对应关系" data-cm-maid-scan>
+                <button
+                    class="menu_button cm-icon-action"
+                    type="button"
+                    title="检查备份对应关系"
+                    aria-label="检查备份对应关系"
+                    data-cm-maid-scan
+                >
                     <i class="fa-solid fa-link" aria-hidden="true"></i>
                 </button>
                 <label class="cm-search-wrap">
@@ -67,7 +84,14 @@
                     <option value="uncertain">仅待确认</option>
                     <option value="issues">孤立与待确认</option>
                 </select>
-                <button class="menu_button cm-icon-action" type="button" title="进入批量选择" aria-label="进入批量选择" aria-pressed="false" data-cm-maid-batch-start>
+                <button
+                    class="menu_button cm-icon-action"
+                    type="button"
+                    title="进入批量选择"
+                    aria-label="进入批量选择"
+                    aria-pressed="false"
+                    data-cm-maid-batch-start
+                >
                     <i class="fa-solid fa-square-check" aria-hidden="true"></i>
                 </button>
             </div>
@@ -78,13 +102,33 @@
                         <i class="fa-solid fa-square-check" aria-hidden="true"></i>
                         <span data-cm-maid-selected-count>已选 0 项</span>
                     </span>
-                    <button class="menu_button cm-icon-action" type="button" title="全选当前结果" aria-label="全选当前结果" data-cm-maid-select-all>
+                    <button
+                        class="menu_button cm-icon-action"
+                        type="button"
+                        title="全选当前结果"
+                        aria-label="全选当前结果"
+                        data-cm-maid-select-all
+                    >
                         <i class="fa-solid fa-check-double" aria-hidden="true"></i>
                     </button>
-                    <button class="menu_button cm-icon-action" type="button" title="取消全部选择" aria-label="取消全部选择" disabled data-cm-maid-clear-selection>
+                    <button
+                        class="menu_button cm-icon-action"
+                        type="button"
+                        title="取消全部选择"
+                        aria-label="取消全部选择"
+                        disabled
+                        data-cm-maid-clear-selection
+                    >
                         <i class="fa-solid fa-eraser" aria-hidden="true"></i>
                     </button>
-                    <button class="menu_button cm-icon-action cm-danger-action" type="button" title="删除已选" aria-label="删除已选" disabled data-cm-maid-delete-selected>
+                    <button
+                        class="menu_button cm-icon-action cm-danger-action"
+                        type="button"
+                        title="删除已选"
+                        aria-label="删除已选"
+                        disabled
+                        data-cm-maid-delete-selected
+                    >
                         <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
                     </button>
                 </div>
@@ -94,7 +138,9 @@
 
     <template data-cm-maid-controls-template>
         <div class="cm-data-maid-controls">
-            <label class="cm-data-maid-select-wrap" title="选择该备份"><input type="checkbox" data-cm-maid-select></label>
+            <label class="cm-data-maid-select-wrap" title="选择该备份">
+                <input type="checkbox" data-cm-maid-select>
+            </label>
             <span class="cm-status-badge" data-state="unchecked" data-cm-maid-state>未检查</span>
             <button class="menu_button menu_button_icon margin0" type="button" title="分页查看聊天内容" aria-label="分页查看聊天内容" data-cm-maid-view>
                 <i class="fa-solid fa-eye" aria-hidden="true"></i>
@@ -104,14 +150,20 @@
 
     <template data-cm-maid-message-template>
         <article class="cm-message">
-            <header class="cm-message-header"><strong data-cm-message-name></strong><time data-cm-message-date></time></header>
+            <header class="cm-message-header">
+                <strong data-cm-message-name></strong>
+                <time data-cm-message-date></time>
+            </header>
             <pre data-cm-message-content></pre>
         </article>
     </template>
 
     <template data-cm-maid-delete-template>
         <article class="cm-delete-target">
-            <div class="cm-chat-info"><strong data-cm-delete-name></strong><small data-cm-delete-facts></small></div>
+            <div class="cm-chat-info">
+                <strong data-cm-delete-name></strong>
+                <small data-cm-delete-facts></small>
+            </div>
             <span class="cm-status-badge" data-cm-delete-state></span>
         </article>
     </template>

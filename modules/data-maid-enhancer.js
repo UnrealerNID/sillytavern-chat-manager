@@ -1,31 +1,15 @@
-import { formatBytes, parseJsonlResponse } from './utils.js';
+import { formatBytes } from './utils.js';
+import { captureNextDataMaidReport } from './data-maid-report.js';
+import {
+    backupStateMatchesFilter,
+    inspectDataMaidBackups,
+} from './data-maid-inspector.js';
+import { DataMaidViewer, formatDataMaidDate } from './ui/data-maid-viewer.js';
 
-const MATCH_CONCURRENCY = 4;
-const PAGE_SIZE = 50;
-
-/**
- * 根据稳定完整性标识判断备份对应状态
- * @param {string} integrity 备份完整性标识
- * @param {Set<string>} activeIntegrities 现有聊天完整性标识
- * @returns {'linked'|'orphan'|'uncertain'} 对应状态
- */
-export function classifyBackupIntegrity(integrity, activeIntegrities) {
-    if (!integrity) return 'uncertain';
-    return activeIntegrities.has(integrity) ? 'linked' : 'orphan';
-}
-
-/**
- * 判断备份状态是否符合当前筛选
- * @param {string} state 备份状态
- * @param {string} filter 筛选值
- * @returns {boolean} 是否显示
- */
-export function backupStateMatchesFilter(state, filter) {
-    if (filter === 'orphan') return state === 'orphan';
-    if (filter === 'uncertain') return state === 'uncertain';
-    if (filter === 'issues') return state === 'orphan' || state === 'uncertain';
-    return true;
-}
+export {
+    backupStateMatchesFilter,
+    classifyBackupIntegrity,
+} from './data-maid-inspector.js';
 
 function notify(type, message) {
     if (globalThis.toastr?.[type]) globalThis.toastr[type](message);
@@ -73,7 +57,6 @@ export class DataMaidEnhancer {
         this.container = null;
         this.controller = null;
         this.sessionObserver = null;
-        this.viewerController = null;
         this.pendingDelete = [];
         this.pendingCapture = null;
         this.filter = 'all';
@@ -85,7 +68,10 @@ export class DataMaidEnhancer {
         document.addEventListener('click', this.documentClick, true);
     }
 
-    /** @param {string} template 静态增强模板 */
+    /**
+     * 构建增强面板
+     * @param {string} template 静态增强模板
+     */
     #build(template) {
         const holder = document.createElement('template');
         holder.innerHTML = template.trim();
@@ -101,26 +87,25 @@ export class DataMaidEnhancer {
         this.controlsTemplate = required('[data-cm-maid-controls-template]', HTMLTemplateElement);
         this.messageTemplate = required('[data-cm-maid-message-template]', HTMLTemplateElement);
         this.deleteTemplate = required('[data-cm-maid-delete-template]', HTMLTemplateElement);
-        this.viewer = required('[data-cm-maid-viewer]');
-        this.viewerTitle = required('[data-cm-maid-viewer-title]');
-        this.viewerSummary = required('[data-cm-maid-viewer-summary]');
-        this.messages = required('[data-cm-maid-messages]');
-        this.messagePrevious = required('[data-cm-maid-message-previous]', HTMLButtonElement);
-        this.messageNext = required('[data-cm-maid-message-next]', HTMLButtonElement);
-        this.messagePage = required('[data-cm-maid-message-page]');
+        this.viewer = new DataMaidViewer({
+            api: this.api,
+            messageTemplate: this.messageTemplate,
+            required,
+        });
         this.deleteDialog = required('[data-cm-maid-delete-dialog]');
         this.deleteSummary = required('[data-cm-maid-delete-summary]');
         this.deleteList = required('[data-cm-maid-delete-list]');
         this.deleteCancel = required('[data-cm-maid-delete-cancel]', HTMLButtonElement);
         this.deleteConfirm = required('[data-cm-maid-delete-confirm]', HTMLButtonElement);
-        required('[data-cm-maid-viewer-close]', HTMLButtonElement).addEventListener('click', () => this.#closeViewer());
         required('[data-cm-maid-delete-close]', HTMLButtonElement).addEventListener('click', () => this.#closeDelete());
         this.deleteCancel.addEventListener('click', () => this.#closeDelete());
         this.deleteConfirm.addEventListener('click', () => void this.#executeDelete());
         document.body.append(root);
     }
 
-    /** 打开酒馆原生数据清理面板 */
+    /**
+     * 打开酒馆原生数据清理面板
+     */
     async open() {
         if (document.querySelector('.dataMaidDialogContainer')) {
             notify('warning', '酒馆数据清理面板已经打开，请关闭后从聊天管理重新进入');
@@ -131,7 +116,10 @@ export class DataMaidEnhancer {
         button.click();
     }
 
-    /** @param {boolean} enabled 是否启用原生面板增强 */
+    /**
+     * 设置原生面板增强状态
+     * @param {boolean} enabled 是否启用
+     */
     setEnabled(enabled) {
         if (this.enabled === enabled) return;
         this.enabled = enabled;
@@ -142,7 +130,10 @@ export class DataMaidEnhancer {
         }
     }
 
-    /** @param {Event} event 文档捕获阶段点击事件 */
+    /**
+     * 处理文档捕获阶段点击事件
+     * @param {Event} event 点击事件
+     */
     #handleDocumentClick(event) {
         if (!this.enabled) return;
         const target = event.target instanceof Element ? event.target.closest('.dataMaidStartButton') : null;
@@ -154,12 +145,15 @@ export class DataMaidEnhancer {
         this.#prepareSession(container);
     }
 
-    /** @param {HTMLElement} container 酒馆原生数据清理容器 */
+    /**
+     * 准备一次数据清理会话
+     * @param {HTMLElement} container 原生数据清理容器
+     */
     #prepareSession(container) {
         this.#resetSession();
         this.container = container;
         this.#watchSession();
-        const capture = this.#captureNextReport();
+        const capture = captureNextDataMaidReport();
         this.pendingCapture = capture;
         void capture.promise.then(async result => {
             if (this.pendingCapture !== capture) return;
@@ -174,61 +168,8 @@ export class DataMaidEnhancer {
     }
 
     /**
-     * 一次性观察原生报告请求，不修改请求或响应内容
-     * @returns {{promise:Promise<object>,cancel:()=>void}} 捕获任务
+     * 定位聊天备份分类并插入增强控件
      */
-    #captureNextReport() {
-        const original = globalThis.fetch;
-        let settled = false;
-        let rejectCapture;
-        let wrapped;
-        let timer;
-        const restore = () => {
-            if (globalThis.fetch === wrapped) globalThis.fetch = original;
-            clearTimeout(timer);
-        };
-        const promise = new Promise((resolve, reject) => {
-            rejectCapture = reject;
-            function finish(value, error) {
-                if (settled) return;
-                settled = true;
-                restore();
-                if (error) reject(error);
-                else resolve(value);
-            }
-            wrapped = async function (input, init) {
-                const response = await original.call(globalThis, input, init);
-                const url = typeof input === 'string' ? input : input?.url;
-                if (String(url ?? '').includes('/api/data-maid/report')) {
-                    try {
-                        finish(await response.clone().json());
-                    } catch (error) {
-                        finish(null, error);
-                    }
-                }
-                return response;
-            };
-            // 捕获阶段先安装一次性观察器，让原生冒泡处理器仍独占扫描与渲染
-            globalThis.fetch = wrapped;
-        });
-        timer = setTimeout(() => {
-            if (settled) return;
-            settled = true;
-            restore();
-            rejectCapture(new Error('等待酒馆数据清理报告超时'));
-        }, 120_000);
-        return {
-            promise,
-            cancel: () => {
-                if (settled) return;
-                settled = true;
-                restore();
-                rejectCapture(new DOMException('操作已取消', 'AbortError'));
-            },
-        };
-    }
-
-    /** 定位聊天备份分类并插入增强控件 */
     async #enhanceCategory() {
         if (!this.reportItems.length) {
             notify('info', '当前没有聊天备份文件');
@@ -272,7 +213,10 @@ export class DataMaidEnhancer {
         this.#setSelectionMode(false);
     }
 
-    /** @param {Element} element 原生备份条目 */
+    /**
+     * 增强原生备份条目
+     * @param {Element} element 原生备份条目
+     */
     #enhanceItem(element) {
         const hash = element.getAttribute('data-hash');
         const item = this.items.get(hash);
@@ -295,10 +239,12 @@ export class DataMaidEnhancer {
             element.classList.toggle('cm-selected', checkbox.checked);
             this.#syncSelection();
         });
-        view.addEventListener('click', () => void this.#viewItem(item));
+        view.addEventListener('click', () => void this.viewer.open(item, this.token));
     }
 
-    /** 检查每个备份的完整性标识并原位更新状态 */
+    /**
+     * 检查每个备份的完整性标识并原位更新状态
+     */
     async #inspectBackups() {
         this.controller?.abort();
         this.controller = new AbortController();
@@ -306,35 +252,17 @@ export class DataMaidEnhancer {
         this.#setBusy(true);
         try {
             this.progress.textContent = '正在读取现有聊天标识…';
-            const chats = await this.api.listChatFiles(signal);
-            if (!Array.isArray(chats)) throw new Error('聊天文件接口返回格式无效');
-            const activeIntegrities = new Set(chats.map(item => String(item.chat_metadata?.integrity ?? '')).filter(Boolean));
             const items = Array.from(this.items.values()).filter(item => item.element?.isConnected);
-            let cursor = 0;
-            let done = 0;
-            const run = async () => {
-                while (cursor < items.length) {
-                    const item = items[cursor++];
-                    let integrity = null;
-                    try {
-                        const response = await this.api.readDataMaidFile(this.token, item.record.hash, signal);
-                        await parseJsonlResponse(response, {
-                            stopAfter: 0,
-                            onHeader: header => { integrity = header.chat_metadata?.integrity ?? null; },
-                        });
-                        item.state = classifyBackupIntegrity(integrity, activeIntegrities);
-                    } catch (error) {
-                        if (signal.aborted) throw error;
-                        item.state = 'uncertain';
-                    }
-                    this.#renderState(item);
-                    done++;
-                    this.progress.textContent = `正在检查备份 · ${done} / ${items.length}`;
-                }
-            };
-            await Promise.all(Array.from({ length: Math.min(MATCH_CONCURRENCY, items.length) }, () => run()));
-            const orphan = items.filter(item => item.state === 'orphan').length;
-            const uncertain = items.filter(item => item.state === 'uncertain').length;
+            const { orphan, uncertain } = await inspectDataMaidBackups({
+                api: this.api,
+                token: this.token,
+                items,
+                signal,
+                onState: item => this.#renderState(item),
+                onProgress: (done, total) => {
+                    this.progress.textContent = `正在检查备份 · ${done} / ${total}`;
+                },
+            });
             this.progress.textContent = `检查完成 · 孤立 ${orphan} · 待确认 ${uncertain}`;
             this.filter = 'issues';
             this.filterSelect.value = 'issues';
@@ -346,7 +274,10 @@ export class DataMaidEnhancer {
         }
     }
 
-    /** @param {object} item 备份增强条目 */
+    /**
+     * 渲染备份匹配状态
+     * @param {object} item 备份增强条目
+     */
     #renderState(item) {
         const labels = { linked: '已关联', orphan: '孤立', uncertain: '待确认', unchecked: '未检查' };
         item.badge.textContent = labels[item.state] ?? '待确认';
@@ -391,7 +322,10 @@ export class DataMaidEnhancer {
         this.#syncSelection();
     }
 
-    /** @param {boolean} enabled 是否进入批量选择模式 */
+    /**
+     * 切换批量选择模式
+     * @param {boolean} enabled 是否启用
+     */
     #setSelectionMode(enabled) {
         if (enabled && this.busy) return;
         this.selectionMode = enabled;
@@ -408,7 +342,10 @@ export class DataMaidEnhancer {
         this.#syncSelection();
     }
 
-    /** @param {boolean} sync 是否立即同步控件 */
+    /**
+     * 清除备份选择
+     * @param {boolean} sync 是否立即同步控件
+     */
     #clearSelection(sync = true) {
         this.selected.clear();
         for (const item of this.items.values()) {
@@ -435,58 +372,10 @@ export class DataMaidEnhancer {
         this.selectedCount.textContent = `已选 ${this.selected.size} 项`;
     }
 
-    /** @param {object} item 备份增强条目 */
-    async #viewItem(item) {
-        this.viewerController?.abort();
-        this.viewerController = new AbortController();
-        const signal = this.viewerController.signal;
-        let page = 0;
-        this.viewer.classList.remove('cm-hidden');
-        this.viewerTitle.textContent = '查看聊天备份';
-        this.viewerSummary.textContent = `${item.record.name} · ${formatBytes(Number(item.record.size ?? 0))}`;
-        const load = async () => {
-            this.messages.replaceChildren();
-            const loading = document.createElement('div');
-            loading.className = 'cm-state';
-            loading.textContent = '正在读取该页…';
-            this.messages.append(loading);
-            try {
-                const start = page * PAGE_SIZE;
-                const collected = [];
-                const response = await this.api.readDataMaidFile(this.token, item.record.hash, signal);
-                await parseJsonlResponse(response, {
-                    stopAfter: start + PAGE_SIZE + 1,
-                    onMessage: (message, index) => {
-                        if (index >= start && index <= start + PAGE_SIZE) collected.push(message);
-                    },
-                });
-                const messages = collected.slice(0, PAGE_SIZE);
-                this.messages.replaceChildren(...messages.map((message, index) => this.#message(message, start + index)));
-                if (!messages.length) this.messages.append(loading);
-                this.messagePage.textContent = `第 ${page + 1} 页`;
-                this.messagePrevious.disabled = page <= 0;
-                this.messageNext.disabled = collected.length <= PAGE_SIZE;
-            } catch (error) {
-                if (signal.aborted) return;
-                loading.textContent = error.message;
-                loading.classList.add('cm-error');
-                this.messages.replaceChildren(loading);
-            }
-        };
-        this.messagePrevious.onclick = () => { page--; void load(); };
-        this.messageNext.onclick = () => { page++; void load(); };
-        await load();
-    }
-
-    #message(message, index) {
-        const row = this.messageTemplate.content.firstElementChild.cloneNode(true);
-        row.querySelector('[data-cm-message-name]').textContent = `#${index} ${message.name ?? ''}`;
-        row.querySelector('[data-cm-message-date]').textContent = this.#formatDate(message.send_date);
-        row.querySelector('[data-cm-message-content]').textContent = String(message.mes ?? '');
-        return row;
-    }
-
-    /** @param {object[]} items 待删除备份 */
+    /**
+     * 显示备份删除确认
+     * @param {object[]} items 待删除备份
+     */
     #showDelete(items) {
         const unique = Array.from(new Map(items.map(item => [item.record.hash, item])).values());
         if (!unique.length) return;
@@ -494,7 +383,10 @@ export class DataMaidEnhancer {
         this.deleteList.replaceChildren(...unique.map(item => {
             const row = this.deleteTemplate.content.firstElementChild.cloneNode(true);
             row.querySelector('[data-cm-delete-name]').textContent = item.record.name;
-            row.querySelector('[data-cm-delete-facts]').textContent = `${formatBytes(Number(item.record.size ?? 0))} · ${this.#formatDate(item.record.mtime)}`;
+            row.querySelector('[data-cm-delete-facts]').textContent = [
+                formatBytes(Number(item.record.size ?? 0)),
+                formatDataMaidDate(item.record.mtime),
+            ].join(' · ');
             const labels = { linked: '已关联', orphan: '孤立', uncertain: '待确认', unchecked: '未检查' };
             row.querySelector('[data-cm-delete-state]').textContent = labels[item.state] ?? '待确认';
             return row;
@@ -560,12 +452,6 @@ export class DataMaidEnhancer {
         this.sessionObserver.observe(document.body, { childList: true, subtree: true });
     }
 
-    #closeViewer() {
-        this.viewerController?.abort();
-        this.viewerController = null;
-        this.viewer.classList.add('cm-hidden');
-    }
-
     #closeDelete(force = false) {
         if (!force && this.deleteConfirm.disabled && this.deleteCancel.disabled) return;
         this.pendingDelete = [];
@@ -579,7 +465,7 @@ export class DataMaidEnhancer {
         this.controller = null;
         this.sessionObserver?.disconnect();
         this.sessionObserver = null;
-        this.#closeViewer();
+        this.viewer.close();
         this.#closeDelete(true);
         this.selected.clear();
         this.selectionMode = false;
@@ -596,9 +482,4 @@ export class DataMaidEnhancer {
         this.toolbar = null;
     }
 
-    #formatDate(value) {
-        const time = new Date(value ?? 0).valueOf();
-        if (!Number.isFinite(time) || !time) return '未知时间';
-        return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(time));
-    }
 }

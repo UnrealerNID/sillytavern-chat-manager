@@ -1,316 +1,32 @@
 import {
-    displayPastChats,
-    deleteCharacterChatByName,
-    getRequestHeaders,
     getThumbnailUrl,
-    importCharacterChat,
     isGenerating,
-    renameGroupOrCharacterChat,
     saveSettingsDebounced,
     setActiveCharacter,
     setActiveGroup,
     system_avatar,
-    updateRemoteChatName,
 } from '/script.js';
-import { deleteGroupChatByName, importGroupChat, openGroupById } from '/scripts/group-chats.js';
+import { openGroupById } from '/scripts/group-chats.js';
 import {
     extension_settings,
-    extensionTypes,
     renderExtensionTemplateAsync,
 } from '/scripts/extensions.js';
-import { isAdmin } from '/scripts/user.js';
-import { callGenericPopup, POPUP_TYPE } from '/scripts/popup.js';
-import { renderTemplateAsync } from '/scripts/templates.js';
 import { accountStorage } from '/scripts/util/AccountStorage.js';
 import { openWelcomeScreen } from '/scripts/welcome-screen.js';
 
 import { ChatManagerApi } from './modules/api.js';
 import { BackupService } from './modules/backups.js';
+import { createChatActions } from './modules/chat-actions.js';
 import { DataMaidEnhancer } from './modules/data-maid-enhancer.js';
+import { ExtensionUpdater, loadExtensionMetadata } from './modules/extension-updater.js';
 import { openChatRecord } from './modules/chat-opener.js';
 import { NativeChatPanel } from './modules/native-chat-panel.js';
 import { SplitService } from './modules/splitter.js';
 import { TaskJournal } from './modules/task-journal.js';
 import { ChatManagerUi } from './modules/ui.js';
-import { element, isNewerVersion, stripJsonl } from './modules/utils.js';
+import { element } from './modules/utils.js';
 
 let initialized = false;
-const extensionId = 'third-party/sillytavern-chat-manager';
-const extensionFolder = 'sillytavern-chat-manager';
-const remoteManifestUrl = 'https://raw.githubusercontent.com/UnrealerNID/sillytavern-chat-manager/main/manifest.json';
-const extensionUpdateViews = new Set();
-const extensionUpdateState = {
-    semanticVersion: '',
-    shortHash: '',
-    remoteVersion: '',
-    phase: 'checking',
-    canUpdate: true,
-};
-let extensionUpdateCheck;
-
-/**
- * 扩展清单中用于界面展示的元数据
- * @typedef {object} ExtensionMetadata
- * @property {string} version 当前扩展版本
- */
-
-/**
- * 插件功能设置
- * @typedef {object} ChatManagerSettings
- * @property {boolean} [enabled] 是否启用插件功能
- * @property {'left'|'right'} [column] 首次选择并固定使用的扩展栏
- * @property {boolean} [groupOwners] 是否按角色或群组合并聊天
- * @property {boolean} [groupSplits] 是否合并分卷聊天
- * @property {'newest'|'oldest'|'largest'|'messages'|'name'} [sortOrder] 聊天排序方式
- */
-
-/**
- * 酒馆原生扩展版本接口返回值
- * @typedef {object} ExtensionVersionStatus
- * @property {string} [currentCommitHash] 当前 Git 提交号
- */
-
-/**
- * 读取已安装的扩展清单，确保界面展示信息只有一个数据来源
- * @returns {Promise<ExtensionMetadata>} 扩展元数据
- */
-async function loadExtensionMetadata() {
-    try {
-        const response = await fetch(new URL('./manifest.json', import.meta.url), { cache: 'no-store' });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return await response.json();
-    } catch (error) {
-        console.warn('[聊天文件管理] 读取扩展元数据失败', error);
-        return { version: '未知' };
-    }
-}
-
-/**
- * 判断当前插件是否安装在酒馆全局扩展目录
- * @returns {boolean} 是否为全局扩展
- */
-function isGlobalExtension() {
-    return extensionTypes[extensionId] === 'global';
-}
-
-/**
- * 使用酒馆原生版本接口读取 Git 状态
- * @returns {Promise<ExtensionVersionStatus>} 当前版本状态
- */
-async function getExtensionVersionStatus() {
-    const response = await fetch('/api/extensions/version', {
-        method: 'POST',
-        headers: getRequestHeaders(),
-        body: JSON.stringify({ extensionName: extensionFolder, global: isGlobalExtension() }),
-    });
-    if (!response.ok) throw new Error(await response.text() || response.statusText);
-    return response.json();
-}
-
-/**
- * 读取远端发布清单中的语义版本
- * @returns {Promise<string>} 远端语义版本
- */
-async function getRemoteExtensionVersion() {
-    const response = await fetch(remoteManifestUrl, { cache: 'no-store' });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const metadata = await response.json();
-    if (typeof metadata.version !== 'string') throw new Error('远端扩展清单缺少版本号');
-    return metadata.version;
-}
-
-/**
- * 使用酒馆原生更新接口拉取插件远程提交
- * @returns {Promise<{isUpToDate:boolean, shortCommitHash?:string}>} 更新结果
- */
-async function updateExtension() {
-    const response = await fetch('/api/extensions/update', {
-        method: 'POST',
-        headers: getRequestHeaders(),
-        body: JSON.stringify({ extensionName: extensionFolder, global: isGlobalExtension() }),
-    });
-    if (!response.ok) throw new Error(await response.text() || response.statusText);
-    return response.json();
-}
-
-/**
- * 同步所有版本与更新视图
- * @returns {void}
- */
-function renderExtensionUpdateViews() {
-    const versionText = `version ${extensionUpdateState.semanticVersion}${extensionUpdateState.shortHash ? ` (${extensionUpdateState.shortHash})` : ''}`;
-    const labels = {
-        checking: '检查更新…',
-        current: '已是最新',
-        available: extensionUpdateState.canUpdate ? '更新' : '有可用更新',
-        updating: '更新中…',
-        updated: '更新完成',
-        retry: '重试更新',
-        failed: '检查失败',
-    };
-    for (const view of extensionUpdateViews) {
-        view.version.textContent = versionText;
-        view.button.textContent = labels[extensionUpdateState.phase];
-        view.button.disabled = (extensionUpdateState.phase !== 'available' && extensionUpdateState.phase !== 'retry')
-            || (extensionUpdateState.phase === 'available' && !extensionUpdateState.canUpdate);
-        view.button.title = extensionUpdateState.phase === 'available' && extensionUpdateState.remoteVersion
-            ? `更新至 version ${extensionUpdateState.remoteVersion}`
-            : '';
-    }
-}
-
-/**
- * 检查本地提交号与远端发布版本
- * @returns {Promise<void>}
- */
-async function checkExtensionUpdate() {
-    extensionUpdateState.phase = 'checking';
-    renderExtensionUpdateViews();
-    const [installation, remote] = await Promise.allSettled([
-        getExtensionVersionStatus(),
-        getRemoteExtensionVersion(),
-    ]);
-    if (installation.status === 'fulfilled') {
-        extensionUpdateState.shortHash = installation.value.currentCommitHash?.slice(0, 7) ?? '';
-    } else {
-        console.warn('[聊天文件管理] 读取扩展提交号失败', installation.reason);
-    }
-    if (remote.status === 'rejected') {
-        console.warn('[聊天文件管理] 检查扩展更新失败', remote.reason);
-        extensionUpdateState.phase = 'failed';
-        renderExtensionUpdateViews();
-        return;
-    }
-    extensionUpdateState.remoteVersion = remote.value;
-    extensionUpdateState.canUpdate = !isGlobalExtension() || isAdmin();
-    extensionUpdateState.phase = isNewerVersion(remote.value, extensionUpdateState.semanticVersion) ? 'available' : 'current';
-    renderExtensionUpdateViews();
-}
-
-/**
- * 通过酒馆原生接口执行更新并同步所有入口
- * @returns {Promise<void>}
- */
-async function performExtensionUpdate() {
-    if (!['available', 'retry'].includes(extensionUpdateState.phase)) return;
-    extensionUpdateState.phase = 'updating';
-    renderExtensionUpdateViews();
-    try {
-        const result = await updateExtension();
-        if (result.isUpToDate) {
-            extensionUpdateState.phase = 'retry';
-            renderExtensionUpdateViews();
-            globalThis.toastr?.warning?.('酒馆未拉取到新提交，请稍后重试');
-            return;
-        }
-        extensionUpdateState.phase = 'updated';
-        renderExtensionUpdateViews();
-        globalThis.toastr?.success?.('插件更新完成，正在刷新页面');
-        setTimeout(() => location.reload(), 500);
-    } catch (error) {
-        console.error('[聊天文件管理] 更新扩展失败', error);
-        extensionUpdateState.phase = 'retry';
-        renderExtensionUpdateViews();
-        globalThis.toastr?.error?.(`插件更新失败：${error.message}`);
-    }
-}
-
-/**
- * 注册一个版本与更新视图
- * @param {HTMLButtonElement} button 更新按钮
- * @param {HTMLElement} version 版本文本
- * @param {string} semanticVersion 清单语义版本
- * @returns {void}
- */
-function configureUpdateButton(button, version, semanticVersion) {
-    extensionUpdateState.semanticVersion = semanticVersion;
-    extensionUpdateViews.add({ button, version });
-    button.addEventListener('click', () => void performExtensionUpdate());
-    renderExtensionUpdateViews();
-    extensionUpdateCheck ??= checkExtensionUpdate();
-}
-
-/**
- * 将复选框绑定到插件自身的功能状态
- * @param {HTMLInputElement} toggle 启用复选框
- * @param {ChatManagerSettings} settings 插件设置
- * @param {(enabled:boolean)=>void} applyEnabledState 应用状态
- */
-function configureEnabledToggle(toggle, settings, applyEnabledState) {
-    toggle.checked = settings.enabled !== false;
-    toggle.addEventListener('change', () => {
-        settings.enabled = toggle.checked;
-        saveSettingsDebounced();
-        applyEnabledState(toggle.checked);
-        globalThis.toastr?.success?.(`聊天文件管理已${toggle.checked ? '启用' : '停用'}`);
-    });
-}
-
-/**
- * 统计扩展栏中已经填充且未隐藏的顶层扩展卡
- * @param {HTMLElement} container 扩展栏容器
- * @returns {number} 已渲染的扩展卡数量
- */
-function countRenderedExtensionCards(container) {
-    return Array.from(container.children).filter(child => {
-        if (!(child instanceof HTMLElement)) return false;
-        if (child.hidden || getComputedStyle(child).display === 'none') return false;
-        return child.childElementCount > 0 || Boolean(child.textContent?.trim());
-    }).length;
-}
-
-/**
- * 优先选择已保存的扩展栏，否则选择当前扩展卡数量较少的栏
- * @param {'left'|'right'|undefined} savedColumn 已保存的扩展栏
- * @returns {HTMLElement|null} 目标扩展栏；两栏数量相同时返回左栏
- */
-function selectExtensionColumn(savedColumn) {
-    const left = document.querySelector('#extensions_settings');
-    const right = document.querySelector('#extensions_settings2');
-    if (savedColumn === 'left' && left instanceof HTMLElement) return left;
-    if (savedColumn === 'right' && right instanceof HTMLElement) return right;
-    if (!(left instanceof HTMLElement)) return right instanceof HTMLElement ? right : null;
-    if (!(right instanceof HTMLElement)) return left;
-    return countRenderedExtensionCards(left) <= countRenderedExtensionCards(right) ? left : right;
-}
-
-/**
- * 向酒馆原生扩展程序抽屉添加状态卡片
- * @param {ExtensionMetadata} metadata 扩展元数据
- * @param {ChatManagerSettings} settings 插件功能设置
- * @param {(enabled:boolean)=>void} applyEnabledState 应用状态
- * @returns {Promise<boolean>} 是否已找到原生容器并完成插入
- */
-async function insertExtensionStatus(metadata, settings, applyEnabledState) {
-    if (document.querySelector('#chat_manager_extension_status')) return true;
-    const container = selectExtensionColumn(settings.column);
-    if (!container) return false;
-    const selectedColumn = container.id === 'extensions_settings' ? 'left' : 'right';
-    if (settings.column !== selectedColumn) {
-        settings.column = selectedColumn;
-        saveSettingsDebounced();
-    }
-
-    const html = await renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/settings');
-    const template = document.createElement('template');
-    template.innerHTML = html.trim();
-    const drawer = template.content.firstElementChild;
-    const version = drawer?.querySelector('.chat-manager-extension-version');
-    const enabledToggle = drawer?.querySelector('#chat_manager_enabled');
-    const updateButton = drawer?.querySelector('#chat_manager_update');
-    if (!(drawer instanceof HTMLElement)
-        || !(version instanceof HTMLElement)
-        || !(enabledToggle instanceof HTMLInputElement)
-        || !(updateButton instanceof HTMLButtonElement)) {
-        throw new Error('扩展设置模板结构无效');
-    }
-
-    version.textContent = `version ${metadata.version}`;
-    configureEnabledToggle(enabledToggle, settings, applyEnabledState);
-    container.append(drawer);
-    configureUpdateButton(updateButton, version, metadata.version);
-    return true;
-}
 
 function getContext() {
     return SillyTavern.getContext();
@@ -322,91 +38,13 @@ function getContext() {
  * @returns {Promise<void>}
  */
 async function openRecord(record) {
-    return openChatRecord(record, { getContext, isGenerating, openGroupById, setActiveCharacter, setActiveGroup });
-}
-
-/**
- * 复用酒馆原生导入链路，将备份恢复为一份新聊天
- * @param {import('./modules/utils.js').ChatRecord} record 备份所属聊天
- * @param {object} backup 原生备份信息
- * @param {import('./modules/backups.js').BackupService} backups 安全备份服务
- * @returns {Promise<string[]>} 新聊天文件名
- */
-async function restoreBackup(record, backup, backups) {
-    if (isGenerating()) throw new Error('聊天正在生成，当前不能恢复备份');
-    await openRecord(record);
-
-    const context = getContext();
-    const file = new File([await backups.readBlob(backup)], backup.file_name, { type: 'application/octet-stream' });
-    const formData = new FormData();
-    formData.set('file_type', 'jsonl');
-    formData.set('avatar', file);
-    formData.set('avatar_url', record.ownerType === 'character' ? record.ownerId : '');
-    formData.set('user_name', context.name1);
-    formData.set('character_name', record.ownerName);
-    const importFn = record.ownerType === 'group' ? importGroupChat : importCharacterChat;
-    const restored = await importFn(formData, { refresh: false });
-    if (!restored.length) throw new Error('酒馆未能导入该备份');
-    await displayPastChats(restored);
-    return restored;
-}
-
-/**
- * 复用酒馆最近聊天列表的原生链路删除指定聊天
- * @param {import('./modules/utils.js').ChatRecord} record 待删除聊天
- * @returns {Promise<void>}
- */
-async function deleteRecord(record) {
-    const context = getContext();
-    if (record.ownerType === 'character') {
-        const characterId = context.characters.findIndex(character => character.avatar === record.ownerId);
-        if (characterId < 0) throw new Error(`找不到角色：${record.ownerName}`);
-        await deleteCharacterChatByName(String(characterId), record.fileId);
-        return;
-    }
-    const group = context.groups.find(item => String(item.id) === String(record.ownerId));
-    if (!group) throw new Error(`找不到群聊：${record.ownerName}`);
-    await deleteGroupChatByName(group.id, record.fileId);
-}
-
-/**
- * 复用酒馆最近聊天的原生链路重命名指定聊天
- * @param {import('./modules/utils.js').ChatRecord} record 待重命名聊天
- * @param {ChatManagerApi} api 酒馆接口
- * @returns {Promise<boolean>} 是否提交了重命名
- */
-async function renameRecord(record, api) {
-    const context = getContext();
-    const popupText = await renderTemplateAsync('chatRename');
-    const input = await callGenericPopup(popupText, POPUP_TYPE.INPUT, record.fileId);
-    if (typeof input !== 'string') return false;
-    const requestedFileId = stripJsonl(input.trim());
-    const newFileId = requestedFileId ? await api.sanitizeFileName(requestedFileId) : '';
-    if (!newFileId || newFileId === record.fileId) return false;
-    if (record.ownerType === 'character') {
-        const characterId = context.characters.findIndex(character => character.avatar === record.ownerId);
-        if (characterId < 0) throw new Error(`找不到角色：${record.ownerName}`);
-        await renameGroupOrCharacterChat({
-            characterId: String(characterId),
-            oldFileName: record.fileId,
-            newFileName: newFileId,
-            loader: false,
-        });
-        if (!await api.chatExists({ ...record, fileId: newFileId })) return false;
-        await updateRemoteChatName(characterId, newFileId);
-    } else {
-        const group = context.groups.find(item => String(item.id) === String(record.ownerId));
-        if (!group) throw new Error(`找不到群聊：${record.ownerName}`);
-        await renameGroupOrCharacterChat({
-            groupId: String(group.id),
-            oldFileName: record.fileId,
-            newFileName: newFileId,
-            loader: false,
-        });
-        if (!await api.chatExists({ ...record, fileId: newFileId })) return false;
-    }
-    await openWelcomeScreen({ force: true });
-    return true;
+    return openChatRecord(record, {
+        getContext,
+        isGenerating,
+        openGroupById,
+        setActiveCharacter,
+        setActiveGroup,
+    });
 }
 
 /**
@@ -421,6 +59,12 @@ export async function init() {
     const journal = new TaskJournal();
     const backups = new BackupService(api);
     const splitter = new SplitService(api, journal, () => getContext().uuidv4());
+    const chatActions = createChatActions({
+        getContext,
+        api,
+        backups,
+        openRecord,
+    });
     const settings = extension_settings.chatManager ??= {};
     settings.enabled ??= true;
     settings.groupOwners ??= false;
@@ -438,6 +82,7 @@ export async function init() {
         renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/dialogs'),
         renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/components'),
     ]);
+    const updater = new ExtensionUpdater(metadata.version);
     const dataMaid = new DataMaidEnhancer({ api, template: dataMaidTemplate });
     const ui = new ChatManagerUi({
         getContext,
@@ -446,15 +91,17 @@ export async function init() {
         splitter,
         isGenerating,
         openRecord,
-        deleteRecord,
-        renameRecord: record => renameRecord(record, api),
+        deleteRecord: chatActions.deleteRecord,
+        renameRecord: chatActions.renameRecord,
         refreshRecentChats: () => openWelcomeScreen({ force: true }),
-        restoreBackup: (record, backup) => restoreBackup(record, backup, backups),
+        restoreBackup: chatActions.restoreBackup,
         openDataMaid: () => dataMaid.open(),
         template: panelTemplate,
         dialogTemplates,
         componentTemplates,
-        getAvatarUrl: record => record.ownerType === 'group' ? system_avatar : getThumbnailUrl('avatar', record.ownerId),
+        getAvatarUrl: record => record.ownerType === 'group'
+            ? system_avatar
+            : getThumbnailUrl('avatar', record.ownerId),
         viewOptions: {
             groupOwners: settings.groupOwners,
             groupSplits: settings.groupSplits,
@@ -471,7 +118,7 @@ export async function init() {
     });
     const nativePanel = new NativeChatPanel({ getContext, ui, isGenerating });
     const panelUpdateView = ui.getExtensionUpdateView();
-    configureUpdateButton(panelUpdateView.button, panelUpdateView.version, metadata.version);
+    updater.register(panelUpdateView.button, panelUpdateView.version);
     let recoveryChecked = false;
 
     const recoverPendingTasks = async () => {
@@ -493,9 +140,7 @@ export async function init() {
         }
         dataMaid.setEnabled(enabled);
         nativePanel.setEnabled(enabled);
-        if (enabled) {
-            void recoverPendingTasks();
-        }
+        if (enabled) void recoverPendingTasks();
     };
 
     const insertEntry = () => {
@@ -525,9 +170,9 @@ export async function init() {
         if (!insertEntry()) globalThis.toastr?.error?.('聊天管理无法找到原生聊天文件入口');
     }, 1000);
     try {
-        if (!await insertExtensionStatus(metadata, settings, applyEnabledState)) {
+        if (!await updater.insertSettings(settings, applyEnabledState)) {
             setTimeout(() => {
-                insertExtensionStatus(metadata, settings, applyEnabledState).catch(error => {
+                updater.insertSettings(settings, applyEnabledState).catch(error => {
                     console.error('[聊天文件管理] 插入扩展设置失败', error);
                 });
             }, 1000);

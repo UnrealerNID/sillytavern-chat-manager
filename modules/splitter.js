@@ -1,5 +1,29 @@
-import { buildRanges, chatKey, cloneJson, digestMessages, formatBytes, jsonlByteSize, stripJsonl } from './utils.js';
-import { fingerprintsEqual, getSourceFingerprint, loadStableSource } from './source.js';
+import {
+    buildRanges,
+    chatKey,
+    cloneJson,
+    digestMessages,
+    formatBytes,
+    jsonlByteSize,
+    stripJsonl,
+} from './utils.js';
+import {
+    fingerprintsEqual,
+    getSourceFingerprint,
+    loadStableSource,
+} from './source.js';
+
+/**
+ * @typedef {object} SplitOptions
+ * @property {'range'|'fixed'} mode 分割方式
+ * @property {number} start 起始楼层
+ * @property {number} end 结束楼层
+ * @property {number} [chunkSize] 每卷楼层数
+ * @property {boolean} [incremental] 是否增量分卷
+ * @property {number} [sequenceStart] 起始卷号
+ * @property {string} [outputRootChatId] 分卷组根标识
+ * @property {number} [rangeOffset] 楼层偏移
+ */
 
 export class SplitService {
     /**
@@ -22,7 +46,7 @@ export class SplitService {
     /**
      * 创建只读分割计划
      * @param {import('./utils.js').ChatRecord} record 聊天记录
-     * @param {{mode:'range'|'fixed',start:number,end:number,chunkSize?:number,incremental?:boolean,sequenceStart?:number,outputRootChatId?:string,rangeOffset?:number}} options 分割参数
+     * @param {SplitOptions} options 分割参数
      * @param {AbortSignal} [signal] 取消信号
      * @param {object} [stableSource] 已读取并校验过的来源快照
      * @returns {Promise<object>} 分割计划

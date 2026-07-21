@@ -1,5 +1,12 @@
 import { power_user } from '/scripts/power-user.js';
 
+const BACKUP_STATUS = {
+    pending: { label: '等待检查', state: 'loading' },
+    matched: { label: '完整匹配', state: 'ready' },
+    confirm: { label: '部分相关', state: 'warning' },
+    error: { label: '读取异常', state: 'error' },
+};
+
 /**
  * 管理备份扫描以及聊天和备份的只读查看弹窗
  */
@@ -19,7 +26,10 @@ export class BackupDialogs {
         Object.assign(this, { ui, api, backups, isGenerating, isSplitting, restoreBackup, closePanel, notify });
     }
 
-    /** @param {object} record 原聊天记录 */
+    /**
+     * 打开对应备份弹窗
+     * @param {object} record 原聊天记录
+     */
     async open(record) {
         if (this.isGenerating()) return this.notify('warning', '聊天正在生成，结束后才能读取备份');
         if (this.isSplitting()) return this.notify('warning', '分割任务正在写入聊天，完成后才能读取备份');
@@ -132,7 +142,10 @@ export class BackupDialogs {
         }
     }
 
-    /** @param {object} record 待查看聊天 */
+    /**
+     * 查看聊天内容
+     * @param {object} record 待查看聊天
+     */
     async viewChat(record) {
         let messagesTask;
         const readPage = async (page, pageSize, signal) => {
@@ -172,8 +185,9 @@ export class BackupDialogs {
     #updateRow(row, record, backup) {
         this.ui.mount(row, '[data-cm-backup-name]').textContent = backup.file_name;
         const status = this.ui.mount(row, '[data-cm-backup-status]');
-        status.textContent = backup.status === 'pending' ? '等待检查' : backup.status === 'matched' ? '完整匹配' : backup.status === 'confirm' ? '部分相关' : '读取异常';
-        status.dataset.state = backup.status === 'pending' ? 'loading' : backup.status === 'matched' ? 'ready' : backup.status === 'confirm' ? 'warning' : 'error';
+        const statusView = BACKUP_STATUS[backup.status] ?? BACKUP_STATUS.error;
+        status.textContent = statusView.label;
+        status.dataset.state = statusView.state;
         this.ui.mount(row, '[data-cm-backup-created]').textContent = this.ui.formatBackupDate(backup.file_name);
         this.ui.mount(row, '[data-cm-backup-last-message]').textContent = this.ui.formatDate(backup.last_mes);
         this.ui.mount(row, '[data-cm-backup-size]').textContent = `${backup.file_size} · ${backup.chat_items ?? '未知'} 层`;

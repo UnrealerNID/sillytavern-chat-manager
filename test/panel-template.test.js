@@ -58,9 +58,10 @@ test('panel template exposes all stable UI mounts', async () => {
 });
 
 test('data maid enhancement mounts after either native or plugin-triggered scans', async () => {
-    const [html, source] = await Promise.all([
+    const [html, source, reportCapture] = await Promise.all([
         readFile(new URL('../templates/data-maid-enhancer.html', import.meta.url), 'utf8'),
         readFile(new URL('../modules/data-maid-enhancer.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/data-maid-report.js', import.meta.url), 'utf8'),
     ]);
     for (const marker of [
         'chat_manager_data_maid_enhancer',
@@ -82,14 +83,15 @@ test('data maid enhancement mounts after either native or plugin-triggered scans
     assert.match(html, /title="检查备份对应关系"[^>]*data-cm-maid-scan/);
     assert.match(html, /value="orphan">仅孤立</);
     assert.match(html, /value="uncertain">仅待确认</);
-    assert.match(html, /data-cm-maid-delete-selected>[\s\S]*fa-trash-can[\s\S]*<\/button>/);
+    assert.match(html, /data-cm-maid-delete-selected[\s\S]*?>[\s\S]*fa-trash-can[\s\S]*<\/button>/);
     assert.doesNotMatch(html, /删除已选（|全选当前结果<\/button>/);
     assert.match(html, /type="checkbox"/);
     assert.doesNotMatch(html, />上一页<|>下一页<|fa-trash"/);
     assert.match(source, /document\.querySelector\('#data_maid_button'\)/);
     assert.match(source, /document\.addEventListener\('click', this\.documentClick, true\)/);
     assert.match(source, /closest\('\.dataMaidStartButton'\)/);
-    assert.match(source, /#captureNextReport\(\)/);
+    assert.match(source, /captureNextDataMaidReport\(\)/);
+    assert.match(reportCapture, /includes\('\/api\/data-maid\/report'\)/);
     assert.doesNotMatch(source, /start\.click\(\)/);
 });
 
@@ -133,11 +135,14 @@ test('dialog templates expose every static dialog and dynamic mount', async () =
 });
 
 test('opening native cleanup preserves the chat manager and rows open only from explicit actions', async () => {
-    const source = await readFile(new URL('../modules/ui.js', import.meta.url), 'utf8');
+    const [source, listRenderer] = await Promise.all([
+        readFile(new URL('../modules/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/ui/chat-list-renderer.js', import.meta.url), 'utf8'),
+    ]);
     assert.match(source, /data-cm-data-maid-open[^\n]*openDataMaid\(\)/);
     assert.doesNotMatch(source, /data-cm-data-maid-open[^}]*this\.close\(\)/);
-    assert.match(source, /row\.addEventListener\('click',[\s\S]*if \(!this\.selectionMode\) return;[\s\S]*select\.dispatchEvent/);
-    assert.doesNotMatch(source, /row\.addEventListener\('click',[\s\S]*void openRecord\(\)/);
+    assert.match(listRenderer, /row\.addEventListener\('click',[\s\S]*!this\.isSelectionMode\(\)[\s\S]*select\.dispatchEvent/);
+    assert.doesNotMatch(listRenderer, /row\.addEventListener\('click',[\s\S]*this\.#openChat/);
 });
 
 test('component templates expose every repeated card and action mount', async () => {
@@ -219,7 +224,8 @@ test('backup listing is only requested explicitly while chat files are stable', 
     ]);
     assert.doesNotMatch(entry, /scheduleBackupWarmup|backups\.warmup/);
     assert.doesNotMatch(backups, /async warmup\s*\(/);
-    assert.match(ui, /backup\.disabled\s*=\s*this\.isGenerating\(\)\s*\|\|\s*this\.splitter\.running/);
+    const listRenderer = await readFile(new URL('../modules/ui/chat-list-renderer.js', import.meta.url), 'utf8');
+    assert.match(listRenderer, /backup\.disabled\s*=\s*blocked/);
     assert.match(backupDialogs, /async open\(record\)\s*{\s*if \(this\.isGenerating\(\)\)/);
     assert.match(backupDialogs, /if \(this\.isSplitting\(\)\) return this\.notify\('warning', '分割任务正在写入聊天/);
     assert.match(backupDialogs, /search\.addEventListener\('input', refreshSummary\)/);
@@ -228,21 +234,23 @@ test('backup listing is only requested explicitly while chat files are stable', 
 });
 
 test('chat deletion uses SillyTavern native character and group workflows', async () => {
-    const [entry, ui] = await Promise.all([
+    const [entry, ui, actions, deletion] = await Promise.all([
         readFile(new URL('../index.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-actions.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/ui/chat-delete-dialog.js', import.meta.url), 'utf8'),
     ]);
-    assert.match(entry, /deleteCharacterChatByName\(String\(characterId\), record\.fileId\)/);
-    assert.match(entry, /deleteGroupChatByName\(group\.id, record\.fileId\)/);
-    assert.match(entry, /renameGroupOrCharacterChat\(\{/);
-    assert.match(entry, /renderTemplateAsync\('chatRename'\)/);
+    assert.match(actions, /deleteCharacterChatByName\(String\(characterId\), record\.fileId\)/);
+    assert.match(actions, /deleteGroupChatByName\(group\.id, record\.fileId\)/);
+    assert.match(actions, /renameGroupOrCharacterChat\(\{/);
+    assert.match(actions, /renderTemplateAsync\('chatRename'\)/);
     assert.match(entry, /refreshRecentChats: \(\) => openWelcomeScreen\(\{ force: true \}\)/);
-    assert.match(ui, /if \(this\.loading\) return notify\('warning', '聊天清单正在读取，完成后才能删除聊天'\)/);
+    assert.match(deletion, /if \(this\.isLoading\(\)\)[\s\S]*聊天清单正在读取，完成后才能删除聊天/);
     assert.doesNotMatch(ui, /this\.loading \|\| this\.refreshTask[\s\S]*聊天清单正在读取，完成后才能删除聊天/);
     assert.match(ui, /#setLoading\(loading\)[\s\S]*this\.refreshButton\.disabled = loading;[\s\S]*this\.#syncSelectionControls\(\);[\s\S]*this\.#render\(\)/);
     assert.match(ui, /async #loadChatFiles\(target\)\s*{\s*this\.#setLoading\(true\)/);
     assert.match(ui, /finally\s*{\s*this\.#setLoading\(false\)/);
-    assert.match(ui, /if \(succeeded > 0\)[\s\S]*await this\.refreshRecentChats\(\)/);
+    assert.match(deletion, /if \(succeeded > 0\) await this\.#refreshRecentChats\(\)/);
     assert.match(ui, /if \(this\.selectionMode\) this\.#setSelectionMode\(false\)/);
 });
 

@@ -1,6 +1,10 @@
 import { cloneJson, stripJsonl } from './utils.js';
 
-/** @param {unknown} value 待判断的值 */
+/**
+ * 判断值是否为普通对象
+ * @param {unknown} value 待判断的值
+ * @returns {boolean} 是否为对象
+ */
 function isObject(value) {
     return !!value && typeof value === 'object' && !Array.isArray(value);
 }

@@ -19,7 +19,9 @@ export class SplitDialogs {
         this.activeSync = null;
     }
 
-    /** 同步当前分卷弹窗的运行状态 */
+    /**
+     * 同步当前分卷弹窗的运行状态
+     */
     updateRuntimeState() {
         if (this.activeRoot?.isConnected) this.activeSync?.();
     }
@@ -241,7 +243,10 @@ export class SplitDialogs {
         schedulePreview(0);
     }
 
-    /** @param {object[]} tasks 未完成任务 */
+    /**
+     * 显示未完成任务
+     * @param {object[]} tasks 未完成任务
+     */
     async showRecovery(tasks) {
         if (!tasks.length) return;
         const dialog = this.ui.dialog('检测到未完成的分割任务', 'recovery');
