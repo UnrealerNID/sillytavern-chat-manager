@@ -9,6 +9,7 @@ import {
 import { element } from '../../shared/dom.js';
 import { waitForElement } from '../../platform/dom.js';
 import { chatKey } from '../chat/identity.js';
+import { bindGroupExpansion } from './group-expansion.js';
 
 /**
  * 在欢迎页最近聊天中复用聊天管理的分组规则
@@ -245,16 +246,17 @@ export class WelcomeRecentEnhancer {
      */
     #ownerGroup(group, session) {
         const root = this.templates.component('owner-group');
+        const header = this.templates.mount(root, '[data-cm-owner-header]');
         const image = this.templates.mount(root, '[data-cm-owner-avatar]', HTMLImageElement);
         const children = this.templates.mount(root, '[data-cm-owner-children]');
-        const toggle = this.templates.mount(root, '[data-cm-owner-toggle]', HTMLButtonElement);
+        const indicator = this.templates.mount(root, '[data-cm-owner-toggle]');
         image.src = group.avatarUrl;
         image.alt = group.ownerName;
         this.#text(root, '[data-cm-owner-name]', group.ownerName);
         this.#text(root, '[data-cm-owner-summary]', `${group.records.length} 条最近聊天`);
         this.#text(root, '[data-cm-owner-latest]', `最近：${group.records[0]?.fileId ?? ''}`);
         const expanded = this.expandedOwners.has(group.key);
-        this.#toggleButton(toggle, expanded, '聊天', () => {
+        bindGroupExpansion(header, indicator, expanded, '聊天', () => {
             this.#setExpanded(this.expandedOwners, group.key, expanded);
             this.#render(session);
         });
@@ -273,8 +275,9 @@ export class WelcomeRecentEnhancer {
      */
     #splitGroup(group, session) {
         const root = this.templates.component('split-group');
+        const header = this.templates.mount(root, '[data-cm-split-header]');
         const children = this.templates.mount(root, '[data-cm-split-children]');
-        const toggle = this.templates.mount(root, '[data-cm-split-toggle]', HTMLButtonElement);
+        const indicator = this.templates.mount(root, '[data-cm-split-toggle]');
         this.templates.mount(root, '[data-cm-split-continue]').classList.add('cm-hidden');
         this.#text(root, '[data-cm-split-group-name]', group.rootChatId);
         const sourceSummary = group.sourceRecord ? ' · 含源聊天' : '';
@@ -282,7 +285,7 @@ export class WelcomeRecentEnhancer {
         this.#text(root, '[data-cm-split-group-latest]', `最新：${group.records.at(-1)?.record.fileId ?? ''}`);
         this.templates.mount(root, '[data-cm-split-group-incremental]').classList.add('cm-hidden');
         const expanded = this.expandedSplits.has(group.key);
-        this.#toggleButton(toggle, expanded, '分卷', () => {
+        bindGroupExpansion(header, indicator, expanded, '分卷', () => {
             this.#setExpanded(this.expandedSplits, group.key, expanded);
             this.#render(session);
         });
@@ -354,24 +357,6 @@ export class WelcomeRecentEnhancer {
         const splitIcon = session.splitButton.querySelector('i');
         splitIcon?.classList.toggle('fa-spin', Boolean(session.metadataTask));
         session.splitButton.title = session.metadataTask ? '正在读取分卷信息' : '按分卷组显示';
-    }
-
-    /**
-     * 配置分组展开按钮
-     * @param {HTMLButtonElement} button 展开按钮
-     * @param {boolean} expanded 是否展开
-     * @param {string} label 内容名称
-     * @param {()=>void} handler 点击处理
-     */
-    #toggleButton(button, expanded, label, handler) {
-        const action = expanded ? '收起' : '展开';
-        button.title = `${action}${label}`;
-        button.setAttribute('aria-label', `${action}${label}`);
-        button.setAttribute('aria-expanded', String(expanded));
-        const icon = button.querySelector('[data-cm-group-chevron]');
-        icon?.classList.toggle('fa-chevron-up', expanded);
-        icon?.classList.toggle('fa-chevron-down', !expanded);
-        button.addEventListener('click', handler);
     }
 
     /**

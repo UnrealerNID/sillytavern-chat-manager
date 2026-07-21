@@ -163,10 +163,12 @@ test('component templates expose every repeated card and action mount', async ()
         'cm-chat-owner-line',
         'data-cm-chat-source',
         'data-cm-component="owner-group"',
+        'data-cm-owner-header',
         'data-cm-owner-toggle',
         'data-cm-owner-select',
         'data-cm-owner-latest',
         'data-cm-component="split-group"',
+        'data-cm-split-header',
         'data-cm-split-continue',
         'data-cm-split-select',
         'data-cm-split-group-latest',
@@ -191,6 +193,9 @@ test('component templates expose every repeated card and action mount', async ()
         assert.match(html, new RegExp(marker));
     }
     assert.doesNotMatch(html, /data-cm-group-toggle-text|>展开<|>收起</);
+    assert.match(html, /<span class="cm-group-toggle" aria-hidden="true" data-cm-owner-toggle>/);
+    assert.match(html, /<span class="cm-group-toggle" aria-hidden="true" data-cm-split-toggle>/);
+    assert.doesNotMatch(html, /<button[^>]+data-cm-(?:owner|split)-toggle/);
     assert.doesNotMatch(html, />进入聊天<|>查找备份<|>创建分卷<|>删除聊天</);
     assert.match(html, /cm-chat-owner-line[\s\S]*data-cm-chat-owner[\s\S]*cm-chat-name-separator[\s\S]*data-cm-chat-file/);
     assert.doesNotMatch(html, /data-cm-chat-pin/);

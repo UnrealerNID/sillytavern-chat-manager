@@ -7,6 +7,7 @@ import {
     chatKey,
     uniqueChatRecords,
 } from '../chat/identity.js';
+import { bindGroupExpansion } from './group-expansion.js';
 
 /**
  * 汇总聊天文件规模与最近记录
@@ -84,8 +85,9 @@ export class ChatListRenderer {
             this.ui.mount(root, '[data-cm-owner-select]', HTMLInputElement),
             group.allRecords ?? group.records,
         );
+        const header = this.ui.mount(root, '[data-cm-owner-header]');
         const image = this.ui.mount(root, '[data-cm-owner-avatar]', HTMLImageElement);
-        const toggle = this.ui.mount(root, '[data-cm-owner-toggle]', HTMLButtonElement);
+        const indicator = this.ui.mount(root, '[data-cm-owner-toggle]');
         const children = this.ui.mount(root, '[data-cm-owner-children]');
         const expanded = this.expandedOwners.has(group.key);
         image.src = group.avatarUrl;
@@ -106,7 +108,7 @@ export class ChatListRenderer {
             : '没有可用的聊天记录';
         this.#setText(root, '[data-cm-owner-summary]', summary);
         this.#setText(root, '[data-cm-owner-latest]', latest);
-        this.#configureGroupToggle(toggle, expanded, '聊天', () => {
+        bindGroupExpansion(header, indicator, expanded, '聊天', () => {
             this.#toggleExpanded(this.expandedOwners, group.key, expanded);
         });
         if (expanded) {
@@ -133,7 +135,8 @@ export class ChatListRenderer {
             selectableRecords,
         );
 
-        const toggle = this.ui.mount(root, '[data-cm-split-toggle]', HTMLButtonElement);
+        const header = this.ui.mount(root, '[data-cm-split-header]');
+        const indicator = this.ui.mount(root, '[data-cm-split-toggle]');
         const children = this.ui.mount(root, '[data-cm-split-children]');
         const continueButton = this.ui.mount(root, '[data-cm-split-continue]', HTMLButtonElement);
         const incremental = deriveIncrementalSplit(group);
@@ -164,7 +167,7 @@ export class ChatListRenderer {
             incremental.sourceRecord,
             incremental.options,
         ));
-        this.#configureGroupToggle(toggle, expanded, '分卷', () => {
+        bindGroupExpansion(header, indicator, expanded, '分卷', () => {
             this.#toggleExpanded(this.expandedSplits, group.key, expanded);
         });
         if (expanded) {
@@ -198,24 +201,6 @@ export class ChatListRenderer {
             this.syncSelection();
             this.render();
         });
-    }
-
-    /**
-     * 配置组展开按钮
-     * @param {HTMLButtonElement} button 按钮
-     * @param {boolean} expanded 是否展开
-     * @param {string} label 内容名称
-     * @param {()=>void} handler 点击处理
-     */
-    #configureGroupToggle(button, expanded, label, handler) {
-        const action = expanded ? '收起' : '展开';
-        button.setAttribute('aria-expanded', String(expanded));
-        button.setAttribute('aria-label', `${action}${label}`);
-        button.title = `${action}${label}`;
-        const icon = this.ui.mount(button, '[data-cm-group-chevron]');
-        icon.classList.toggle('fa-chevron-up', expanded);
-        icon.classList.toggle('fa-chevron-down', !expanded);
-        this.ui.bindButton(button, handler);
     }
 
     /**

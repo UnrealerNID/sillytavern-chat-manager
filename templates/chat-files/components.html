@@ -118,7 +118,7 @@
 
     <template data-cm-component="owner-group">
         <article class="cm-record-group cm-owner-group">
-            <header class="cm-group-header">
+            <header class="cm-group-header" data-cm-owner-header>
                 <label class="cm-group-selector cm-hidden" title="选择该角色或群组的全部聊天" data-cm-owner-select-wrap>
                     <input type="checkbox" data-cm-owner-select>
                 </label>
@@ -130,16 +130,9 @@
                     <span data-cm-owner-summary></span>
                     <small data-cm-owner-latest></small>
                 </div>
-                <button
-                    class="menu_button cm-icon-action cm-group-toggle"
-                    type="button"
-                    title="展开聊天"
-                    aria-label="展开聊天"
-                    aria-expanded="false"
-                    data-cm-owner-toggle
-                >
+                <span class="cm-group-toggle" aria-hidden="true" data-cm-owner-toggle>
                     <i class="fa-solid fa-chevron-down" aria-hidden="true" data-cm-group-chevron></i>
-                </button>
+                </span>
             </header>
             <div class="cm-group-children cm-hidden" data-cm-owner-children></div>
         </article>
@@ -147,7 +140,7 @@
 
     <template data-cm-component="split-group">
         <article class="cm-record-group cm-split-group">
-            <header class="cm-group-header">
+            <header class="cm-group-header" data-cm-split-header>
                 <label class="cm-group-selector cm-hidden" title="选择该分卷组的全部聊天" data-cm-split-select-wrap>
                     <input type="checkbox" data-cm-split-select>
                 </label>
@@ -165,16 +158,9 @@
                         <i class="fa-solid fa-forward-step" aria-hidden="true"></i>
                         <span>增量分卷</span>
                     </button>
-                    <button
-                        class="menu_button cm-icon-action cm-group-toggle"
-                        type="button"
-                        title="展开分卷"
-                        aria-label="展开分卷"
-                        aria-expanded="false"
-                        data-cm-split-toggle
-                    >
+                    <span class="cm-group-toggle" aria-hidden="true" data-cm-split-toggle>
                         <i class="fa-solid fa-chevron-down" aria-hidden="true" data-cm-group-chevron></i>
-                    </button>
+                    </span>
                 </div>
             </header>
             <div class="cm-group-children cm-hidden" data-cm-split-children></div>

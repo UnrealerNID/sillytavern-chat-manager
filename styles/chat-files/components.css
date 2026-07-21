@@ -75,6 +75,12 @@
     align-items: center;
     gap: 12px;
     padding: 11px 12px;
+    cursor: pointer;
+}
+
+.cm-group-header:focus-visible {
+    outline: 1px solid var(--SmartThemeQuoteColor);
+    outline-offset: -2px;
 }
 
 .cm-group-avatar,
@@ -115,7 +121,12 @@
 }
 
 .cm-group-toggle {
-    margin: 0;
+    display: grid;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 auto;
+    place-items: center;
+    pointer-events: none;
 }
 
 .cm-group-children {
