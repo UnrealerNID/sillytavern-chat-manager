@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { openChatRecord } from '../modules/chat/chat-opener.js';
+import { openChatRecord } from '../modules/chat-files/chat/chat-opener.js';
 
 test('opens a character chat completely in one call', async () => {
     let currentChat = '角色甲聊天';

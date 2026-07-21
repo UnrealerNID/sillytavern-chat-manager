@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 test('panel template exposes all stable UI mounts', async () => {
-    const html = await readFile(new URL('../templates/panel.html', import.meta.url), 'utf8');
+    const html = await readFile(new URL('../templates/chat-files/panel.html', import.meta.url), 'utf8');
     for (const marker of [
         'data-cm-search',
         'data-cm-sort',
@@ -59,9 +59,9 @@ test('panel template exposes all stable UI mounts', async () => {
 
 test('data maid enhancement mounts after either native or plugin-triggered scans', async () => {
     const [html, source, reportCapture] = await Promise.all([
-        readFile(new URL('../templates/data-maid-enhancer.html', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/backups/data-maid-enhancer.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/backups/data-maid-report.js', import.meta.url), 'utf8'),
+        readFile(new URL('../templates/chat-files/data-maid-enhancer.html', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/backups/data-maid-enhancer.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/backups/data-maid-report.js', import.meta.url), 'utf8'),
     ]);
     for (const marker of [
         'chat_manager_data_maid_enhancer',
@@ -96,7 +96,7 @@ test('data maid enhancement mounts after either native or plugin-triggered scans
 });
 
 test('dialog templates expose every static dialog and dynamic mount', async () => {
-    const html = await readFile(new URL('../templates/dialogs.html', import.meta.url), 'utf8');
+    const html = await readFile(new URL('../templates/chat-files/dialogs.html', import.meta.url), 'utf8');
     for (const marker of [
         'data-cm-dialog-shell',
         'data-cm-dialog-content="backups"',
@@ -136,8 +136,8 @@ test('dialog templates expose every static dialog and dynamic mount', async () =
 
 test('opening native cleanup preserves the chat manager and rows open only from explicit actions', async () => {
     const [source, listRenderer] = await Promise.all([
-        readFile(new URL('../modules/ui/ui.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/ui/chat-list-renderer.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/ui/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/ui/chat-list-renderer.js', import.meta.url), 'utf8'),
     ]);
     assert.match(source, /data-cm-data-maid-open[^\n]*openDataMaid\(\)/);
     assert.doesNotMatch(source, /data-cm-data-maid-open[^}]*this\.close\(\)/);
@@ -146,7 +146,7 @@ test('opening native cleanup preserves the chat manager and rows open only from 
 });
 
 test('component templates expose every repeated card and action mount', async () => {
-    const html = await readFile(new URL('../templates/components.html', import.meta.url), 'utf8');
+    const html = await readFile(new URL('../templates/chat-files/components.html', import.meta.url), 'utf8');
     for (const marker of [
         'data-cm-component="welcome-group-controls"',
         'data-cm-welcome-group-owners',
@@ -193,9 +193,9 @@ test('component templates expose every repeated card and action mount', async ()
     assert.doesNotMatch(html, /data-cm-chat-pin/);
 });
 
-test('panel and settings share the same version update controls', async () => {
+test('panel and settings expose version update controls', async () => {
     const [panel, settings] = await Promise.all([
-        readFile(new URL('../templates/panel.html', import.meta.url), 'utf8'),
+        readFile(new URL('../templates/chat-files/panel.html', import.meta.url), 'utf8'),
         readFile(new URL('../templates/settings.html', import.meta.url), 'utf8'),
     ]);
     for (const className of [
@@ -204,14 +204,15 @@ test('panel and settings share the same version update controls', async () => {
         'chat-manager-update-action',
     ]) {
         assert.match(panel, new RegExp(`\\b${className}\\b`));
-        assert.match(settings, new RegExp(`\\b${className}\\b`));
     }
+    assert.match(settings, /data-toolbox-version/);
+    assert.match(settings, /data-toolbox-update/);
 });
 
 test('panels and dialogs do not close from backdrop clicks', async () => {
     const [source, templates] = await Promise.all([
-        readFile(new URL('../modules/ui/ui.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/ui/templates.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/ui/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/ui/templates.js', import.meta.url), 'utf8'),
     ]);
     assert.doesNotMatch(source, /event\.target\s*===\s*root/);
     assert.doesNotMatch(source, /event\.target\s*===\s*this\.root/);
@@ -220,14 +221,14 @@ test('panels and dialogs do not close from backdrop clicks', async () => {
 
 test('backup listing is only requested explicitly while chat files are stable', async () => {
     const [entry, backups, ui, backupDialogs] = await Promise.all([
-        readFile(new URL('../index.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/backups/backups.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/ui/ui.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/ui/backup-dialogs.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/module.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/backups/backups.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/ui/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/ui/backup-dialogs.js', import.meta.url), 'utf8'),
     ]);
     assert.doesNotMatch(entry, /scheduleBackupWarmup|backups\.warmup/);
     assert.doesNotMatch(backups, /async warmup\s*\(/);
-    const listRenderer = await readFile(new URL('../modules/ui/chat-list-renderer.js', import.meta.url), 'utf8');
+    const listRenderer = await readFile(new URL('../modules/chat-files/ui/chat-list-renderer.js', import.meta.url), 'utf8');
     assert.match(listRenderer, /backup\.disabled\s*=\s*blocked/);
     assert.match(backupDialogs, /async open\(record\)\s*{\s*if \(this\.isGenerating\(\)\)/);
     assert.match(backupDialogs, /if \(this\.isSplitting\(\)\) return this\.notify\('warning', '分卷任务正在写入聊天/);
@@ -238,10 +239,10 @@ test('backup listing is only requested explicitly while chat files are stable', 
 
 test('chat deletion uses SillyTavern native character and group workflows', async () => {
     const [entry, ui, actions, deletion] = await Promise.all([
-        readFile(new URL('../index.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/ui/ui.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/chat/chat-actions.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/ui/chat-delete-dialog.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/module.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/ui/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/chat/chat-actions.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/ui/chat-delete-dialog.js', import.meta.url), 'utf8'),
     ]);
     assert.match(actions, /deleteCharacterChatByName\(String\(characterId\), record\.fileId\)/);
     assert.match(actions, /deleteGroupChatByName\(group\.id, record\.fileId\)/);
@@ -258,7 +259,7 @@ test('chat deletion uses SillyTavern native character and group workflows', asyn
 });
 
 test('chat viewer follows SillyTavern message rendering count', async () => {
-    const source = await readFile(new URL('../modules/ui/backup-dialogs.js', import.meta.url), 'utf8');
+    const source = await readFile(new URL('../modules/chat-files/ui/backup-dialogs.js', import.meta.url), 'utf8');
     assert.match(source, /Number\(power_user\.chat_truncation\) \|\| Number\.MAX_SAFE_INTEGER/);
     assert.match(source, /const pages = Number\.isFinite\(total\)[\s\S]*let page = pages \? pages - 1 : 0/);
     assert.match(source, /async viewChat\(record\)/);
@@ -266,8 +267,8 @@ test('chat viewer follows SillyTavern message rendering count', async () => {
 
 test('chat list pagination shares SillyTavern character page size', async () => {
     const [entry, ui] = await Promise.all([
-        readFile(new URL('../index.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/ui/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/module.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/ui/ui.js', import.meta.url), 'utf8'),
     ]);
     assert.match(entry, /accountStorage\.getItem\('Characters_PerPage'\)/);
     assert.match(entry, /accountStorage\.setItem\('Characters_PerPage', String\(options\.pageSize\)\)/);
@@ -276,13 +277,13 @@ test('chat list pagination shares SillyTavern character page size', async () => 
 });
 
 test('split groups display newest volumes first and the source chat last', async () => {
-    const source = await readFile(new URL('../modules/ui/chat-list-renderer.js', import.meta.url), 'utf8');
+    const source = await readFile(new URL('../modules/chat-files/ui/chat-list-renderer.js', import.meta.url), 'utf8');
     assert.match(source, /sort\(\(left, right\) => right\.split\.sequence - left\.split\.sequence\)/);
     assert.match(source, /displayParts\.forEach[\s\S]*if \(group\.sourceRecord\)[\s\S]*source: true/);
 });
 
 test('main UI delegates dialog workflows to focused modules', async () => {
-    const source = await readFile(new URL('../modules/ui/ui.js', import.meta.url), 'utf8');
+    const source = await readFile(new URL('../modules/chat-files/ui/ui.js', import.meta.url), 'utf8');
     assert.ok(source.split(/\r?\n/).length < 850, '主 UI 控制器不应重新承载完整弹窗工作流');
     assert.match(source, /new UiTemplates\(/);
     assert.match(source, /new BackupDialogs\(/);
@@ -293,9 +294,9 @@ test('main UI delegates dialog workflows to focused modules', async () => {
 
 test('chat inventory resynchronizes on every open and coalesces concurrent refreshes', async () => {
     const [entry, api, ui] = await Promise.all([
-        readFile(new URL('../index.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/platform/api.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/ui/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/module.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/api.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/ui/ui.js', import.meta.url), 'utf8'),
     ]);
     assert.match(api, /listChatFiles\(signal\)/);
     assert.match(api, /listOwnerChatFiles\(owner, signal\)/);
@@ -309,9 +310,9 @@ test('chat inventory resynchronizes on every open and coalesces concurrent refre
 
 test('welcome recent chats share grouping settings and preserve native chat actions', async () => {
     const [entry, ui, welcome] = await Promise.all([
-        readFile(new URL('../index.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/ui/ui.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/ui/welcome-recent.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/module.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/ui/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/ui/welcome-recent.js', import.meta.url), 'utf8'),
     ]);
     assert.match(entry, /source !== 'manager'[\s\S]*ui\?\.setGrouping\(options\)/);
     assert.match(entry, /source !== 'welcome'[\s\S]*welcomeRecent\?\.setGrouping\(options\)/);

@@ -10,7 +10,7 @@ import {
     groupOwnerRecords,
     groupSplitRecords,
     sortChatRecords,
-} from '../modules/chat/grouping.js';
+} from '../modules/chat-files/chat/grouping.js';
 
 function record(fileId, overrides = {}) {
     return {

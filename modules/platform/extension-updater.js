@@ -1,10 +1,8 @@
 import {
     getRequestHeaders,
-    saveSettingsDebounced,
 } from '/script.js';
 import {
     extensionTypes,
-    renderExtensionTemplateAsync,
 } from '/scripts/extensions.js';
 import { isAdmin } from '/scripts/user.js';
 
@@ -60,43 +58,6 @@ export class ExtensionUpdater {
         button.addEventListener('click', () => void this.#update());
         this.#render();
         this.checkTask ??= this.#check();
-    }
-
-    /**
-     * 插入酒馆原生扩展设置卡片
-     * @param {object} settings 插件设置
-     * @param {(enabled:boolean)=>void} applyEnabledState 应用启停状态
-     * @returns {Promise<boolean>} 是否成功插入
-     */
-    async insertSettings(settings, applyEnabledState) {
-        if (document.querySelector('#chat_manager_extension_status')) return true;
-        const container = selectExtensionColumn(settings.column);
-        if (!container) return false;
-
-        const selectedColumn = container.id === 'extensions_settings' ? 'left' : 'right';
-        if (settings.column !== selectedColumn) {
-            settings.column = selectedColumn;
-            saveSettingsDebounced();
-        }
-
-        const html = await renderExtensionTemplateAsync(EXTENSION_ID, 'templates/settings');
-        const template = document.createElement('template');
-        template.innerHTML = html.trim();
-        const drawer = template.content.firstElementChild;
-        const version = drawer?.querySelector('.chat-manager-extension-version');
-        const toggle = drawer?.querySelector('#chat_manager_enabled');
-        const update = drawer?.querySelector('#chat_manager_update');
-        if (!(drawer instanceof HTMLElement)
-            || !(version instanceof HTMLElement)
-            || !(toggle instanceof HTMLInputElement)
-            || !(update instanceof HTMLButtonElement)) {
-            throw new Error('扩展设置模板结构无效');
-        }
-
-        bindEnabledToggle(toggle, settings, applyEnabledState);
-        container.append(drawer);
-        this.register(update, version);
-        return true;
     }
 
     /**
@@ -236,48 +197,4 @@ async function getRemoteExtensionVersion() {
     const metadata = await response.json();
     if (typeof metadata.version !== 'string') throw new Error('远端扩展清单缺少版本号');
     return metadata.version;
-}
-
-/**
- * 绑定插件启用开关
- * @param {HTMLInputElement} toggle 启用开关
- * @param {object} settings 插件设置
- * @param {(enabled:boolean)=>void} applyEnabledState 应用状态
- */
-function bindEnabledToggle(toggle, settings, applyEnabledState) {
-    toggle.checked = settings.enabled !== false;
-    toggle.addEventListener('change', () => {
-        settings.enabled = toggle.checked;
-        saveSettingsDebounced();
-        applyEnabledState(toggle.checked);
-        globalThis.toastr?.success?.(`酒馆工具箱已${toggle.checked ? '启用' : '停用'}`);
-    });
-}
-
-/**
- * 选择要插入插件设置卡片的扩展栏
- * @param {'left'|'right'|undefined} savedColumn 已保存位置
- * @returns {HTMLElement|null} 扩展栏
- */
-function selectExtensionColumn(savedColumn) {
-    const left = document.querySelector('#extensions_settings');
-    const right = document.querySelector('#extensions_settings2');
-    if (savedColumn === 'left' && left instanceof HTMLElement) return left;
-    if (savedColumn === 'right' && right instanceof HTMLElement) return right;
-    if (!(left instanceof HTMLElement)) return right instanceof HTMLElement ? right : null;
-    if (!(right instanceof HTMLElement)) return left;
-    return renderedCardCount(left) <= renderedCardCount(right) ? left : right;
-}
-
-/**
- * 统计扩展栏中的可见卡片
- * @param {HTMLElement} container 扩展栏
- * @returns {number} 可见卡片数量
- */
-function renderedCardCount(container) {
-    return Array.from(container.children).filter(child => {
-        if (!(child instanceof HTMLElement)) return false;
-        if (child.hidden || getComputedStyle(child).display === 'none') return false;
-        return child.childElementCount > 0 || Boolean(child.textContent?.trim());
-    }).length;
 }

@@ -14,13 +14,13 @@ import { callGenericPopup, POPUP_TYPE } from '/scripts/popup.js';
 import { renderTemplateAsync } from '/scripts/templates.js';
 import { openWelcomeScreen } from '/scripts/welcome-screen.js';
 
-import { stripJsonl } from '../shared/utils.js';
+import { stripJsonl } from '../../shared/utils.js';
 
 /**
  * 创建聊天文件操作适配器
  * @param {object} dependencies 依赖项
  * @param {()=>any} dependencies.getContext 酒馆上下文提供器
- * @param {import('../platform/api.js').ChatManagerApi} dependencies.api 酒馆接口
+ * @param {import('../api.js').ChatManagerApi} dependencies.api 酒馆接口
  * @param {import('../backups/backups.js').BackupService} dependencies.backups 备份服务
  * @param {(record:object)=>Promise<void>} dependencies.openRecord 打开聊天
  * @returns {object} 恢复备份、删除聊天和重命名聊天的操作集合

@@ -27,8 +27,9 @@
 
 ## 目录结构
 
-- `modules/chat` 放置聊天打开、分组、分卷及任务恢复逻辑
-- `modules/backups` 放置备份识别与酒馆数据清理增强逻辑
-- `modules/platform` 集中酒馆接口和扩展更新适配
-- `modules/ui` 放置面板、弹窗及渲染逻辑
+- `modules/core` 放置工具箱设置、模块注册与顶层生命周期
+- `modules/chat-files` 是聊天文件管理模块，内部按 `chat`、`backups` 与 `ui` 划分职责
+- `modules/platform` 只放置跨模块使用的酒馆平台适配与扩展更新逻辑
 - `modules/shared` 仅放置无业务归属的通用工具
+- `templates/chat-files` 与 `styles/chat-files` 只服务聊天文件管理模块
+- 新功能先判断能否成为独立模块，避免把跨领域逻辑继续加入聊天文件模块

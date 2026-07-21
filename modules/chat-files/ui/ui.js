@@ -1,4 +1,4 @@
-import { chatKey, stripJsonl } from '../shared/utils.js';
+import { chatKey, stripJsonl } from '../../shared/utils.js';
 import {
     filterChatRecords,
     getCurrentOwner,
@@ -34,7 +34,7 @@ export class ChatManagerUi {
     /**
      * @param {object} dependencies 依赖项
      * @param {()=>any} dependencies.getContext 上下文提供器
-     * @param {import('../platform/api.js').ChatManagerApi} dependencies.api 酒馆接口
+     * @param {import('../api.js').ChatManagerApi} dependencies.api 酒馆接口
      * @param {import('../backups/backups.js').BackupService} dependencies.backups 备份服务
      * @param {import('../chat/splitter.js').SplitService} dependencies.splitter 分卷服务
      * @param {()=>boolean} dependencies.isGenerating 是否正在生成

@@ -1,4 +1,4 @@
-import { formatBytes } from '../shared/utils.js';
+import { formatBytes } from '../../shared/utils.js';
 import { captureNextDataMaidReport } from './data-maid-report.js';
 import {
     backupStateMatchesFilter,
@@ -44,7 +44,7 @@ function waitForElement(selector, timeout = 15_000) {
 export class DataMaidEnhancer {
     /**
      * @param {object} dependencies 依赖项
-     * @param {import('../platform/api.js').ChatManagerApi} dependencies.api 酒馆接口
+     * @param {import('../api.js').ChatManagerApi} dependencies.api 酒馆接口
      * @param {string} dependencies.template 增强控件模板
      */
     constructor({ api, template }) {

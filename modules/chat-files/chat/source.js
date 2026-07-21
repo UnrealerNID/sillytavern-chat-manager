@@ -1,4 +1,4 @@
-import { cloneJson, stripJsonl } from '../shared/utils.js';
+import { cloneJson, stripJsonl } from '../../shared/utils.js';
 
 /**
  * 判断值是否为普通对象
@@ -25,7 +25,7 @@ export function isChatHeader(header) {
 /**
  * 读取一份来源聊天指纹
  * @param {object} record 聊天记录
- * @param {import('../platform/api.js').ChatManagerApi} api 接口实例
+ * @param {import('../api.js').ChatManagerApi} api 接口实例
  * @param {AbortSignal} [signal] 取消信号
  * @returns {Promise<object>} 来源指纹
  */
@@ -70,7 +70,7 @@ export function fingerprintsEqual(left, right) {
 /**
  * 读取并校验稳定的来源聊天快照
  * @param {object} record 聊天记录
- * @param {import('../platform/api.js').ChatManagerApi} api 接口实例
+ * @param {import('../api.js').ChatManagerApi} api 接口实例
  * @param {AbortSignal} [signal] 取消信号
  * @returns {Promise<{header:object,messages:object[],fingerprint:object}>} 来源快照
  */

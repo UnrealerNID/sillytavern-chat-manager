@@ -5,7 +5,7 @@ import {
     parseJsonlResponse,
     stripJsonl,
     toHex,
-} from '../shared/utils.js';
+} from '../../shared/utils.js';
 import { loadStableSource } from '../chat/source.js';
 
 const BACKUP_LIST_CACHE_MS = 30_000;
@@ -14,7 +14,7 @@ const MATCH_CONCURRENCY = 4;
 
 export class BackupService {
     /**
-     * @param {import('../platform/api.js').ChatManagerApi} api 接口实例
+     * @param {import('../api.js').ChatManagerApi} api 接口实例
      */
     constructor(api) {
         this.api = api;

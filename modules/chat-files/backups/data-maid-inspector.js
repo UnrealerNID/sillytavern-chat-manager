@@ -1,4 +1,4 @@
-import { parseJsonlResponse } from '../shared/utils.js';
+import { parseJsonlResponse } from '../../shared/utils.js';
 
 const MATCH_CONCURRENCY = 4;
 
@@ -29,7 +29,7 @@ export function backupStateMatchesFilter(state, filter) {
 /**
  * 并发检查备份与现有聊天的完整性标识
  * @param {object} options 检查选项
- * @param {import('../platform/api.js').ChatManagerApi} options.api 酒馆接口
+ * @param {import('../api.js').ChatManagerApi} options.api 酒馆接口
  * @param {string} options.token 数据清理安全令牌
  * @param {object[]} options.items 备份增强条目
  * @param {AbortSignal} options.signal 取消信号

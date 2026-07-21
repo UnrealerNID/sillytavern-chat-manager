@@ -6,7 +6,7 @@ import {
     chatKey,
     element,
     stripJsonl,
-} from '../shared/utils.js';
+} from '../../shared/utils.js';
 
 /**
  * 在欢迎页最近聊天中复用聊天管理的分组规则
@@ -16,7 +16,7 @@ import {
 export class WelcomeRecentEnhancer {
     /**
      * @param {object} dependencies 依赖项
-     * @param {import('../platform/api.js').ChatManagerApi} dependencies.api 酒馆接口
+     * @param {import('../api.js').ChatManagerApi} dependencies.api 酒馆接口
      * @param {import('./templates.js').UiTemplates} dependencies.templates 模板工具
      * @param {()=>object} dependencies.getOptions 获取共享显示设置
      * @param {(options:object)=>void} dependencies.onOptionsChange 保存共享显示设置

@@ -1,4 +1,4 @@
-import { element } from '../shared/utils.js';
+import { element } from '../../shared/utils.js';
 
 export class NativeChatPanel {
     /**

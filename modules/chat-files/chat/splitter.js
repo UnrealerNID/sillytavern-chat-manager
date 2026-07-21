@@ -6,7 +6,7 @@ import {
     formatBytes,
     jsonlByteSize,
     stripJsonl,
-} from '../shared/utils.js';
+} from '../../shared/utils.js';
 import {
     fingerprintsEqual,
     getSourceFingerprint,
@@ -15,7 +15,7 @@ import {
 
 export class SplitService {
     /**
-     * @param {import('../platform/api.js').ChatManagerApi} api 接口实例
+     * @param {import('../api.js').ChatManagerApi} api 接口实例
      * @param {import('./task-journal.js').TaskJournal} journal 任务日志
      * @param {()=>string} uuid UUID 提供器
      */

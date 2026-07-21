@@ -8,25 +8,25 @@ test('style entry imports every responsibility module', async () => {
     const imports = Array.from(css.matchAll(/@import\s+url\("([^"]+)"\);/g), match => match[1]);
 
     assert.deepEqual(imports, [
-        './base.css',
-        './components.css',
-        './panel.css',
-        './dialogs.css',
-        './data-maid-enhancer.css',
-        './responsive.css',
+        './chat-files/base.css',
+        './chat-files/components.css',
+        './chat-files/panel.css',
+        './chat-files/dialogs.css',
+        './chat-files/data-maid-enhancer.css',
+        './chat-files/responsive.css',
         './settings.css',
     ]);
     await Promise.all(imports.map(path => access(new URL(path, entryUrl))));
 });
 
 test('data maid enhancement dialogs use the shared dialog layer', async () => {
-    const base = await readFile(new URL('../styles/base.css', import.meta.url), 'utf8');
+    const base = await readFile(new URL('../styles/chat-files/base.css', import.meta.url), 'utf8');
     assert.match(base, /\.cm-overlay\s*\{[^}]*z-index:\s*31000/s);
     assert.match(base, /\.cm-dialog-overlay\s*\{[^}]*z-index:\s*32000/s);
 });
 
 test('all plugin panels use the same readable disabled button style', async () => {
-    const css = await readFile(new URL('../styles/base.css', import.meta.url), 'utf8');
+    const css = await readFile(new URL('../styles/chat-files/base.css', import.meta.url), 'utf8');
     assert.match(css, /\.cm-panel \.menu_button,[\s\S]*\.cm-dialog \.menu_button\s*{\s*font-weight:\s*600/);
     assert.match(css, /\.cm-panel :is\(\.menu_button, \.cm-icon-button\):disabled/);
     assert.match(css, /\.cm-dialog :is\(\.menu_button, \.cm-icon-button\):disabled/);
@@ -38,8 +38,8 @@ test('all plugin panels use the same readable disabled button style', async () =
 
 test('toolbar controls share one fixed height without stretching refresh', async () => {
     const [base, panel] = await Promise.all([
-        readFile(new URL('../styles/base.css', import.meta.url), 'utf8'),
-        readFile(new URL('../styles/panel.css', import.meta.url), 'utf8'),
+        readFile(new URL('../styles/chat-files/base.css', import.meta.url), 'utf8'),
+        readFile(new URL('../styles/chat-files/panel.css', import.meta.url), 'utf8'),
     ]);
     assert.match(panel, /--cm-toolbar-control-height:\s*34px/);
     assert.match(base, /\.cm-icon-action\s*{[\s\S]*height:\s*34px\s*!important/);
@@ -50,8 +50,8 @@ test('toolbar controls share one fixed height without stretching refresh', async
 
 test('toolbar toggles reuse the native active state without custom color mapping', async () => {
     const [ui, css] = await Promise.all([
-        readFile(new URL('../modules/ui/ui.js', import.meta.url), 'utf8'),
-        readFile(new URL('../styles/panel.css', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/ui/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../styles/chat-files/panel.css', import.meta.url), 'utf8'),
     ]);
     assert.match(ui, /button\.classList\.toggle\('active', active\)/);
     assert.doesNotMatch(ui, /button\.classList\.toggle\('cm-active'/);
@@ -61,8 +61,8 @@ test('toolbar toggles reuse the native active state without custom color mapping
 
 test('batch selection keeps its entry in the primary row and its actions in a second row', async () => {
     const [ui, css] = await Promise.all([
-        readFile(new URL('../modules/ui/ui.js', import.meta.url), 'utf8'),
-        readFile(new URL('../styles/panel.css', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/ui/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../styles/chat-files/panel.css', import.meta.url), 'utf8'),
     ]);
     assert.match(ui, /#setSelectionMode\(!this\.selectionMode\)/);
     assert.match(ui, /this\.selectionToolbar\.classList\.toggle\('cm-hidden', !this\.selectionMode\)/);
@@ -72,8 +72,8 @@ test('batch selection keeps its entry in the primary row and its actions in a se
 
 test('chat and backup rows follow the compact recent-chat rhythm', async () => {
     const [panel, components] = await Promise.all([
-        readFile(new URL('../styles/panel.css', import.meta.url), 'utf8'),
-        readFile(new URL('../styles/components.css', import.meta.url), 'utf8'),
+        readFile(new URL('../styles/chat-files/panel.css', import.meta.url), 'utf8'),
+        readFile(new URL('../styles/chat-files/components.css', import.meta.url), 'utf8'),
     ]);
     assert.match(panel, /\.cm-chat-list\s*{[^}]*gap:\s*2px/s);
     assert.match(panel, /\.cm-chat-list > \*\s*{[^}]*flex:\s*0 0 auto/s);

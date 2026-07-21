@@ -58,10 +58,10 @@ for (const referenced of [
     manifest.js,
     manifest.css,
     'templates/settings.html',
-    'templates/panel.html',
-    'templates/data-maid-enhancer.html',
-    'templates/dialogs.html',
-    'templates/components.html',
+    'templates/chat-files/panel.html',
+    'templates/chat-files/data-maid-enhancer.html',
+    'templates/chat-files/dialogs.html',
+    'templates/chat-files/components.html',
     ...Object.values(manifest.i18n ?? {}),
 ]) {
     if (!existsSync(join(root, referenced))) throw new Error(`插件引用了不存在的文件：${referenced}`);

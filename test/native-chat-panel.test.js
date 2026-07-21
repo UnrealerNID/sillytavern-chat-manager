@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { NativeChatPanel } from '../modules/ui/native-chat-panel.js';
+import { NativeChatPanel } from '../modules/chat-files/ui/native-chat-panel.js';
 
 test('setEnabled removes native actions without reloading the page', () => {
     const action = { removeCalled: false, remove() { this.removeCalled = true; } };
