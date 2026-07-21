@@ -34,7 +34,6 @@ export class ChatFilesModule {
      * @param {object} options.toolboxSettings 工具箱完整设置
      */
     constructor({ toolboxSettings }) {
-        this.toolboxSettings = toolboxSettings;
         this.settings = toolboxSettings.modules.chatFiles;
         this.getContext = () => SillyTavern.getContext();
         this.recoveryChecked = false;

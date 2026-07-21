@@ -3,7 +3,10 @@ import {
     orderSplitGroupRecords,
 } from '../chat/grouping.js';
 import { formatBytes, parseBytes } from '../../shared/files.js';
-import { chatKey } from '../chat/identity.js';
+import {
+    chatKey,
+    uniqueChatRecords,
+} from '../chat/identity.js';
 
 /**
  * 汇总聊天文件规模与最近记录
@@ -180,7 +183,7 @@ export class ChatListRenderer {
      * @param {object[]} records 组内聊天
      */
     #configureGroupSelection(wrap, input, records) {
-        const unique = uniqueRecords(records);
+        const unique = uniqueChatRecords(records);
         const selectedCount = unique.filter(record => this.selectedRecords.has(chatKey(record))).length;
         wrap.classList.toggle('cm-hidden', !this.isSelectionMode());
         input.checked = unique.length > 0 && selectedCount === unique.length;
@@ -339,13 +342,4 @@ export class ChatListRenderer {
         else collection.add(key);
         this.render();
     }
-}
-
-/**
- * 按聊天键去重
- * @param {object[]} records 聊天记录
- * @returns {object[]} 去重结果
- */
-function uniqueRecords(records) {
-    return Array.from(new Map(records.map(record => [chatKey(record), record])).values());
 }

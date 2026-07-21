@@ -35,7 +35,7 @@ export function canonicalJson(value) {
  * @param {BufferSource|string} value 输入值
  * @returns {Promise<Uint8Array>} 摘要字节
  */
-export async function sha256(value) {
+async function sha256(value) {
     const bytes = typeof value === 'string' ? textEncoder.encode(value) : value;
     return new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
 }

@@ -10,6 +10,7 @@ import {
     stripJsonl,
 } from '../modules/shared/files.js';
 import { buildRanges } from '../modules/chat-files/chat/ranges.js';
+import { uniqueChatRecords } from '../modules/chat-files/chat/identity.js';
 import { isNewerVersion } from '../modules/platform/version.js';
 
 test('buildRanges keeps inclusive floors and the remainder', () => {
@@ -22,6 +23,13 @@ test('buildRanges keeps inclusive floors and the remainder', () => {
 
 test('buildRanges creates one inclusive range', () => {
     assert.deepEqual(buildRanges(3, 7), [{ start: 3, end: 7, count: 5 }]);
+});
+
+test('uniqueChatRecords keeps the latest value for each chat identity', () => {
+    const first = { ownerType: 'character', ownerId: 'a.png', fileId: 'chat', value: 1 };
+    const replacement = { ...first, value: 2 };
+    const other = { ownerType: 'group', ownerId: '1', fileId: 'chat', value: 3 };
+    assert.deepEqual(uniqueChatRecords([first, replacement, other]), [replacement, other]);
 });
 
 test('canonicalJson ignores object key insertion order', () => {

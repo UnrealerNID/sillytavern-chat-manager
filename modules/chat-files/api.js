@@ -1,6 +1,6 @@
 import { compressRequest } from '/scripts/request-compression.js';
 
-export class HttpError extends Error {
+class HttpError extends Error {
     /**
      * @param {string} message 错误信息
      * @param {number} status HTTP 状态码

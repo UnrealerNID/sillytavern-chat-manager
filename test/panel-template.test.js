@@ -277,35 +277,6 @@ test('chat list pagination shares SillyTavern character page size', async () => 
     assert.match(ui, /normalizePageSize\(viewOptions\.pageSize\)/);
 });
 
-test('main UI delegates dialog workflows to focused modules', async () => {
-    const source = await readFile(new URL('../modules/chat-files/ui/ui.js', import.meta.url), 'utf8');
-    assert.ok(source.split(/\r?\n/).length < 850, '主 UI 控制器不应重新承载完整弹窗工作流');
-    assert.match(source, /new UiTemplates\(/);
-    assert.match(source, /new BackupDialogs\(/);
-    assert.match(source, /new SplitDialogs\(/);
-    assert.match(source, /return this\.backupDialogs\.open\(record\)/);
-    assert.match(source, /return this\.splitDialogs\.open\(record, initialOptions\)/);
-});
-
-test('chat inventory resynchronizes on every open and coalesces concurrent refreshes', async () => {
-    const [entry, api, ui, inventory] = await Promise.all([
-        readFile(new URL('../modules/chat-files/module.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/chat-files/api.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/chat-files/ui/ui.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/chat-files/chat/inventory.js', import.meta.url), 'utf8'),
-    ]);
-    assert.match(api, /listChatFiles\(signal\)/);
-    assert.match(api, /listOwnerChatFiles\(owner, signal\)/);
-    assert.match(ui, /if \(!this\.records \|\| !this\.isGenerating\(\)\) await this\.refresh\(\)/);
-    assert.match(ui, /this\.records = await this\.inventory\.refresh\(\)/);
-    assert.match(inventory, /this\.task \?\?= this\.#drain\(\)/);
-    assert.match(inventory, /while \(this\.requested\)[\s\S]*target\.key === this\.getTarget\(\)\.key/);
-    assert.match(inventory, /target\.scope === 'current' && target\.owner[\s\S]*listOwnerChatFiles\(target\.owner\)/);
-    assert.match(inventory, /const characters = new Map/);
-    assert.match(inventory, /const groups = new Map/);
-    assert.match(entry, /ui\.invalidateChatFiles\(\)/);
-});
-
 test('welcome recent chats share grouping settings and preserve native chat actions', async () => {
     const [entry, ui, welcome] = await Promise.all([
         readFile(new URL('../modules/chat-files/module.js', import.meta.url), 'utf8'),

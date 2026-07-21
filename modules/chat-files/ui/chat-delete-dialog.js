@@ -1,5 +1,8 @@
 import { formatBytes } from '../../shared/files.js';
-import { chatKey } from '../chat/identity.js';
+import {
+    chatKey,
+    uniqueChatRecords,
+} from '../chat/identity.js';
 import { aggregateRecords } from './chat-list-renderer.js';
 
 /**
@@ -29,7 +32,7 @@ export class ChatDeleteDialog {
      */
     async open(records) {
         if (!records.length || !this.#canDelete()) return;
-        const unique = uniqueRecords(records);
+        const unique = uniqueChatRecords(records);
         const dialog = this.ui.dialog([
             unique.length === 1 ? '删除聊天' : '批量删除聊天',
             unique.length === 1 ? unique[0].ownerName : `已选择 ${unique.length} 条聊天`,
@@ -160,15 +163,6 @@ export class ChatDeleteDialog {
             console.warn('[酒馆工具箱] 刷新最近聊天失败', error);
         }
     }
-}
-
-/**
- * 按聊天键去重
- * @param {object[]} records 聊天记录
- * @returns {object[]} 去重结果
- */
-function uniqueRecords(records) {
-    return Array.from(new Map(records.map(record => [chatKey(record), record])).values());
 }
 
 /**

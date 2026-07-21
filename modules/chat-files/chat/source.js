@@ -15,7 +15,7 @@ function isObject(value) {
  * @param {unknown} header 聊天头
  * @returns {boolean} 是否有效
  */
-export function isChatHeader(header) {
+function isChatHeader(header) {
     return isObject(header) && (
         isObject(header.chat_metadata)
         || Object.hasOwn(header, 'user_name')

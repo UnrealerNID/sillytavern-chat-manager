@@ -1,4 +1,5 @@
 import { formatBytes } from '../../shared/files.js';
+import { waitForElement } from '../../platform/dom.js';
 import { captureNextDataMaidReport } from './data-maid-report.js';
 import { DataMaidSelection } from './data-maid-selection.js';
 import {
@@ -7,39 +8,9 @@ import {
 } from './data-maid-inspector.js';
 import { DataMaidViewer, formatDataMaidDate } from '../ui/data-maid-viewer.js';
 
-export {
-    backupStateMatchesFilter,
-    classifyBackupIntegrity,
-} from './data-maid-inspector.js';
-
 function notify(type, message) {
     if (globalThis.toastr?.[type]) globalThis.toastr[type](message);
     else console[type === 'error' ? 'error' : 'log'](message);
-}
-
-/**
- * 等待酒馆动态创建指定元素
- * @param {string} selector 选择器
- * @param {number} timeout 超时时间
- * @returns {Promise<Element>} 匹配元素
- */
-function waitForElement(selector, timeout = 15_000) {
-    const existing = document.querySelector(selector);
-    if (existing) return Promise.resolve(existing);
-    return new Promise((resolve, reject) => {
-        const observer = new MutationObserver(() => {
-            const element = document.querySelector(selector);
-            if (!element) return;
-            clearTimeout(timer);
-            observer.disconnect();
-            resolve(element);
-        });
-        const timer = setTimeout(() => {
-            observer.disconnect();
-            reject(new Error('等待酒馆数据清理面板超时'));
-        }, timeout);
-        observer.observe(document.body, { childList: true, subtree: true });
-    });
 }
 
 export class DataMaidEnhancer {
@@ -156,6 +127,7 @@ export class DataMaidEnhancer {
     #prepareSession(container) {
         this.#resetSession();
         this.container = container;
+        this.controller = new AbortController();
         this.#watchSession();
         const capture = captureNextDataMaidReport();
         this.pendingCapture = capture;
@@ -180,7 +152,10 @@ export class DataMaidEnhancer {
             return;
         }
         const firstHash = CSS.escape(this.reportItems[0].hash);
-        const item = await waitForElement(`.dataMaidItem[data-hash="${firstHash}"]`, 30_000);
+        const item = await waitForElement(`.dataMaidItem[data-hash="${firstHash}"]`, {
+            timeout: 30_000,
+            signal: this.controller?.signal,
+        });
         const category = item.closest('.dataMaidCategory');
         if (!(category instanceof HTMLElement)) throw new Error('找不到酒馆聊天备份分类');
         this.category = category;

@@ -103,16 +103,9 @@ export class BackupService {
     /**
      * 读取带短时缓存的安全备份目录
      * @param {AbortSignal} [signal] 取消信号
-     * @param {boolean} refresh 是否强制重新生成报告
      * @returns {Promise<object[]>} 备份列表
      */
-    async list(signal, refresh = false) {
-        if (refresh) {
-            this.catalogRevision++;
-            this.backupListCache = null;
-            this.backupListPromise = null;
-            this.resultCache.clear();
-        }
+    async list(signal) {
         if (this.backupListCache?.expiresAt > Date.now()) return this.backupListCache.items;
         if (!this.backupListPromise) {
             const revision = this.catalogRevision;
