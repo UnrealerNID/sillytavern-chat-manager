@@ -313,12 +313,18 @@ test('welcome recent chats share grouping settings and preserve native chat acti
         readFile(new URL('../modules/ui/ui.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/ui/welcome-recent.js', import.meta.url), 'utf8'),
     ]);
-    assert.match(entry, /welcomeRecent\?\.setGrouping\(options\)/);
-    assert.match(entry, /onOptionsChange: options => \{[\s\S]*ui\.setGrouping\(options\)[\s\S]*saveViewOptions\(options\)/);
+    assert.match(entry, /source !== 'manager'[\s\S]*ui\?\.setGrouping\(options\)/);
+    assert.match(entry, /source !== 'welcome'[\s\S]*welcomeRecent\?\.setGrouping\(options\)/);
+    assert.match(entry, /onViewOptionsChange: options => saveViewOptions\(options, 'manager'\)/);
+    assert.match(entry, /onOptionsChange: options => saveViewOptions\(options, 'welcome'\)/);
     assert.match(ui, /setGrouping\(options\)[\s\S]*this\.groupOwners = Boolean\(options\.groupOwners\)/);
     assert.match(welcome, /groupOwnerRecords\(records, session\.groupSplits, records\)/);
     assert.match(welcome, /groupSplitRecords\(records, records\)/);
     assert.match(welcome, /session\.rows\.map\(row => this\.#record/);
+    assert.match(welcome, /this\.#render\(session\);[\s\S]*this\.onOptionsChange/);
+    assert.match(welcome, /this\.#syncButtons\(session\);[\s\S]*title\.after\(controls\)/);
+    assert.doesNotMatch(welcome, /splitButton\.disabled/);
+    assert.match(welcome, /splitButton\.setAttribute\('aria-busy'/);
     assert.doesNotMatch(welcome, /\.renameChat.*addEventListener|\.deleteChat.*addEventListener|\.pinChat.*addEventListener/);
     assert.match(welcome, /sort\(\(left, right\) => right\.split\.sequence - left\.split\.sequence\)[\s\S]*children\.append\(sourceRow\)/);
 });

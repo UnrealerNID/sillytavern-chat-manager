@@ -457,11 +457,13 @@ export class ChatManagerUi {
      * @param {'owners'|'splits'} type 分组维度
      */
     #toggleGrouping(type) {
-        this.setGrouping({
-            groupOwners: type === 'owners' ? !this.groupOwners : this.groupOwners,
-            groupSplits: type === 'splits' ? !this.groupSplits : this.groupSplits,
-        });
+        if (type === 'owners') this.groupOwners = !this.groupOwners;
+        if (type === 'splits') this.groupSplits = !this.groupSplits;
+        this.page = 0;
+        this.#syncGroupingButtons();
+        // 先同步欢迎页，再重绘可能包含大量记录的管理列表
         this.#saveViewOptions();
+        this.#render();
     }
 
     /**

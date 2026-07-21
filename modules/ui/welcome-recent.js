@@ -87,12 +87,8 @@ export class WelcomeRecentEnhancer {
         const controls = this.templates.component('welcome-group-controls');
         const ownerButton = this.templates.mount(controls, '[data-cm-welcome-group-owners]', HTMLButtonElement);
         const splitButton = this.templates.mount(controls, '[data-cm-welcome-group-splits]', HTMLButtonElement);
-        const title = header.querySelector('.recentChatsTitle');
-        if (title) title.after(controls);
-        else header.prepend(controls);
-
         const options = this.getOptions();
-        this.session = {
+        const session = {
             panel,
             list,
             rows,
@@ -105,11 +101,17 @@ export class WelcomeRecentEnhancer {
             metadata: null,
             metadataTask: null,
         };
+        // 初始选中状态在控件进入 DOM 前完成，避免刷新后出现状态追赶
+        this.#syncButtons(session);
+        this.session = session;
         panel.dataset.cmWelcomeEnhanced = 'true';
         panel.classList.add('cm-welcome-enhanced');
         ownerButton.addEventListener('click', () => this.#toggle('owners'));
         splitButton.addEventListener('click', () => this.#toggle('splits'));
-        this.#render(this.session);
+        const title = header.querySelector('.recentChatsTitle');
+        if (title) title.after(controls);
+        else header.prepend(controls);
+        this.#render(session);
     }
 
     /**
@@ -121,6 +123,8 @@ export class WelcomeRecentEnhancer {
         if (!session) return;
         if (type === 'owners') session.groupOwners = !session.groupOwners;
         if (type === 'splits') session.groupSplits = !session.groupSplits;
+        // 当前面板先完成反馈，另一侧的大列表重绘不能阻塞本次点击
+        this.#render(session);
         this.onOptionsChange({
             groupOwners: session.groupOwners,
             groupSplits: session.groupSplits,
@@ -307,7 +311,7 @@ export class WelcomeRecentEnhancer {
             button.classList.toggle('active', active);
             button.setAttribute('aria-checked', String(active));
         }
-        session.splitButton.disabled = Boolean(session.metadataTask);
+        session.splitButton.setAttribute('aria-busy', String(Boolean(session.metadataTask)));
         const splitIcon = session.splitButton.querySelector('i');
         splitIcon?.classList.toggle('fa-spin', Boolean(session.metadataTask));
         session.splitButton.title = session.metadataTask ? '正在读取分卷信息' : '按分卷组显示';
