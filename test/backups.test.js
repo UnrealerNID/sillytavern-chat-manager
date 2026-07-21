@@ -201,6 +201,33 @@ test('disposing an in-flight backup catalog finalizes its late token without res
     assert.equal(service.reportToken, '');
 });
 
+test('the shared backup catalog is owned by the service instead of a caller', async () => {
+    let releaseReport;
+    let receivedSignal;
+    const reportReady = new Promise(resolve => {
+        releaseReport = resolve;
+    });
+    const service = new BackupService({
+        createDataMaidReport: async signal => {
+            receivedSignal = signal;
+            await reportReady;
+            return {
+                token: 'shared-token',
+                report: { chatBackups: [] },
+            };
+        },
+        finalizeDataMaidReport: async () => {},
+    });
+    const first = service.list();
+    const second = service.list();
+    releaseReport();
+
+    assert.deepEqual(await first, []);
+    assert.deepEqual(await second, []);
+    assert.equal(receivedSignal, undefined);
+    await service.dispose();
+});
+
 test('superseded backup reports remain valid until their active response is consumed', async () => {
     let reportNumber = 0;
     let releaseBlob;

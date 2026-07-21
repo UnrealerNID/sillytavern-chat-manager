@@ -64,7 +64,7 @@ export class BackupService {
             : record.fileId;
         const [sanitized, allBackups] = await Promise.all([
             this.api.sanitizeFileName(rawOwner),
-            this.list(signal),
+            this.list(),
         ]);
         const slug = sanitized.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         const prefix = `chat_${slug}_`;
@@ -111,14 +111,13 @@ export class BackupService {
 
     /**
      * 读取带短时缓存的安全备份目录
-     * @param {AbortSignal} [signal] 取消信号
      * @returns {Promise<object[]>} 备份列表
      */
-    async list(signal) {
+    async list() {
         if (this.backupListCache?.expiresAt > Date.now()) return this.backupListCache.items;
         if (!this.backupListPromise) {
             const revision = this.catalogRevision;
-            const task = this.#createCatalog(signal).then(async ({ token, items }) => {
+            const task = this.#createCatalog().then(async ({ token, items }) => {
                 if (revision !== this.catalogRevision) {
                     await this.api.finalizeDataMaidReport(token);
                     throw new Error('备份目录读取已取消');
@@ -147,11 +146,10 @@ export class BackupService {
 
     /**
      * 使用数据清理报告建立安全的备份目录，避开酒馆备份列表接口中的文件轮换竞态
-     * @param {AbortSignal} [signal] 取消信号
      * @returns {Promise<{token:string,items:object[]}>} 报告令牌与备份条目
      */
-    async #createCatalog(signal) {
-        const result = await this.api.createDataMaidReport(signal);
+    async #createCatalog() {
+        const result = await this.api.createDataMaidReport();
         if (!result?.token || !Array.isArray(result.report?.chatBackups)) {
             if (result?.token) await this.api.finalizeDataMaidReport(result.token);
             throw new Error('安全备份目录格式无效');
@@ -180,7 +178,7 @@ export class BackupService {
             ? this.backupListCache?.items.find(candidate => candidate.file_name === backup)
             : backup;
         if (!item?.hash || !this.reportToken) {
-            const items = await this.list(signal);
+            const items = await this.list();
             const name = typeof backup === 'string' ? backup : backup?.file_name;
             item = items.find(candidate => candidate.file_name === name);
         }
