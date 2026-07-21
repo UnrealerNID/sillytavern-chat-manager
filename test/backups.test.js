@@ -67,6 +67,16 @@ test('matches and caches an underscored Chinese-card backup by integrity', async
     });
     assert.equal(listCount, 1);
     assert.equal(downloadCount, 1);
+    service.resultCache.set('expired', { expiresAt: 0, matches: [] });
+    await service.find({
+        ownerType: 'character',
+        ownerId: '角色.png',
+        ownerName: '角色',
+        fileId: '聊天',
+        lastMessageAt: '2026-01-01T00:00:01.000Z',
+    });
+    assert.equal(downloadCount, 2);
+    assert.equal(service.resultCache.has('expired'), false);
 });
 
 test('falls back to message comparison for legacy backups without integrity', async () => {
@@ -189,4 +199,49 @@ test('disposing an in-flight backup catalog finalizes its late token without res
     assert.deepEqual(finalized, ['late-token']);
     assert.equal(service.backupListCache, null);
     assert.equal(service.reportToken, '');
+});
+
+test('superseded backup reports remain valid until their active response is consumed', async () => {
+    let reportNumber = 0;
+    let releaseBlob;
+    const blobReady = new Promise(resolve => {
+        releaseBlob = resolve;
+    });
+    const finalized = [];
+    const service = new BackupService({
+        createDataMaidReport: async () => {
+            reportNumber++;
+            return {
+                token: `report-${reportNumber}`,
+                report: {
+                    chatBackups: [{
+                        name: 'chat_test_20260101-000000.jsonl',
+                        size: 10,
+                        mtime: 1,
+                        hash: 'backup',
+                    }],
+                },
+            };
+        },
+        readDataMaidFile: async () => ({
+            blob: async () => {
+                await blobReady;
+                return new Blob(['backup']);
+            },
+        }),
+        finalizeDataMaidReport: async token => finalized.push(token),
+    });
+
+    const [backup] = await service.list();
+    const reading = service.readBlob(backup);
+    service.backupListCache.expiresAt = 0;
+    await service.list();
+    assert.deepEqual(finalized, []);
+
+    releaseBlob();
+    await reading;
+    assert.deepEqual(finalized, ['report-1']);
+
+    await service.dispose();
+    assert.deepEqual(finalized, ['report-1', 'report-2']);
 });

@@ -1,17 +1,16 @@
 import { compressRequest } from '/scripts/request-compression.js';
 
-class HttpError extends Error {
-    /**
-     * @param {string} message 错误信息
-     * @param {number} status HTTP 状态码
-     * @param {unknown} data 响应数据
-     */
-    constructor(message, status, data = null) {
-        super(message);
-        this.name = 'HttpError';
-        this.status = status;
-        this.data = data;
-    }
+/**
+ * 创建包含 HTTP 状态的请求错误
+ * @param {string} message 错误说明
+ * @param {Response} response HTTP 响应
+ * @param {unknown} [data] 响应数据
+ * @returns {Error} 请求错误
+ */
+function httpError(message, response, data = null) {
+    const detail = typeof data?.error === 'string' ? data.error : response.statusText;
+    const suffix = detail ? `：${detail}` : '';
+    return new Error(`${message}（HTTP ${response.status}${suffix}）`);
 }
 
 export class ChatManagerApi {
@@ -27,7 +26,7 @@ export class ChatManagerApi {
      * @param {object} [options] 请求头选项
      * @returns {Record<string,string>} 请求头
      */
-    headers(options = {}) {
+    #headers(options = {}) {
         return this.getContext().getRequestHeaders(options);
     }
 
@@ -41,10 +40,10 @@ export class ChatManagerApi {
      * @param {boolean} [options.omitContentType] 是否省略内容类型
      * @returns {Promise<any>} JSON 响应
      */
-    async post(path, body = undefined, options = {}) {
+    async #post(path, body = undefined, options = {}) {
         let request = {
             method: 'POST',
-            headers: this.headers({ omitContentType: !!options.omitContentType }),
+            headers: this.#headers({ omitContentType: !!options.omitContentType }),
             cache: 'no-cache',
             signal: options.signal,
             ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -57,7 +56,7 @@ export class ChatManagerApi {
         } catch {
             data = null;
         }
-        if (!response.ok) throw new HttpError(`${path} 请求失败`, response.status, data);
+        if (!response.ok) throw httpError(`${path} 请求失败`, response, data);
         return data;
     }
 
@@ -67,7 +66,7 @@ export class ChatManagerApi {
      * @returns {Promise<object[]>} 实时聊天文件信息
      */
     listChatFiles(signal) {
-        return this.post('/api/chats/recent', { metadata: true }, { signal });
+        return this.#post('/api/chats/recent', { metadata: true }, { signal });
     }
 
     /**
@@ -102,7 +101,7 @@ export class ChatManagerApi {
      * @returns {Promise<object[]>} 角色聊天文件信息
      */
     getCharacterChats(avatar, options = {}) {
-        return this.post('/api/characters/chats', {
+        return this.#post('/api/characters/chats', {
             avatar_url: avatar,
             simple: !!options.simple,
             metadata: !!options.metadata,
@@ -117,7 +116,7 @@ export class ChatManagerApi {
      * @returns {Promise<object[]>} 聊天头与消息
      */
     getCharacterChat(avatar, fileId, signal) {
-        return this.post('/api/chats/get', { avatar_url: avatar, file_name: fileId }, { signal });
+        return this.#post('/api/chats/get', { avatar_url: avatar, file_name: fileId }, { signal });
     }
 
     /**
@@ -127,7 +126,7 @@ export class ChatManagerApi {
      * @returns {Promise<object[]>} 聊天头与消息
      */
     getGroupChat(fileId, signal) {
-        return this.post('/api/chats/group/get', { id: fileId }, { signal });
+        return this.#post('/api/chats/group/get', { id: fileId }, { signal });
     }
 
     /**
@@ -137,7 +136,7 @@ export class ChatManagerApi {
      * @returns {Promise<object>} 群组聊天文件信息
      */
     getGroupInfo(fileId, signal) {
-        return this.post('/api/chats/group/info', { id: fileId }, { signal });
+        return this.#post('/api/chats/group/info', { id: fileId }, { signal });
     }
 
     /**
@@ -146,7 +145,7 @@ export class ChatManagerApi {
      * @returns {Promise<object>} 清理报告与临时访问令牌
      */
     createDataMaidReport(signal) {
-        return this.post('/api/data-maid/report', undefined, { signal });
+        return this.#post('/api/data-maid/report', undefined, { signal });
     }
 
     /**
@@ -156,7 +155,7 @@ export class ChatManagerApi {
      */
     async finalizeDataMaidReport(token) {
         if (!token) return;
-        await this.post('/api/data-maid/finalize', { token });
+        await this.#post('/api/data-maid/finalize', { token });
     }
 
     /**
@@ -169,7 +168,7 @@ export class ChatManagerApi {
     async readDataMaidFile(token, hash, signal) {
         const query = new URLSearchParams({ token, hash });
         const response = await fetch(`/api/data-maid/view?${query}`, { cache: 'no-cache', signal });
-        if (!response.ok) throw new HttpError('孤立聊天文件读取失败', response.status);
+        if (!response.ok) throw httpError('孤立聊天文件读取失败', response);
         return response;
     }
 
@@ -181,7 +180,7 @@ export class ChatManagerApi {
      */
     async deleteDataMaidFiles(token, hashes) {
         if (!token || !hashes.length) return;
-        await this.post('/api/data-maid/delete', { token, hashes });
+        await this.#post('/api/data-maid/delete', { token, hashes });
     }
 
     /**
@@ -190,7 +189,7 @@ export class ChatManagerApi {
      * @returns {Promise<string>} 可安全保存的文件名
      */
     async sanitizeFileName(fileName) {
-        const result = await this.post('/api/files/sanitize-filename', { fileName });
+        const result = await this.#post('/api/files/sanitize-filename', { fileName });
         return String(result?.fileName ?? '');
     }
 
@@ -202,7 +201,7 @@ export class ChatManagerApi {
      * @returns {Promise<any>} 酒馆保存结果
      */
     saveCharacterChat(avatar, fileId, chat) {
-        return this.post('/api/chats/save', {
+        return this.#post('/api/chats/save', {
             avatar_url: avatar,
             file_name: fileId,
             chat,
@@ -217,7 +216,7 @@ export class ChatManagerApi {
      * @returns {Promise<any>} 酒馆保存结果
      */
     saveGroupChat(fileId, chat) {
-        return this.post('/api/chats/group/save', { id: fileId, chat, force: false }, { compress: true });
+        return this.#post('/api/chats/group/save', { id: fileId, chat, force: false }, { compress: true });
     }
 
     /**
@@ -225,7 +224,7 @@ export class ChatManagerApi {
      * @returns {Promise<object[]>} 群组列表
      */
     getGroups() {
-        return this.post('/api/groups/all', undefined, { omitContentType: true });
+        return this.#post('/api/groups/all', undefined, { omitContentType: true });
     }
 
     /**
@@ -234,7 +233,7 @@ export class ChatManagerApi {
      * @returns {Promise<any>} 酒馆保存结果
      */
     editGroup(group) {
-        return this.post('/api/groups/edit', group);
+        return this.#post('/api/groups/edit', group);
     }
 
     /**
@@ -245,7 +244,7 @@ export class ChatManagerApi {
     async groupChatExists(fileId) {
         const response = await fetch('/api/chats/export', {
             method: 'POST',
-            headers: this.headers(),
+            headers: this.#headers(),
             cache: 'no-cache',
             body: JSON.stringify({
                 is_group: true,
@@ -255,7 +254,7 @@ export class ChatManagerApi {
             }),
         });
         if (response.status === 404) return false;
-        if (!response.ok) throw new HttpError('群聊文件占用检查失败', response.status);
+        if (!response.ok) throw httpError('群聊文件占用检查失败', response);
         await response.body?.cancel();
         return true;
     }

@@ -24,7 +24,8 @@ export class BackupService {
         this.backupListPromise = null;
         this.reportToken = '';
         this.reportTokens = new Set();
-        this.report = null;
+        this.reportReaders = new Map();
+        this.retiredTokens = new Set();
         this.resultCache = new Map();
         this.catalogRevision = 0;
     }
@@ -41,7 +42,16 @@ export class BackupService {
      */
     async find(record, callbacks = {}, signal) {
         const { onProgress = () => {}, onCandidates = () => {}, onResult = () => {} } = callbacks;
-        const resultKey = `${chatKey(record)}:${record.messageCount ?? ''}`;
+        const now = Date.now();
+        for (const [key, value] of this.resultCache) {
+            if (value.expiresAt <= now) this.resultCache.delete(key);
+        }
+        const resultKey = [
+            chatKey(record),
+            record.messageCount ?? '',
+            record.fileSize ?? '',
+            record.lastMessageAt ?? '',
+        ].join(':');
         const cached = this.resultCache.get(resultKey);
         if (cached?.expiresAt > Date.now()) {
             onCandidates(cached.matches);
@@ -80,7 +90,7 @@ export class BackupService {
                 const count = Number(candidate.chat_items);
                 if (Number.isFinite(count) && count > source.messages.length) return null;
                 if (sourceIntegrity) {
-                    const candidateIntegrity = await this.readIntegrity(candidate, signal);
+                    const candidateIntegrity = await this.#readIntegrity(candidate, signal);
                     if (candidateIntegrity === sourceIntegrity) {
                         return { ...candidate, status: 'matched', reason: '同一聊天的完整性标识' };
                     }
@@ -109,15 +119,20 @@ export class BackupService {
         if (this.backupListCache?.expiresAt > Date.now()) return this.backupListCache.items;
         if (!this.backupListPromise) {
             const revision = this.catalogRevision;
-            const task = this.#createCatalog(signal).then(async ({ token, report, items }) => {
+            const task = this.#createCatalog(signal).then(async ({ token, items }) => {
                 if (revision !== this.catalogRevision) {
                     await this.api.finalizeDataMaidReport(token);
                     throw new Error('备份目录读取已取消');
                 }
+                const previousToken = this.reportToken;
                 this.reportToken = token;
                 this.reportTokens.add(token);
-                this.report = report;
                 this.backupListCache = { expiresAt: Date.now() + BACKUP_LIST_CACHE_MS, items };
+                if (previousToken && previousToken !== token) {
+                    void this.#retireToken(previousToken).catch(error => {
+                        console.warn('[酒馆工具箱] 释放旧备份目录失败', error);
+                    });
+                }
                 return items;
             }).finally(() => {
                 if (this.backupListPromise === task) this.backupListPromise = null;
@@ -130,7 +145,7 @@ export class BackupService {
     /**
      * 使用数据清理报告建立安全的备份目录，避开酒馆备份列表接口中的文件轮换竞态
      * @param {AbortSignal} [signal] 取消信号
-     * @returns {Promise<{token:string,report:object,items:object[]}>} 报告令牌、报告与备份条目
+     * @returns {Promise<{token:string,items:object[]}>} 报告令牌与备份条目
      */
     async #createCatalog(signal) {
         const result = await this.api.createDataMaidReport(signal);
@@ -147,26 +162,17 @@ export class BackupService {
             last_mes: Number(item.mtime ?? 0),
             hash: String(item.hash ?? ''),
         }));
-        return { token: result.token, report: result.report, items };
+        return { token: result.token, items };
     }
 
     /**
-     * 返回当前安全文件报告，供文件清单复用同一次扫描
-     * @param {AbortSignal} [signal] 取消信号
-     * @returns {Promise<{token:string,report:object}>} 报告令牌与报告
-     */
-    async getReport(signal) {
-        if (!this.report || !this.reportToken) await this.list(signal);
-        return { token: this.reportToken, report: this.report };
-    }
-
-    /**
-     * 读取安全目录中的备份文件
+     * 在报告令牌有效期间读取并消费备份响应
      * @param {object|string} backup 备份条目或文件名
+     * @param {(response:Response)=>Promise<*>} consume 响应消费器
      * @param {AbortSignal} [signal] 取消信号
-     * @returns {Promise<Response>} 文件响应
+     * @returns {Promise<*>} 消费结果
      */
-    async #read(backup, signal) {
+    async #consume(backup, consume, signal) {
         let item = typeof backup === 'string'
             ? this.backupListCache?.items.find(candidate => candidate.file_name === backup)
             : backup;
@@ -176,7 +182,14 @@ export class BackupService {
             item = items.find(candidate => candidate.file_name === name);
         }
         if (!item?.hash || !this.reportToken) throw new Error('备份已不存在，请重新读取备份列表');
-        return this.api.readDataMaidFile(this.reportToken, item.hash, signal);
+        const token = this.reportToken;
+        this.reportReaders.set(token, (this.reportReaders.get(token) ?? 0) + 1);
+        try {
+            const response = await this.api.readDataMaidFile(token, item.hash, signal);
+            return await consume(response);
+        } finally {
+            await this.#releaseToken(token);
+        }
     }
 
     /**
@@ -185,13 +198,14 @@ export class BackupService {
      * @param {AbortSignal} [signal] 取消信号
      * @returns {Promise<string|null>} 完整性标识
      */
-    async readIntegrity(backup, signal) {
+    async #readIntegrity(backup, signal) {
         let integrity = null;
-        const response = await this.#read(backup, signal);
-        await parseJsonlResponse(response, {
+        await this.#consume(backup, response => parseJsonlResponse(response, {
             stopAfter: 0,
-            onHeader: (header) => { integrity = header.chat_metadata?.integrity ?? null; },
-        });
+            onHeader: (header) => {
+                integrity = header.chat_metadata?.integrity ?? null;
+            },
+        }), signal);
         return integrity;
     }
 
@@ -205,15 +219,14 @@ export class BackupService {
     async #compareMessages(candidate, sourceHashes, signal) {
         let sequenceMatches = true;
         let count = 0;
-        const response = await this.#read(candidate, signal);
-        await parseJsonlResponse(response, {
+        await this.#consume(candidate, response => parseJsonlResponse(response, {
             onMessage: async (message, index) => {
                 count = index + 1;
                 if (index >= sourceHashes.length || toHex(await digestMessage(message)) !== sourceHashes[index]) {
                     sequenceMatches = false;
                 }
             },
-        });
+        }), signal);
         candidate.chat_items = count;
         if (sequenceMatches && count === sourceHashes.length) {
             return { ...candidate, status: 'matched', reason: '消息完整匹配' };
@@ -262,13 +275,12 @@ export class BackupService {
         const start = page * pageSize;
         const end = start + pageSize;
         const messages = [];
-        const response = await this.#read(backup, signal);
-        await parseJsonlResponse(response, {
+        await this.#consume(backup, response => parseJsonlResponse(response, {
             stopAfter: end,
             onMessage: (message, index) => {
                 if (index >= start && index < end) messages.push(message);
             },
-        });
+        }), signal);
         return messages;
     }
 
@@ -294,8 +306,48 @@ export class BackupService {
      * @returns {Promise<Blob>} 备份文件内容
      */
     async readBlob(backup, signal) {
-        const response = await this.#read(backup, signal);
-        return response.blob();
+        return this.#consume(backup, response => response.blob(), signal);
+    }
+
+    /**
+     * 释放一次报告读取租用，并在旧报告无人使用时完成清理
+     * @param {string} token 报告令牌
+     */
+    async #releaseToken(token) {
+        const remaining = Math.max(0, (this.reportReaders.get(token) ?? 1) - 1);
+        if (remaining) this.reportReaders.set(token, remaining);
+        else this.reportReaders.delete(token);
+        if (!remaining && this.retiredTokens.has(token)) {
+            try {
+                await this.#finalizeToken(token);
+            } catch (error) {
+                console.warn('[酒馆工具箱] 释放备份目录失败', error);
+            }
+        }
+    }
+
+    /**
+     * 将报告标记为待释放
+     * @param {string} token 报告令牌
+     */
+    async #retireToken(token) {
+        if (!this.reportTokens.has(token)) return;
+        if (this.reportReaders.has(token)) {
+            this.retiredTokens.add(token);
+            return;
+        }
+        await this.#finalizeToken(token);
+    }
+
+    /**
+     * 保证同一报告令牌只释放一次
+     * @param {string} token 报告令牌
+     */
+    async #finalizeToken(token) {
+        if (!this.reportTokens.delete(token)) return;
+        this.retiredTokens.delete(token);
+        this.reportReaders.delete(token);
+        await this.api.finalizeDataMaidReport(token);
     }
 
     /**
@@ -317,12 +369,10 @@ export class BackupService {
         // 使仍在读取的旧目录只能释放自身令牌，不能重新写回缓存
         this.catalogRevision++;
         this.backupListPromise = null;
+        const tokens = Array.from(this.reportTokens);
         this.reportToken = '';
-        this.report = null;
         this.backupListCache = null;
         this.resultCache.clear();
-        const tokens = Array.from(this.reportTokens);
-        this.reportTokens.clear();
-        await Promise.allSettled(tokens.map(token => this.api.finalizeDataMaidReport(token)));
+        await Promise.allSettled(tokens.map(token => this.#retireToken(token)));
     }
 }

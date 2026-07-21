@@ -8,6 +8,13 @@ import {
 } from './data-maid-inspector.js';
 import { DataMaidViewer, formatDataMaidDate } from '../ui/data-maid-viewer.js';
 
+const BACKUP_STATE_LABELS = {
+    linked: '已关联',
+    orphan: '孤立',
+    uncertain: '待确认',
+    unchecked: '未检查',
+};
+
 function notify(type, message) {
     if (globalThis.toastr?.[type]) globalThis.toastr[type](message);
     else console[type === 'error' ? 'error' : 'log'](message);
@@ -56,7 +63,6 @@ export class DataMaidEnhancer {
             if (!(node instanceof type)) throw new Error(`数据清理增强模板缺少 ${selector}`);
             return node;
         };
-        this.root = root;
         this.toolbarTemplate = required('[data-cm-maid-toolbar-template]', HTMLTemplateElement);
         this.controlsTemplate = required('[data-cm-maid-controls-template]', HTMLTemplateElement);
         this.messageTemplate = required('[data-cm-maid-message-template]', HTMLTemplateElement);
@@ -169,17 +175,10 @@ export class DataMaidEnhancer {
         if (!(content instanceof HTMLElement)) throw new Error('酒馆聊天备份分类结构无效');
         const toolbar = this.toolbarTemplate.content.firstElementChild.cloneNode(true);
         content.prepend(toolbar);
-        this.toolbar = toolbar;
         this.scanButton = toolbar.querySelector('[data-cm-maid-scan]');
         this.search = toolbar.querySelector('[data-cm-maid-search]');
         this.sort = toolbar.querySelector('[data-cm-maid-sort]');
         this.filterSelect = toolbar.querySelector('[data-cm-maid-filter]');
-        this.batchStart = toolbar.querySelector('[data-cm-maid-batch-start]');
-        this.selectionToolbar = toolbar.querySelector('[data-cm-maid-selection-toolbar]');
-        this.selectAll = toolbar.querySelector('[data-cm-maid-select-all]');
-        this.clearSelection = toolbar.querySelector('[data-cm-maid-clear-selection]');
-        this.deleteSelected = toolbar.querySelector('[data-cm-maid-delete-selected]');
-        this.selectedCount = toolbar.querySelector('[data-cm-maid-selected-count]');
         this.progress = toolbar.querySelector('[data-cm-maid-progress]');
         this.scanButton.addEventListener('click', () => void this.#inspectBackups());
         this.search.addEventListener('input', () => this.#applyFilter());
@@ -190,12 +189,12 @@ export class DataMaidEnhancer {
         });
         this.selection.mount({
             category,
-            batchStart: this.batchStart,
-            selectionToolbar: this.selectionToolbar,
-            selectAll: this.selectAll,
-            clearSelection: this.clearSelection,
-            deleteSelected: this.deleteSelected,
-            selectedCount: this.selectedCount,
+            batchStart: toolbar.querySelector('[data-cm-maid-batch-start]'),
+            selectionToolbar: toolbar.querySelector('[data-cm-maid-selection-toolbar]'),
+            selectAll: toolbar.querySelector('[data-cm-maid-select-all]'),
+            clearSelection: toolbar.querySelector('[data-cm-maid-clear-selection]'),
+            deleteSelected: toolbar.querySelector('[data-cm-maid-delete-selected]'),
+            selectedCount: toolbar.querySelector('[data-cm-maid-selected-count]'),
         });
         for (const element of category.querySelectorAll('.dataMaidItem')) this.#enhanceItem(element);
     }
@@ -261,8 +260,7 @@ export class DataMaidEnhancer {
      * @param {object} item 备份增强条目
      */
     #renderState(item) {
-        const labels = { linked: '已关联', orphan: '孤立', uncertain: '待确认', unchecked: '未检查' };
-        item.badge.textContent = labels[item.state] ?? '待确认';
+        item.badge.textContent = BACKUP_STATE_LABELS[item.state] ?? '待确认';
         item.badge.dataset.state = item.state;
     }
 
@@ -302,8 +300,7 @@ export class DataMaidEnhancer {
                 formatBytes(Number(item.record.size ?? 0)),
                 formatDataMaidDate(item.record.mtime),
             ].join(' · ');
-            const labels = { linked: '已关联', orphan: '孤立', uncertain: '待确认', unchecked: '未检查' };
-            row.querySelector('[data-cm-delete-state]').textContent = labels[item.state] ?? '待确认';
+            row.querySelector('[data-cm-delete-state]').textContent = BACKUP_STATE_LABELS[item.state] ?? '待确认';
             return row;
         }));
         const bytes = unique.reduce((sum, item) => sum + Number(item.record.size ?? 0), 0);
@@ -396,7 +393,5 @@ export class DataMaidEnhancer {
         this.busy = false;
         this.category = null;
         this.container = null;
-        this.toolbar = null;
     }
-
 }
