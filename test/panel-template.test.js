@@ -260,10 +260,17 @@ test('chat deletion uses SillyTavern native character and group workflows', asyn
 });
 
 test('chat viewer follows SillyTavern message rendering count', async () => {
-    const source = await readFile(new URL('../modules/chat-files/ui/backup-dialogs.js', import.meta.url), 'utf8');
-    assert.match(source, /Number\(power_user\.chat_truncation\) \|\| Number\.MAX_SAFE_INTEGER/);
-    assert.match(source, /const pages = Number\.isFinite\(total\)[\s\S]*let page = pages \? pages - 1 : 0/);
-    assert.match(source, /async viewChat\(record\)/);
+    const [dialogs, dataMaidViewer] = await Promise.all([
+        readFile(new URL('../modules/chat-files/ui/backup-dialogs.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/ui/data-maid-viewer.js', import.meta.url), 'utf8'),
+    ]);
+    assert.match(dialogs, /Number\(power_user\.chat_truncation\) \|\| Number\.MAX_SAFE_INTEGER/);
+    assert.match(dialogs, /const pages = Number\.isFinite\(total\)[\s\S]*let page = pages \? pages - 1 : 0/);
+    assert.match(dialogs, /async viewChat\(record\)/);
+    assert.match(dialogs, /const revision = \+\+loadRevision[\s\S]*revision !== loadRevision/);
+    assert.match(dataMaidViewer, /Number\(power_user\.chat_truncation\) \|\| Number\.MAX_SAFE_INTEGER/);
+    assert.match(dataMaidViewer, /const revision = \+\+loadRevision[\s\S]*revision !== loadRevision/);
+    assert.doesNotMatch(dataMaidViewer, /constructor\(\{ root,/);
 });
 
 test('chat list pagination shares SillyTavern character page size', async () => {

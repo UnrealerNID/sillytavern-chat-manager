@@ -29,13 +29,36 @@ test('data maid report capture only observes the request started by the current 
     }
 });
 
-test('data maid report capture stops when the current action starts no report', async () => {
+test('data maid report capture survives an asynchronous native scan boundary', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async input => new Response(JSON.stringify({
+        token: String(input),
+        report: {},
+    }));
+
+    try {
+        const baseFetch = globalThis.fetch;
+        const capture = captureNextDataMaidReport(1_000);
+        await Promise.resolve();
+        await Promise.resolve();
+        globalThis.fetch('/api/data-maid/report');
+
+        assert.equal((await capture.promise).token, '/api/data-maid/report');
+        assert.equal(globalThis.fetch, baseFetch);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test('data maid report capture can be cancelled with its scan session', async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async () => new Response();
 
     try {
         const baseFetch = globalThis.fetch;
-        const capture = captureNextDataMaidReport();
+        const capture = captureNextDataMaidReport(1_000);
+        capture.cancel();
+
         await assert.rejects(capture.promise, error => error.name === 'AbortError');
         assert.equal(globalThis.fetch, baseFetch);
     } finally {

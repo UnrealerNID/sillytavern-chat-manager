@@ -227,10 +227,15 @@ export class BackupDialogs {
         const previous = this.ui.mount(dialog.body, '[data-cm-message-previous]', HTMLButtonElement);
         const label = this.ui.mount(dialog.body, '[data-cm-message-page]');
         const next = this.ui.mount(dialog.body, '[data-cm-message-next]', HTMLButtonElement);
+        let loadRevision = 0;
         const load = async () => {
+            const revision = ++loadRevision;
             content.replaceChildren(this.ui.state('正在读取该页…'));
+            previous.disabled = true;
+            next.disabled = true;
             try {
                 const messages = await readPage(page, pageSize, dialog.signal);
+                if (revision !== loadRevision || dialog.signal.aborted) return;
                 content.replaceChildren();
                 messages.forEach((message, index) => {
                     const item = this.ui.component('message');
@@ -245,7 +250,9 @@ export class BackupDialogs {
                 previous.disabled = page <= 0;
                 next.disabled = pages ? page >= pages - 1 : messages.length < pageSize;
             } catch (error) {
-                if (!dialog.signal.aborted) content.replaceChildren(this.ui.state(error.message, { error: true }));
+                if (revision === loadRevision && !dialog.signal.aborted) {
+                    content.replaceChildren(this.ui.state(error.message, { error: true }));
+                }
             }
         };
         this.ui.bindButton(previous, () => { page--; return load(); });

@@ -1,7 +1,6 @@
+import { power_user } from '/scripts/power-user.js';
 import { parseJsonlResponse } from '../../shared/data.js';
 import { formatBytes } from '../../shared/files.js';
-
-const PAGE_SIZE = 50;
 
 /**
  * 格式化数据清理面板中的日期
@@ -27,7 +26,7 @@ export class DataMaidViewer {
      * @param {HTMLTemplateElement} dependencies.messageTemplate 消息行模板
      * @param {(selector:string,type?:Function)=>HTMLElement} dependencies.required 模板节点读取器
      */
-    constructor({ root, api, messageTemplate, required }) {
+    constructor({ api, messageTemplate, required }) {
         this.api = api;
         this.messageTemplate = messageTemplate;
         this.root = required('[data-cm-maid-viewer]');
@@ -51,7 +50,9 @@ export class DataMaidViewer {
         this.controller?.abort();
         this.controller = new AbortController();
         const signal = this.controller.signal;
+        const pageSize = Number(power_user.chat_truncation) || Number.MAX_SAFE_INTEGER;
         let page = 0;
+        let loadRevision = 0;
         this.root.classList.remove('cm-hidden');
         this.title.textContent = '查看聊天备份';
         this.summary.textContent = [
@@ -60,29 +61,33 @@ export class DataMaidViewer {
         ].join(' · ');
 
         const load = async () => {
+            const revision = ++loadRevision;
             const loading = this.#showLoading();
+            this.previous.disabled = true;
+            this.next.disabled = true;
             try {
-                const start = page * PAGE_SIZE;
+                const start = page * pageSize;
                 const collected = [];
                 const response = await this.api.readDataMaidFile(token, item.record.hash, signal);
                 await parseJsonlResponse(response, {
-                    stopAfter: start + PAGE_SIZE + 1,
+                    stopAfter: start + pageSize + 1,
                     onMessage: (message, index) => {
-                        if (index >= start && index <= start + PAGE_SIZE) {
+                        if (index >= start && index <= start + pageSize) {
                             collected.push(message);
                         }
                     },
                 });
-                const messages = collected.slice(0, PAGE_SIZE);
+                if (revision !== loadRevision || signal.aborted) return;
+                const messages = collected.slice(0, pageSize);
                 this.messages.replaceChildren(...messages.map((message, index) => (
                     this.#message(message, start + index)
                 )));
                 if (!messages.length) this.messages.append(loading);
                 this.pageLabel.textContent = `第 ${page + 1} 页`;
                 this.previous.disabled = page <= 0;
-                this.next.disabled = collected.length <= PAGE_SIZE;
+                this.next.disabled = collected.length <= pageSize;
             } catch (error) {
-                if (signal.aborted) return;
+                if (revision !== loadRevision || signal.aborted) return;
                 loading.textContent = error.message;
                 loading.classList.add('cm-error');
                 this.messages.replaceChildren(loading);
