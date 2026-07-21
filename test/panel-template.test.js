@@ -177,22 +177,27 @@ test('panel and settings share the same version update controls', async () => {
 });
 
 test('panels and dialogs do not close from backdrop clicks', async () => {
-    const source = await readFile(new URL('../modules/ui.js', import.meta.url), 'utf8');
+    const [source, templates] = await Promise.all([
+        readFile(new URL('../modules/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/ui/templates.js', import.meta.url), 'utf8'),
+    ]);
     assert.doesNotMatch(source, /event\.target\s*===\s*root/);
     assert.doesNotMatch(source, /event\.target\s*===\s*this\.root/);
+    assert.doesNotMatch(templates, /event\.target\s*===\s*root/);
 });
 
 test('backup listing is only requested explicitly while chat files are stable', async () => {
-    const [entry, backups, ui] = await Promise.all([
+    const [entry, backups, ui, backupDialogs] = await Promise.all([
         readFile(new URL('../index.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/backups.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/ui/backup-dialogs.js', import.meta.url), 'utf8'),
     ]);
     assert.doesNotMatch(entry, /scheduleBackupWarmup|backups\.warmup/);
     assert.doesNotMatch(backups, /async warmup\s*\(/);
     assert.match(ui, /backup\.disabled\s*=\s*this\.isGenerating\(\)\s*\|\|\s*this\.splitter\.running/);
-    assert.match(ui, /async openBackups\(record\)\s*{\s*if \(this\.isGenerating\(\)\)/);
-    assert.match(ui, /if \(this\.splitter\.running\) return notify\('warning', '分割任务正在写入聊天/);
+    assert.match(backupDialogs, /async open\(record\)\s*{\s*if \(this\.isGenerating\(\)\)/);
+    assert.match(backupDialogs, /if \(this\.isSplitting\(\)\) return this\.notify\('warning', '分割任务正在写入聊天/);
 });
 
 test('chat deletion uses SillyTavern native character and group workflows', async () => {
@@ -215,9 +220,19 @@ test('chat deletion uses SillyTavern native character and group workflows', asyn
 });
 
 test('chat viewer follows SillyTavern message rendering count', async () => {
-    const source = await readFile(new URL('../modules/ui.js', import.meta.url), 'utf8');
+    const source = await readFile(new URL('../modules/ui/backup-dialogs.js', import.meta.url), 'utf8');
     assert.match(source, /Number\(power_user\.chat_truncation\) \|\| Number\.MAX_SAFE_INTEGER/);
-    assert.match(source, /#viewChat\(record\)/);
+    assert.match(source, /async viewChat\(record\)/);
+});
+
+test('main UI delegates dialog workflows to focused modules', async () => {
+    const source = await readFile(new URL('../modules/ui.js', import.meta.url), 'utf8');
+    assert.ok(source.split(/\r?\n/).length < 850, '主 UI 控制器不应重新承载完整弹窗工作流');
+    assert.match(source, /new UiTemplates\(/);
+    assert.match(source, /new BackupDialogs\(/);
+    assert.match(source, /new SplitDialogs\(/);
+    assert.match(source, /return this\.backupDialogs\.open\(record\)/);
+    assert.match(source, /return this\.splitDialogs\.open\(record, initialOptions\)/);
 });
 
 test('chat inventory resynchronizes on every open and coalesces concurrent refreshes', async () => {
