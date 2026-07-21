@@ -1,6 +1,6 @@
 {
-  "name": "sillytavern-chat-manager",
-    "version": "0.1.58",
+  "name": "sillytavern-toolbox",
+    "version": "0.1.59",
   "private": true,
   "type": "module",
   "scripts": {

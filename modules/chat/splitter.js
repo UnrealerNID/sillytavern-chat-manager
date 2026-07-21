@@ -126,7 +126,7 @@ export class SplitService {
     async execute(plan, options = {}) {
         if (this.running) throw new Error('已有分卷任务正在运行');
         if (!options.lockAcquired && globalThis.navigator?.locks?.request) {
-            const lockName = `sillytavern-chat-manager:${plan.record.ownerType}:${plan.record.ownerId}`;
+            const lockName = `sillytavern-toolbox:${plan.record.ownerType}:${plan.record.ownerId}`;
             return navigator.locks.request(lockName, { mode: 'exclusive' }, () => this.execute(plan, { ...options, lockAcquired: true }));
         }
         const current = await getSourceFingerprint(plan.record, this.api);

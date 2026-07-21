@@ -1,15 +1,15 @@
 {
-  "display_name": "聊天文件管理",
+  "display_name": "酒馆工具箱",
   "loading_order": 100,
   "requires": [],
   "optional": [],
   "js": "index.js",
   "css": "styles/index.css",
   "author": "Unrealer",
-    "version": "0.1.58",
+    "version": "0.1.59",
   "minimum_client_version": "1.17.0",
   "auto_update": true,
-  "homePage": "https://github.com/UnrealerNID/sillytavern-chat-manager",
+  "homePage": "https://github.com/UnrealerNID/sillytavern-toolbox",
   "i18n": {
     "zh-cn": "i18n/zh-cn.json"
   },

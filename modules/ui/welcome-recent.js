@@ -274,7 +274,7 @@ export class WelcomeRecentEnhancer {
                 return [`${ownerType}:${ownerId}:${fileId}`, item.chat_metadata?.chat_manager ?? null];
             }));
         } catch (error) {
-            console.error('[聊天文件管理] 最近聊天分卷信息读取失败', error);
+            console.error('[酒馆工具箱] 最近聊天分卷信息读取失败', error);
             globalThis.toastr?.warning?.('最近聊天的分卷信息读取失败');
             session.metadata = new Map();
         } finally {

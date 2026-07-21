@@ -1,4 +1,4 @@
-const DB_NAME = 'sillytavern-chat-manager';
+const DB_NAME = 'sillytavern-toolbox';
 const STORE_NAME = 'tasks';
 const DB_VERSION = 1;
 

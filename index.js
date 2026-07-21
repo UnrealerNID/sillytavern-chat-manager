@@ -81,10 +81,10 @@ export async function init() {
     const nativePageSize = Number(accountStorage.getItem('Characters_PerPage')) || 50;
     const [metadata, panelTemplate, dataMaidTemplate, dialogTemplates, componentTemplates] = await Promise.all([
         loadExtensionMetadata(),
-        renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/panel'),
-        renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/data-maid-enhancer'),
-        renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/dialogs'),
-        renderExtensionTemplateAsync('third-party/sillytavern-chat-manager', 'templates/components'),
+        renderExtensionTemplateAsync('third-party/sillytavern-toolbox', 'templates/panel'),
+        renderExtensionTemplateAsync('third-party/sillytavern-toolbox', 'templates/data-maid-enhancer'),
+        renderExtensionTemplateAsync('third-party/sillytavern-toolbox', 'templates/dialogs'),
+        renderExtensionTemplateAsync('third-party/sillytavern-toolbox', 'templates/components'),
     ]);
     const updater = new ExtensionUpdater(metadata.version);
     const dataMaid = new DataMaidEnhancer({ api, template: dataMaidTemplate });
@@ -146,7 +146,7 @@ export async function init() {
             const tasks = await splitter.reconcile();
             if (settings.enabled && tasks.length) await ui.showRecovery(tasks);
         } catch (error) {
-            console.error('[聊天文件管理] 恢复未完成任务失败', error);
+            console.error('[酒馆工具箱] 恢复未完成任务失败', error);
         }
     };
 
@@ -192,12 +192,12 @@ export async function init() {
         if (!await updater.insertSettings(settings, applyEnabledState)) {
             setTimeout(() => {
                 updater.insertSettings(settings, applyEnabledState).catch(error => {
-                    console.error('[聊天文件管理] 插入扩展设置失败', error);
+                    console.error('[酒馆工具箱] 插入扩展设置失败', error);
                 });
             }, 1000);
         }
     } catch (error) {
-        console.error('[聊天文件管理] 插入扩展设置失败', error);
+        console.error('[酒馆工具箱] 插入扩展设置失败', error);
     }
     applyEnabledState(settings.enabled);
     if (!nativePanel.init()) setTimeout(() => nativePanel.init(), 1000);
