@@ -6,8 +6,8 @@
   "js": "index.js",
   "css": "styles/index.css",
   "author": "Unrealer",
-  "version": "0.1.52",
-  "minimum_client_version": "1.18.0",
+  "version": "0.1.53",
+  "minimum_client_version": "1.17.0",
   "auto_update": true,
   "homePage": "https://github.com/UnrealerNID/sillytavern-chat-manager",
   "i18n": {
