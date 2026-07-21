@@ -107,20 +107,6 @@
     padding: 12px 16px;
 }
 
-.cm-data-maid-delete-dialog {
-    width: min(760px, 92vw);
-    max-height: min(760px, 90dvh);
-}
-
-.cm-data-maid-delete-dialog .cm-dialog-body {
-    min-height: 0;
-}
-
-.cm-data-maid-delete-dialog .cm-delete-list {
-    max-height: 48dvh;
-    overflow: auto;
-}
-
 @media (max-width: 700px) {
     .cm-data-maid-primary {
         flex-wrap: wrap;

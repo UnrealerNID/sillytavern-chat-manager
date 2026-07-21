@@ -75,7 +75,6 @@ test('data maid enhancement mounts after either native or plugin-triggered scans
         'data-cm-maid-clear-selection',
         'data-cm-maid-delete-selected',
         'data-cm-maid-viewer',
-        'data-cm-maid-delete-dialog',
         'data-cm-maid-controls-template',
     ]) {
         assert.match(html, new RegExp(marker));
@@ -90,6 +89,8 @@ test('data maid enhancement mounts after either native or plugin-triggered scans
     assert.match(source, /document\.querySelector\('#data_maid_button'\)/);
     assert.match(source, /document\.addEventListener\('click', this\.documentClick, true\)/);
     assert.match(source, /closest\('\.dataMaidStartButton'\)/);
+    assert.match(source, /Popup\.show\.confirm\(/);
+    assert.doesNotMatch(source, /data-cm-maid-delete-dialog|deleteDialog/);
     assert.match(source, /captureNextDataMaidReport\(\)/);
     assert.match(reportCapture, /includes\('\/api\/data-maid\/report'\)/);
     assert.doesNotMatch(source, /start\.click\(\)/);

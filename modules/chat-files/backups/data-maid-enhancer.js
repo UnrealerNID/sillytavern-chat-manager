@@ -1,3 +1,4 @@
+import { Popup } from '/scripts/popup.js';
 import { formatBytes } from '../../shared/files.js';
 import { waitForElement } from '../../platform/dom.js';
 import { captureNextDataMaidReport } from './data-maid-report.js';
@@ -6,7 +7,7 @@ import {
     backupStateMatchesFilter,
     inspectDataMaidBackups,
 } from './data-maid-inspector.js';
-import { DataMaidViewer, formatDataMaidDate } from '../ui/data-maid-viewer.js';
+import { DataMaidViewer } from '../ui/data-maid-viewer.js';
 
 const BACKUP_STATE_LABELS = {
     linked: '已关联',
@@ -34,14 +35,13 @@ export class DataMaidEnhancer {
         this.container = null;
         this.controller = null;
         this.sessionObserver = null;
-        this.pendingDelete = [];
         this.pendingCapture = null;
         this.filter = 'all';
         this.busy = false;
         this.selection = new DataMaidSelection({
             getItems: () => this.items,
             isBusy: () => this.busy,
-            onDelete: items => this.#showDelete(items),
+            onDelete: items => void this.#deleteSelected(items),
         });
         this.#build(template);
         this.documentClick = event => this.#handleDocumentClick(event);
@@ -65,21 +65,11 @@ export class DataMaidEnhancer {
         this.toolbarTemplate = required('[data-cm-maid-toolbar-template]', HTMLTemplateElement);
         this.controlsTemplate = required('[data-cm-maid-controls-template]', HTMLTemplateElement);
         const messageTemplate = required('[data-cm-maid-message-template]', HTMLTemplateElement);
-        this.deleteTemplate = required('[data-cm-maid-delete-template]', HTMLTemplateElement);
         this.viewer = new DataMaidViewer({
             api: this.api,
             messageTemplate,
             required,
         });
-        this.deleteDialog = required('[data-cm-maid-delete-dialog]');
-        this.deleteSummary = required('[data-cm-maid-delete-summary]');
-        this.deleteList = required('[data-cm-maid-delete-list]');
-        this.deleteCancel = required('[data-cm-maid-delete-cancel]', HTMLButtonElement);
-        this.deleteConfirm = required('[data-cm-maid-delete-confirm]', HTMLButtonElement);
-        const closeDelete = required('[data-cm-maid-delete-close]', HTMLButtonElement);
-        closeDelete.addEventListener('click', () => this.#closeDelete());
-        this.deleteCancel.addEventListener('click', () => this.#closeDelete());
-        this.deleteConfirm.addEventListener('click', () => void this.#executeDelete());
         document.body.append(root);
     }
 
@@ -285,51 +275,35 @@ export class DataMaidEnhancer {
     }
 
     /**
-     * 显示备份删除确认
+     * 通过酒馆原生弹窗确认并删除所选备份
      * @param {object[]} items 待删除备份
+     * @returns {Promise<void>}
      */
-    #showDelete(items) {
+    async #deleteSelected(items) {
         const unique = Array.from(new Map(items.map(item => [item.record.hash, item])).values());
-        if (!unique.length) return;
-        this.pendingDelete = unique;
-        this.deleteList.replaceChildren(...unique.map(item => {
-            const row = this.deleteTemplate.content.firstElementChild.cloneNode(true);
-            row.querySelector('[data-cm-delete-name]').textContent = item.record.name;
-            row.querySelector('[data-cm-delete-facts]').textContent = [
-                formatBytes(Number(item.record.size ?? 0)),
-                formatDataMaidDate(item.record.mtime),
-            ].join(' · ');
-            row.querySelector('[data-cm-delete-state]').textContent = BACKUP_STATE_LABELS[item.state] ?? '待确认';
-            return row;
-        }));
+        if (!this.token || !unique.length || this.busy) return;
         const bytes = unique.reduce((sum, item) => sum + Number(item.record.size ?? 0), 0);
-        this.deleteSummary.textContent = `${unique.length} 个聊天备份 · ${formatBytes(bytes)}`;
-        this.deleteConfirm.disabled = false;
-        this.deleteCancel.disabled = false;
-        this.deleteDialog.classList.remove('cm-hidden');
-    }
-
-    async #executeDelete() {
-        if (!this.token || !this.pendingDelete.length) return;
-        const items = [...this.pendingDelete];
-        this.deleteConfirm.disabled = true;
-        this.deleteCancel.disabled = true;
+        this.#setBusy(true);
         try {
-            await this.api.deleteDataMaidFiles(this.token, items.map(item => item.record.hash));
-            for (const item of items) {
+            const confirmed = await Popup.show.confirm(
+                '删除所选聊天备份',
+                `将永久删除 ${unique.length} 个聊天备份，共 ${formatBytes(bytes)}。此操作无法撤销。`,
+                { okButton: '删除', cancelButton: '取消' },
+            );
+            if (!confirmed) return;
+            await this.api.deleteDataMaidFiles(this.token, unique.map(item => item.record.hash));
+            for (const item of unique) {
                 item.element?.remove();
                 this.items.delete(item.record.hash);
                 this.selection.remove(item);
             }
-            this.pendingDelete = [];
-            this.#closeDelete(true);
             this.selection.sync();
             this.#updateNativeSummary();
-            notify('success', `已删除 ${items.length} 个聊天备份`);
+            notify('success', `已删除 ${unique.length} 个聊天备份`);
         } catch (error) {
-            this.deleteSummary.textContent = `删除失败：${error.message}`;
-            this.deleteCancel.disabled = false;
             notify('error', error.message);
+        } finally {
+            this.#setBusy(false);
         }
     }
 
@@ -365,12 +339,6 @@ export class DataMaidEnhancer {
         this.sessionObserver.observe(document.body, { childList: true, subtree: true });
     }
 
-    #closeDelete(force = false) {
-        if (!force && this.deleteConfirm.disabled && this.deleteCancel.disabled) return;
-        this.pendingDelete = [];
-        this.deleteDialog.classList.add('cm-hidden');
-    }
-
     #resetSession() {
         this.pendingCapture?.cancel();
         this.pendingCapture = null;
@@ -379,7 +347,6 @@ export class DataMaidEnhancer {
         this.sessionObserver?.disconnect();
         this.sessionObserver = null;
         this.viewer.close();
-        this.#closeDelete(true);
         this.selection.reset();
         this.category?.classList.remove('cm-data-maid-enhanced', 'cm-data-maid-busy', 'cm-data-maid-selection-mode');
         this.category?.querySelector('.cm-data-maid-tools')?.remove();

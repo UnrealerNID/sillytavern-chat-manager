@@ -26,37 +26,6 @@
         </section>
     </div>
 
-    <div class="cm-overlay cm-dialog-overlay cm-hidden" role="presentation" data-cm-maid-delete-dialog>
-        <section
-            class="cm-dialog cm-data-maid-delete-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="chat_manager_maid_delete_title"
-        >
-            <header class="cm-header">
-                <h3 id="chat_manager_maid_delete_title">批量删除聊天备份</h3>
-                <button class="cm-icon-button" type="button" title="关闭" aria-label="关闭" data-cm-maid-delete-close>
-                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-                </button>
-            </header>
-            <div class="cm-dialog-body">
-                <div class="cm-delete-notice" role="note">
-                    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-                    <span>确认后将永久删除所选备份。“待确认”和“未检查”并不等于孤立，请先查看内容。</span>
-                </div>
-                <div class="cm-delete-summary" data-cm-maid-delete-summary></div>
-                <div class="cm-delete-list" data-cm-maid-delete-list></div>
-                <div class="cm-dialog-actions">
-                    <button class="menu_button" type="button" data-cm-maid-delete-cancel>取消</button>
-                    <button class="menu_button cm-danger-action" type="button" data-cm-maid-delete-confirm>
-                        <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
-                        <span>确认删除</span>
-                    </button>
-                </div>
-            </div>
-        </section>
-    </div>
-
     <template data-cm-maid-toolbar-template>
         <div class="cm-data-maid-tools">
             <div class="cm-data-maid-primary">
@@ -158,13 +127,4 @@
         </article>
     </template>
 
-    <template data-cm-maid-delete-template>
-        <article class="cm-delete-target">
-            <div class="cm-chat-info">
-                <strong data-cm-delete-name></strong>
-                <small data-cm-delete-facts></small>
-            </div>
-            <span class="cm-status-badge" data-cm-delete-state></span>
-        </article>
-    </template>
 </div>
