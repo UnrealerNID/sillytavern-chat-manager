@@ -162,10 +162,12 @@ export class ChatListRenderer {
         });
         if (expanded) {
             children.classList.remove('cm-hidden');
+            const displayParts = [...group.records]
+                .sort((left, right) => right.split.sequence - left.split.sequence);
+            displayParts.forEach(item => children.append(this.#chatRow(item.record)));
             if (group.sourceRecord) {
                 children.append(this.#chatRow(group.sourceRecord, { source: true }));
             }
-            group.records.forEach(item => children.append(this.#chatRow(item.record)));
         }
         return root;
     }
