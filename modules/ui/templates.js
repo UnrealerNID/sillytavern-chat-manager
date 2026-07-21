@@ -1,4 +1,4 @@
-import { element } from '../utils.js';
+import { element } from '../shared/utils.js';
 
 /**
  * 统一管理静态模板、挂载点和弹窗生命周期
@@ -36,7 +36,7 @@ export class UiTemplates {
      * @template {Element} T 元素类型
      * @param {ParentNode} root 查询根节点
      * @param {string} selector 选择器
-     * @param {{new(...args:any[]):T}} [type=HTMLElement] 元素类型
+     * @param {Function} [type=HTMLElement] 元素类型
      * @returns {T} 挂载点
      */
     mount(root, selector, type = HTMLElement) {
@@ -61,7 +61,7 @@ export class UiTemplates {
      * 创建只能显式关闭的叠加弹窗
      * @param {string|string[]} title 标题
      * @param {string} contentId 内容模板名称
-     * @returns {{root:HTMLElement,body:HTMLElement,signal:AbortSignal,close:()=>void,setClosable:(value:boolean)=>void}}
+     * @returns {object} 弹窗根节点、内容区、取消信号和生命周期操作
      */
     dialog(title, contentId) {
         const controller = new AbortController();
@@ -110,7 +110,9 @@ export class UiTemplates {
 
     /**
      * @param {string} text 文案
-     * @param {{error?:boolean,empty?:boolean}} [options] 状态选项
+     * @param {object} [options] 状态选项
+     * @param {boolean} [options.error] 是否显示错误状态
+     * @param {boolean} [options.empty] 是否显示空状态
      */
     state(text, { error = false, empty = false } = {}) {
         const state = this.component('state');

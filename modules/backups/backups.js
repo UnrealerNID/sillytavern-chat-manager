@@ -1,5 +1,12 @@
-import { chatKey, digestMessage, formatBytes, parseJsonlResponse, stripJsonl, toHex } from './utils.js';
-import { loadStableSource } from './source.js';
+import {
+    chatKey,
+    digestMessage,
+    formatBytes,
+    parseJsonlResponse,
+    stripJsonl,
+    toHex,
+} from '../shared/utils.js';
+import { loadStableSource } from '../chat/source.js';
 
 const BACKUP_LIST_CACHE_MS = 30_000;
 const MATCH_RESULT_CACHE_MS = 60_000;
@@ -7,7 +14,7 @@ const MATCH_CONCURRENCY = 4;
 
 export class BackupService {
     /**
-     * @param {import('./api.js').ChatManagerApi} api 接口实例
+     * @param {import('../platform/api.js').ChatManagerApi} api 接口实例
      */
     constructor(api) {
         this.api = api;
@@ -21,7 +28,7 @@ export class BackupService {
 
     /**
      * 查找与指定聊天相关的备份
-     * @param {import('./utils.js').ChatRecord} record 聊天记录
+     * @param {object} record 聊天记录
      * @param {object} callbacks 扫描阶段回调
      * @param {(done:number,total:number)=>void} [callbacks.onProgress] 进度回调
      * @param {(candidates:object[])=>void} [callbacks.onCandidates] 候选列表就绪回调

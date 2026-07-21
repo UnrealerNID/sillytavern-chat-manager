@@ -8,7 +8,7 @@ import {
 } from '/scripts/extensions.js';
 import { isAdmin } from '/scripts/user.js';
 
-import { isNewerVersion } from './utils.js';
+import { isNewerVersion } from '../shared/utils.js';
 
 const EXTENSION_ID = 'third-party/sillytavern-chat-manager';
 const EXTENSION_FOLDER = 'sillytavern-chat-manager';

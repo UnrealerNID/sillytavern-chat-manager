@@ -50,7 +50,7 @@ test('toolbar controls share one fixed height without stretching refresh', async
 
 test('toolbar toggles reuse the native active state without custom color mapping', async () => {
     const [ui, css] = await Promise.all([
-        readFile(new URL('../modules/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/ui/ui.js', import.meta.url), 'utf8'),
         readFile(new URL('../styles/panel.css', import.meta.url), 'utf8'),
     ]);
     assert.match(ui, /button\.classList\.toggle\('active', active\)/);
@@ -61,7 +61,7 @@ test('toolbar toggles reuse the native active state without custom color mapping
 
 test('batch selection keeps its entry in the primary row and its actions in a second row', async () => {
     const [ui, css] = await Promise.all([
-        readFile(new URL('../modules/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/ui/ui.js', import.meta.url), 'utf8'),
         readFile(new URL('../styles/panel.css', import.meta.url), 'utf8'),
     ]);
     assert.match(ui, /#setSelectionMode\(!this\.selectionMode\)/);

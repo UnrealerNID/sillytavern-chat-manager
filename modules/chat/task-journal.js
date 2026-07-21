@@ -5,6 +5,9 @@ const DB_VERSION = 1;
 export class TaskJournal {
     #dbPromise;
 
+    /**
+     * 打开分卷任务数据库，并在首次使用时创建对象存储
+     */
     constructor() {
         this.#dbPromise = new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -41,6 +44,10 @@ export class TaskJournal {
         });
     }
 
+    /**
+     * 读取全部待恢复的分卷任务
+     * @returns {Promise<object[]>} 分卷任务列表
+     */
     async list() {
         const store = await this.#store('readonly');
         return new Promise((resolve, reject) => {

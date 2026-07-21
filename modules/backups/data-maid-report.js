@@ -3,7 +3,7 @@
  *
  * 只读取响应副本，不改变原生请求、响应或渲染流程
  * @param {number} timeout 超时时间
- * @returns {{promise:Promise<object>,cancel:()=>void}} 捕获任务
+ * @returns {object} 包含结果 Promise 和取消回调的捕获任务
  */
 export function captureNextDataMaidReport(timeout = 120_000) {
     const originalFetch = globalThis.fetch;

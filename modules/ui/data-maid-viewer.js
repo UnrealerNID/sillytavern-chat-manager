@@ -1,4 +1,4 @@
-import { formatBytes, parseJsonlResponse } from '../utils.js';
+import { formatBytes, parseJsonlResponse } from '../shared/utils.js';
 
 const PAGE_SIZE = 50;
 
@@ -22,7 +22,7 @@ export function formatDataMaidDate(value) {
 export class DataMaidViewer {
     /**
      * @param {object} dependencies 依赖项
-     * @param {import('../api.js').ChatManagerApi} dependencies.api 酒馆接口
+     * @param {import('../platform/api.js').ChatManagerApi} dependencies.api 酒馆接口
      * @param {HTMLTemplateElement} dependencies.messageTemplate 消息行模板
      * @param {(selector:string,type?:Function)=>HTMLElement} dependencies.required 模板节点读取器
      */

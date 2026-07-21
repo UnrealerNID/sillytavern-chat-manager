@@ -3,15 +3,15 @@ import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
-import { BackupService } from '../modules/backups.js';
+import { BackupService } from '../modules/backups/backups.js';
 
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 
 test('backup features never call the race-prone native backup name endpoints', async () => {
     const sources = await Promise.all([
-        readFile(new URL('../modules/api.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/backups.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/data-maid-enhancer.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/platform/api.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/backups/backups.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/backups/data-maid-enhancer.js', import.meta.url), 'utf8'),
         readFile(new URL('../index.js', import.meta.url), 'utf8'),
     ]);
     const source = sources.join('\n');

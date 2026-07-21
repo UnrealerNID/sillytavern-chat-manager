@@ -1,4 +1,4 @@
-import { parseBytes } from './utils.js';
+import { parseBytes } from '../shared/utils.js';
 
 /**
  * 按聊天管理面板的排序方式返回新数组
@@ -28,7 +28,7 @@ export function sortChatRecords(records, order = 'newest') {
 /**
  * 从酒馆上下文解析当前角色或群组
  * @param {object} context 酒馆上下文
- * @returns {{ownerType:'character'|'group',ownerId:string,label:string}|null}
+ * @returns {object|null} 当前所有者类型、标识和显示名称
  */
 export function getCurrentOwner(context) {
     if (context.groupId !== undefined && context.groupId !== null) {
@@ -65,7 +65,7 @@ export function filterChatRecords(records, scope, currentOwner, query) {
 /**
  * 读取插件明确写入的分卷身份，不根据文件名猜测
  * @param {object} record 聊天记录
- * @returns {{rootChatId:string,sequence:number,start:number,end:number,count:number}|null}
+ * @returns {object|null} 分卷组标识、序号和楼层范围
  */
 export function getStoredSplitIdentity(record) {
     const metadata = record.chatManager;
@@ -212,7 +212,7 @@ export function getStoredSplitConfigs(series) {
 /**
  * 根据最后一卷保存的元数据生成下一次增量分卷配置
  * @param {object} series 分卷显示单元
- * @returns {{available:boolean,reason:string,sourceRecord?:object,options?:object}}
+ * @returns {object} 可用状态、原因、来源聊天和增量分卷参数
  */
 export function deriveIncrementalSplit(series) {
     const parts = [...series.records].sort((a, b) => a.split.start - b.split.start);

@@ -1,16 +1,16 @@
-import { chatKey, stripJsonl } from './utils.js';
+import { chatKey, stripJsonl } from '../shared/utils.js';
 import {
     filterChatRecords,
     getCurrentOwner,
     groupOwnerRecords,
     groupSplitRecords,
     sortChatRecords,
-} from './grouping.js';
-import { BackupDialogs } from './ui/backup-dialogs.js';
-import { ChatDeleteDialog } from './ui/chat-delete-dialog.js';
-import { ChatListRenderer } from './ui/chat-list-renderer.js';
-import { SplitDialogs } from './ui/split-dialogs.js';
-import { UiTemplates } from './ui/templates.js';
+} from '../chat/grouping.js';
+import { BackupDialogs } from './backup-dialogs.js';
+import { ChatDeleteDialog } from './chat-delete-dialog.js';
+import { ChatListRenderer } from './chat-list-renderer.js';
+import { SplitDialogs } from './split-dialogs.js';
+import { UiTemplates } from './templates.js';
 
 const SORT_ORDERS = ['newest', 'oldest', 'largest', 'messages', 'name'];
 const DEFAULT_PAGE_SIZE = 50;
@@ -34,9 +34,9 @@ export class ChatManagerUi {
     /**
      * @param {object} dependencies 依赖项
      * @param {()=>any} dependencies.getContext 上下文提供器
-     * @param {import('./api.js').ChatManagerApi} dependencies.api 酒馆接口
-     * @param {import('./backups.js').BackupService} dependencies.backups 备份服务
-     * @param {import('./splitter.js').SplitService} dependencies.splitter 分割服务
+     * @param {import('../platform/api.js').ChatManagerApi} dependencies.api 酒馆接口
+     * @param {import('../backups/backups.js').BackupService} dependencies.backups 备份服务
+     * @param {import('../chat/splitter.js').SplitService} dependencies.splitter 分割服务
      * @param {()=>boolean} dependencies.isGenerating 是否正在生成
      * @param {(record:object)=>Promise<void>} dependencies.openRecord 打开聊天回调
      * @param {(record:object)=>Promise<void>} dependencies.deleteRecord 删除聊天回调
@@ -219,12 +219,16 @@ export class ChatManagerUi {
 
     /**
      * 返回主面板中的版本与更新控件
-     * @returns {{version:HTMLElement,button:HTMLButtonElement}} 更新视图
+     * @returns {object} 版本文本和更新按钮
      */
     getExtensionUpdateView() {
         return { version: this.version, button: this.updateButton };
     }
 
+    /**
+     * 打开聊天管理面板并同步当前范围的聊天文件
+     * @returns {Promise<void>} 面板打开完成
+     */
     async open() {
         this.#useDefaultScope();
         this.root.classList.remove('cm-hidden');
@@ -234,6 +238,9 @@ export class ChatManagerUi {
         this.updateRuntimeState();
     }
 
+    /**
+     * 关闭面板并清理临时批量选择状态
+     */
     close() {
         if (this.refreshTimer !== null) clearTimeout(this.refreshTimer);
         this.refreshTimer = null;
@@ -274,6 +281,9 @@ export class ChatManagerUi {
         if (loading) this.#setState('正在同步聊天文件…');
     }
 
+    /**
+     * 同步生成、分卷和批量操作的可用状态
+     */
     updateRuntimeState() {
         const generating = this.isGenerating();
         this.#setState(generating
@@ -284,6 +294,10 @@ export class ChatManagerUi {
         this.#render();
     }
 
+    /**
+     * 读取当前清单范围，同一范围的并发请求会复用现有任务
+     * @returns {Promise<void>} 清单刷新完成
+     */
     async refresh() {
         const target = {
             key: this.#inventoryKey(),
@@ -316,8 +330,12 @@ export class ChatManagerUi {
     }
 
     /**
-     * @param {{key:string,scope:'current'|'all',owner:object|null}} target 清单读取目标
-     * @returns {Promise<void>}
+     * 读取指定范围的聊天文件并更新清单
+     * @param {object} target 清单读取目标
+     * @param {string} target.key 稳定请求键
+     * @param {'current'|'all'} target.scope 聊天范围
+     * @param {object|null} target.owner 当前所有者
+     * @returns {Promise<void>} 清单加载完成
      */
     async #loadChatFiles(target) {
         this.#setLoading(true);
@@ -508,6 +526,10 @@ export class ChatManagerUi {
      * @param {object} record 原聊天记录
      * @returns {Promise<void>} 弹窗任务
      */
+    /**
+     * 打开指定聊天的备份列表
+     * @param {object} record 聊天记录
+     */
     openBackups(record) {
         return this.backupDialogs.open(record);
     }
@@ -515,6 +537,11 @@ export class ChatManagerUi {
     /**
      * @param {object} record 来源聊天
      * @param {object} initialOptions 分卷初始配置
+     */
+    /**
+     * 打开指定聊天的分卷面板
+     * @param {object} record 聊天记录
+     * @param {object} [initialOptions] 可沿用的分卷配置
      */
     openSplit(record, initialOptions = {}) {
         return this.splitDialogs.open(record, initialOptions);
@@ -524,6 +551,10 @@ export class ChatManagerUi {
      * 显示未完成分卷任务
      * @param {object[]} tasks 未完成任务
      * @returns {Promise<void>} 弹窗任务
+     */
+    /**
+     * 展示可恢复的分卷任务
+     * @param {object[]} tasks 待恢复任务
      */
     showRecovery(tasks) {
         return this.splitDialogs.showRecovery(tasks);

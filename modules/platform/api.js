@@ -24,6 +24,7 @@ export class ChatManagerApi {
 
     /**
      * 获取酒馆原生请求头
+     * @param {object} [options] 请求头选项
      * @returns {Record<string,string>} 请求头
      */
     headers(options = {}) {
@@ -34,7 +35,10 @@ export class ChatManagerApi {
      * 发送 JSON POST 请求
      * @param {string} path 接口路径
      * @param {object|undefined} body 请求体
-     * @param {{signal?:AbortSignal,compress?:boolean,omitContentType?:boolean}} options 请求选项
+     * @param {object} options 请求选项
+     * @param {AbortSignal} [options.signal] 取消信号
+     * @param {boolean} [options.compress] 是否压缩请求体
+     * @param {boolean} [options.omitContentType] 是否省略内容类型
      * @returns {Promise<any>} JSON 响应
      */
     async post(path, body = undefined, options = {}) {
@@ -68,7 +72,9 @@ export class ChatManagerApi {
 
     /**
      * 只读取当前角色或群组的聊天文件信息
-     * @param {{ownerType:'character'|'group',ownerId:string}} owner 当前所有者
+     * @param {object} owner 当前所有者
+     * @param {'character'|'group'} owner.ownerType 所有者类型
+     * @param {string} owner.ownerId 所有者 ID
      * @param {AbortSignal} [signal] 取消信号
      * @returns {Promise<object[]>} 当前所有者的聊天文件信息
      */
@@ -86,6 +92,15 @@ export class ChatManagerApi {
             .map(result => ({ ...result.value, group: group.id }));
     }
 
+    /**
+     * 读取角色的聊天文件信息
+     * @param {string} avatar 角色头像文件名
+     * @param {object} [options] 读取选项
+     * @param {boolean} [options.simple] 是否仅返回文件名
+     * @param {boolean} [options.metadata] 是否返回聊天元数据
+     * @param {AbortSignal} [options.signal] 取消信号
+     * @returns {Promise<object[]>} 角色聊天文件信息
+     */
     getCharacterChats(avatar, options = {}) {
         return this.post('/api/characters/chats', {
             avatar_url: avatar,
@@ -94,14 +109,33 @@ export class ChatManagerApi {
         }, { signal: options.signal });
     }
 
+    /**
+     * 读取完整角色聊天
+     * @param {string} avatar 角色头像文件名
+     * @param {string} fileId 聊天文件 ID
+     * @param {AbortSignal} [signal] 取消信号
+     * @returns {Promise<object[]>} 聊天头与消息
+     */
     getCharacterChat(avatar, fileId, signal) {
         return this.post('/api/chats/get', { avatar_url: avatar, file_name: fileId }, { signal });
     }
 
+    /**
+     * 读取完整群组聊天
+     * @param {string} fileId 聊天文件 ID
+     * @param {AbortSignal} [signal] 取消信号
+     * @returns {Promise<object[]>} 聊天头与消息
+     */
     getGroupChat(fileId, signal) {
         return this.post('/api/chats/group/get', { id: fileId }, { signal });
     }
 
+    /**
+     * 读取群组聊天的文件信息
+     * @param {string} fileId 聊天文件 ID
+     * @param {AbortSignal} [signal] 取消信号
+     * @returns {Promise<object>} 群组聊天文件信息
+     */
     getGroupInfo(fileId, signal) {
         return this.post('/api/chats/group/info', { id: fileId }, { signal });
     }
@@ -109,7 +143,7 @@ export class ChatManagerApi {
     /**
      * 调用酒馆数据清理报告识别孤立聊天文件
      * @param {AbortSignal} [signal] 取消信号
-     * @returns {Promise<{report:object,token:string}>} 清理报告与临时访问令牌
+     * @returns {Promise<object>} 清理报告与临时访问令牌
      */
     createDataMaidReport(signal) {
         return this.post('/api/data-maid/report', undefined, { signal });
@@ -150,11 +184,23 @@ export class ChatManagerApi {
         await this.post('/api/data-maid/delete', { token, hashes });
     }
 
+    /**
+     * 使用酒馆规则清理文件名
+     * @param {string} fileName 原文件名
+     * @returns {Promise<string>} 可安全保存的文件名
+     */
     async sanitizeFileName(fileName) {
         const result = await this.post('/api/files/sanitize-filename', { fileName });
         return String(result?.fileName ?? '');
     }
 
+    /**
+     * 保存角色聊天
+     * @param {string} avatar 角色头像文件名
+     * @param {string} fileId 聊天文件 ID
+     * @param {object[]} chat 聊天头与消息
+     * @returns {Promise<any>} 酒馆保存结果
+     */
     saveCharacterChat(avatar, fileId, chat) {
         return this.post('/api/chats/save', {
             avatar_url: avatar,
@@ -164,14 +210,29 @@ export class ChatManagerApi {
         }, { compress: true });
     }
 
+    /**
+     * 保存群组聊天
+     * @param {string} fileId 聊天文件 ID
+     * @param {object[]} chat 聊天头与消息
+     * @returns {Promise<any>} 酒馆保存结果
+     */
     saveGroupChat(fileId, chat) {
         return this.post('/api/chats/group/save', { id: fileId, chat, force: false }, { compress: true });
     }
 
+    /**
+     * 读取全部群组配置
+     * @returns {Promise<object[]>} 群组列表
+     */
     getGroups() {
         return this.post('/api/groups/all', undefined, { omitContentType: true });
     }
 
+    /**
+     * 保存群组配置
+     * @param {object} group 群组配置
+     * @returns {Promise<any>} 酒馆保存结果
+     */
     editGroup(group) {
         return this.post('/api/groups/edit', group);
     }
@@ -201,7 +262,7 @@ export class ChatManagerApi {
 
     /**
      * 检查指定聊天文件是否仍然存在
-     * @param {import('./utils.js').ChatRecord} record 聊天记录
+     * @param {object} record 聊天记录
      * @returns {Promise<boolean>} 文件是否存在
      */
     async chatExists(record) {

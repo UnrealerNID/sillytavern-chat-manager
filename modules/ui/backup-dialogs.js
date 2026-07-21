@@ -14,8 +14,8 @@ export class BackupDialogs {
     /**
      * @param {object} options 依赖项
      * @param {import('./templates.js').UiTemplates} options.ui UI 模板工具
-     * @param {import('../api.js').ChatManagerApi} options.api 酒馆接口
-     * @param {import('../backups.js').BackupService} options.backups 备份服务
+     * @param {import('../platform/api.js').ChatManagerApi} options.api 酒馆接口
+     * @param {import('../backups/backups.js').BackupService} options.backups 备份服务
      * @param {()=>boolean} options.isGenerating 是否正在生成
      * @param {()=>boolean} options.isSplitting 是否正在分卷
      * @param {(record:object,backup:object)=>Promise<string[]>} options.restoreBackup 恢复备份

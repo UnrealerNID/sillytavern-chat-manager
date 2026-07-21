@@ -1,7 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { deriveIncrementalSplit, filterChatRecords, getCurrentOwner, getStoredSplitConfigs, getStoredSplitIdentity, groupOwnerRecords, groupSplitRecords, sortChatRecords } from '../modules/grouping.js';
+import {
+    deriveIncrementalSplit,
+    filterChatRecords,
+    getCurrentOwner,
+    getStoredSplitConfigs,
+    getStoredSplitIdentity,
+    groupOwnerRecords,
+    groupSplitRecords,
+    sortChatRecords,
+} from '../modules/chat/grouping.js';
 
 function record(fileId, overrides = {}) {
     return {

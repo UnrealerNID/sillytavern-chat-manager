@@ -6,28 +6,16 @@ import {
     formatBytes,
     jsonlByteSize,
     stripJsonl,
-} from './utils.js';
+} from '../shared/utils.js';
 import {
     fingerprintsEqual,
     getSourceFingerprint,
     loadStableSource,
 } from './source.js';
 
-/**
- * @typedef {object} SplitOptions
- * @property {'range'|'fixed'} mode 分割方式
- * @property {number} start 起始楼层
- * @property {number} end 结束楼层
- * @property {number} [chunkSize] 每卷楼层数
- * @property {boolean} [incremental] 是否增量分卷
- * @property {number} [sequenceStart] 起始卷号
- * @property {string} [outputRootChatId] 分卷组根标识
- * @property {number} [rangeOffset] 楼层偏移
- */
-
 export class SplitService {
     /**
-     * @param {import('./api.js').ChatManagerApi} api 接口实例
+     * @param {import('../platform/api.js').ChatManagerApi} api 接口实例
      * @param {import('./task-journal.js').TaskJournal} journal 任务日志
      * @param {()=>string} uuid UUID 提供器
      */
@@ -39,14 +27,25 @@ export class SplitService {
         this.stopRequested = false;
     }
 
+    /**
+     * 请求在当前分卷保存完成后暂停任务
+     */
     requestStop() {
         this.stopRequested = true;
     }
 
     /**
      * 创建只读分割计划
-     * @param {import('./utils.js').ChatRecord} record 聊天记录
-     * @param {SplitOptions} options 分割参数
+     * @param {object} record 聊天记录
+     * @param {object} options 分割参数
+     * @param {'range'|'fixed'} options.mode 分割方式
+     * @param {number} options.start 起始楼层
+     * @param {number} options.end 结束楼层
+     * @param {number} [options.chunkSize] 每卷楼层数
+     * @param {boolean} [options.incremental] 是否增量分卷
+     * @param {number} [options.sequenceStart] 起始卷号
+     * @param {string} [options.outputRootChatId] 分卷组根标识
+     * @param {number} [options.rangeOffset] 楼层偏移
      * @param {AbortSignal} [signal] 取消信号
      * @param {object} [stableSource] 已读取并校验过的来源快照
      * @returns {Promise<object>} 分割计划
@@ -117,7 +116,11 @@ export class SplitService {
     /**
      * 串行执行已确认的分割计划
      * @param {object} plan 分割计划
-     * @param {{shouldPause?:()=>boolean,onUpdate?:(task:object)=>void,resumeTask?:object,lockAcquired?:boolean}} options 执行参数
+     * @param {object} options 执行参数
+     * @param {()=>boolean} [options.shouldPause] 是否暂停任务
+     * @param {(task:object)=>void} [options.onUpdate] 任务进度回调
+     * @param {object} [options.resumeTask] 待恢复任务
+     * @param {boolean} [options.lockAcquired] 是否已取得浏览器锁
      * @returns {Promise<object>} 任务结果
      */
     async execute(plan, options = {}) {

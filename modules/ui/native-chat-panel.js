@@ -1,4 +1,4 @@
-import { element } from './utils.js';
+import { element } from '../shared/utils.js';
 
 export class NativeChatPanel {
     /**
@@ -14,6 +14,10 @@ export class NativeChatPanel {
         this.enabled = true;
     }
 
+    /**
+     * 挂载原生聊天文件面板增强
+     * @returns {boolean} 是否找到并完成挂载
+     */
     init() {
         this.container = document.querySelector('#select_chat_div');
         if (!this.container) return false;
@@ -41,6 +45,9 @@ export class NativeChatPanel {
         });
     }
 
+    /**
+     * 为尚未处理的原生聊天行补充备份与分卷操作
+     */
     enhance() {
         if (!this.container || !this.enabled) return;
         for (const wrapper of this.container.querySelectorAll('.select_chat_block_wrapper:not([data-chat-manager-enhanced])')) {
@@ -55,6 +62,9 @@ export class NativeChatPanel {
         this.updateRuntimeState();
     }
 
+    /**
+     * 根据酒馆生成状态同步分卷按钮
+     */
     updateRuntimeState() {
         const disabled = this.isGenerating();
         this.container?.querySelectorAll('[data-chat-manager-action="split"]').forEach(button => {
@@ -63,6 +73,13 @@ export class NativeChatPanel {
         });
     }
 
+    /**
+     * 创建原生聊天行使用的图标按钮
+     * @param {string} action 操作名称
+     * @param {string} icon Font Awesome 图标类名
+     * @param {string} title 无障碍名称与悬停说明
+     * @returns {HTMLButtonElement} 操作按钮
+     */
     #icon(action, icon, title) {
         return element('button', {
             className: `cm-native-action opacity50p hoverglow fa-solid ${icon}`,
@@ -72,6 +89,11 @@ export class NativeChatPanel {
         });
     }
 
+    /**
+     * 从原生聊天行提取插件操作所需的聊天信息
+     * @param {HTMLElement} row 原生聊天行
+     * @returns {object} 规范化聊天记录
+     */
     #recordFromRow(row) {
         const context = this.getContext();
         const block = row.querySelector('.select_chat_block[file_name]');
@@ -96,6 +118,10 @@ export class NativeChatPanel {
         };
     }
 
+    /**
+     * 代理原生聊天文件面板中的插件操作点击
+     * @param {MouseEvent} event 点击事件
+     */
     #onClick(event) {
         if (!this.enabled) return;
         const button = event.target.closest('[data-chat-manager-action]');

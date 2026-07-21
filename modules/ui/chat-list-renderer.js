@@ -1,10 +1,10 @@
-import { chatKey, formatBytes, parseBytes } from '../utils.js';
-import { deriveIncrementalSplit } from '../grouping.js';
+import { deriveIncrementalSplit } from '../chat/grouping.js';
+import { chatKey, formatBytes, parseBytes } from '../shared/utils.js';
 
 /**
  * 汇总聊天文件规模与最近记录
  * @param {object[]} records 聊天记录
- * @returns {{messageCount:number,bytes:number,latest:object|null}} 汇总信息
+ * @returns {object} 消息总数、文件总字节数和最近聊天
  */
 export function aggregateRecords(records) {
     let messageCount = 0;
@@ -215,7 +215,8 @@ export class ChatListRenderer {
     /**
      * 渲染聊天行
      * @param {object} record 聊天记录
-     * @param {{source?:boolean}} options 显示选项
+     * @param {object} options 显示选项
+     * @param {boolean} [options.source] 是否标记为源聊天
      * @returns {HTMLElement} 聊天行
      */
     #chatRow(record, { source = false } = {}) {

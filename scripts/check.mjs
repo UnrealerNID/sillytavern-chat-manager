@@ -26,6 +26,13 @@ for (const file of scriptFiles) {
     if (/\/\*\*[^\r\n]*\*\//.test(source)) {
         throw new Error(`JSDoc 必须使用多行格式：${relative(root, file)}`);
     }
+    const detachedTypeTag = new RegExp(`@type${'def'}\\b`);
+    if (detachedTypeTag.test(source)) {
+        throw new Error(`类型说明必须靠近对应函数，不使用独立类型声明：${relative(root, file)}`);
+    }
+    if (/@(?:param|returns|property)\s+\{\{/.test(source)) {
+        throw new Error(`对象参数字段必须逐行展开：${relative(root, file)}`);
+    }
 }
 
 // 嵌套模板节点分行排列，避免图标、文案和控件挤在同一行

@@ -14,17 +14,20 @@ import {
 import { accountStorage } from '/scripts/util/AccountStorage.js';
 import { openWelcomeScreen } from '/scripts/welcome-screen.js';
 
-import { ChatManagerApi } from './modules/api.js';
-import { BackupService } from './modules/backups.js';
-import { createChatActions } from './modules/chat-actions.js';
-import { DataMaidEnhancer } from './modules/data-maid-enhancer.js';
-import { ExtensionUpdater, loadExtensionMetadata } from './modules/extension-updater.js';
-import { openChatRecord } from './modules/chat-opener.js';
-import { NativeChatPanel } from './modules/native-chat-panel.js';
-import { SplitService } from './modules/splitter.js';
-import { TaskJournal } from './modules/task-journal.js';
-import { ChatManagerUi } from './modules/ui.js';
-import { element } from './modules/utils.js';
+import { BackupService } from './modules/backups/backups.js';
+import { DataMaidEnhancer } from './modules/backups/data-maid-enhancer.js';
+import { createChatActions } from './modules/chat/chat-actions.js';
+import { openChatRecord } from './modules/chat/chat-opener.js';
+import { SplitService } from './modules/chat/splitter.js';
+import { TaskJournal } from './modules/chat/task-journal.js';
+import { ChatManagerApi } from './modules/platform/api.js';
+import {
+    ExtensionUpdater,
+    loadExtensionMetadata,
+} from './modules/platform/extension-updater.js';
+import { element } from './modules/shared/utils.js';
+import { ChatManagerUi } from './modules/ui/ui.js';
+import { NativeChatPanel } from './modules/ui/native-chat-panel.js';
 
 let initialized = false;
 
@@ -34,7 +37,7 @@ function getContext() {
 
 /**
  * 打开指定聊天记录
- * @param {import('./modules/utils.js').ChatRecord} record 待打开的聊天记录
+ * @param {object} record 待打开的聊天记录
  * @returns {Promise<void>}
  */
 async function openRecord(record) {

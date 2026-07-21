@@ -1,4 +1,4 @@
-import { describePart } from '../splitter.js';
+import { describePart } from '../chat/splitter.js';
 
 /**
  * 管理分卷预览、执行和恢复任务弹窗
@@ -7,7 +7,7 @@ export class SplitDialogs {
     /**
      * @param {object} options 依赖项
      * @param {import('./templates.js').UiTemplates} options.ui UI 模板工具
-     * @param {import('../splitter.js').SplitService} options.splitter 分卷服务
+     * @param {import('../chat/splitter.js').SplitService} options.splitter 分卷服务
      * @param {()=>boolean} options.isGenerating 是否正在生成
      * @param {()=>Promise<void>} options.refresh 刷新聊天列表
      * @param {(type:string,message:string)=>void} options.notify 消息提示

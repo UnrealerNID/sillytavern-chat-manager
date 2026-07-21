@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { backupStateMatchesFilter, classifyBackupIntegrity } from '../modules/data-maid-enhancer.js';
-import { inspectDataMaidBackups } from '../modules/data-maid-inspector.js';
+import {
+    backupStateMatchesFilter,
+    classifyBackupIntegrity,
+} from '../modules/backups/data-maid-enhancer.js';
+import { inspectDataMaidBackups } from '../modules/backups/data-maid-inspector.js';
 
 test('backup integrity distinguishes linked, orphan and uncertain files without using names', () => {
     const active = new Set(['current-chat-id']);

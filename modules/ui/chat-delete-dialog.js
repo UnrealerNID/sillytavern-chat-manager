@@ -1,4 +1,4 @@
-import { chatKey, formatBytes } from '../utils.js';
+import { chatKey, formatBytes } from '../shared/utils.js';
 import { aggregateRecords } from './chat-list-renderer.js';
 
 /**
@@ -8,7 +8,7 @@ export class ChatDeleteDialog {
     /**
      * @param {object} dependencies 依赖项
      * @param {import('./templates.js').UiTemplates} dependencies.ui 模板工具
-     * @param {import('../api.js').ChatManagerApi} dependencies.api 酒馆接口
+     * @param {import('../platform/api.js').ChatManagerApi} dependencies.api 酒馆接口
      * @param {(record:object)=>Promise<void>} dependencies.deleteRecord 删除聊天
      * @param {()=>Promise<void>} dependencies.refreshRecentChats 刷新最近聊天
      * @param {()=>Promise<void>} dependencies.refresh 刷新管理列表

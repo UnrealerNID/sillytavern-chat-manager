@@ -41,7 +41,7 @@ export function isNewerVersion(candidate, current) {
 
 /**
  * 生成聊天记录的稳定所有者键
- * @param {ChatRecord} record 聊天记录
+ * @param {object} record 聊天记录
  * @returns {string} 稳定键
  */
 export function chatKey(record) {
@@ -154,7 +154,7 @@ export function parseBytes(value) {
  * @param {number} start 起始楼层
  * @param {number} end 结束楼层
  * @param {number|null} chunkSize 可选的固定楼层数
- * @returns {{start:number,end:number,count:number}[]} 分割范围
+ * @returns {object[]} 分割范围，每项包含 start、end 和 count
  */
 export function buildRanges(start, end, chunkSize = null) {
     if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start) {
@@ -173,8 +173,11 @@ export function buildRanges(start, end, chunkSize = null) {
 /**
  * 增量解析 JSONL 响应
  * @param {Response} response 网络响应
- * @param {{onHeader?:(header:object)=>Promise<void>|void,onMessage?:(message:object,index:number)=>Promise<void>|void,stopAfter?:number}} options 解析参数
- * @returns {Promise<{header:object,messageCount:number}>} 解析结果
+ * @param {object} options 解析参数
+ * @param {(header:object)=>Promise<void>|void} [options.onHeader] 聊天头回调
+ * @param {(message:object,index:number)=>Promise<void>|void} [options.onMessage] 消息回调
+ * @param {number} [options.stopAfter] 读取指定消息数后停止
+ * @returns {Promise<object>} 聊天头与已读取消息数
  */
 export async function parseJsonlResponse(response, options = {}) {
     if (!response.body) throw new Error('响应不支持流式读取');
@@ -232,7 +235,12 @@ export async function parseJsonlResponse(response, options = {}) {
 /**
  * 创建 DOM 元素，不插入不可信 HTML
  * @param {string} tag 标签名
- * @param {{className?:string,text?:string,title?:string,type?:string,attrs?:Record<string,string>}} options 元素参数
+ * @param {object} options 元素参数
+ * @param {string} [options.className] 类名
+ * @param {string} [options.text] 文本内容
+ * @param {string} [options.title] 悬停说明
+ * @param {string} [options.type] 按钮类型
+ * @param {Record<string,string>} [options.attrs] HTML 属性
  * @returns {HTMLElement} 元素
  */
 export function element(tag, options = {}) {
@@ -244,18 +252,3 @@ export function element(tag, options = {}) {
     for (const [name, value] of Object.entries(options.attrs ?? {})) node.setAttribute(name, value);
     return node;
 }
-
-/**
- * @typedef {object} ChatRecord
- * @property {'character'|'group'} ownerType 所有者类型
- * @property {string} ownerId 所有者 ID
- * @property {string} ownerName 所有者名称
- * @property {string} avatarUrl 头像地址
- * @property {string} fileId 聊天文件 ID
- * @property {string} fileName 聊天文件名
- * @property {string} fileSize 文件大小
- * @property {number} messageCount 消息数量
- * @property {string|number} lastMessageAt 最后消息时间
- * @property {string} preview 最后消息预览
- * @property {object|null} chatManager 插件写入聊天头的分卷元数据
- */
