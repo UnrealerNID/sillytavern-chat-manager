@@ -1,0 +1,141 @@
+.cm-data-maid-root {
+    display: contents;
+}
+
+.cm-data-maid-tools {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 7px;
+    margin-bottom: 7px;
+    padding: 8px;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 8px;
+    background: var(--SmartThemeBlurTintColor);
+}
+
+.cm-data-maid-primary,
+.cm-data-maid-secondary,
+.cm-data-maid-selection {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.cm-data-maid-secondary {
+    min-height: 34px;
+    justify-content: space-between;
+}
+
+.cm-data-maid-selection {
+    flex: 0 0 auto;
+}
+
+.cm-data-maid-tools .menu_button,
+.cm-data-maid-tools select {
+    width: auto;
+    min-width: max-content;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.cm-data-maid-primary .cm-search-wrap {
+    min-width: 180px;
+    flex: 1 1 260px;
+}
+
+.cm-data-maid-progress {
+    flex: 1 1 220px;
+    color: var(--grey70);
+    font-size: calc(var(--mainFontSize) * .82);
+}
+
+.cm-data-maid-enhanced:not(.cm-data-maid-selection-mode) .cm-data-maid-select-wrap {
+    display: none;
+}
+
+.cm-data-maid-controls {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+}
+
+.cm-data-maid-controls label {
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+}
+
+.cm-data-maid-controls input {
+    margin: 0;
+}
+
+.dataMaidItem.cm-selected {
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor) 10%, transparent);
+}
+
+.cm-data-maid-controls .cm-status-badge[data-state="linked"] {
+    color: var(--grey70);
+}
+
+.cm-data-maid-controls .cm-status-badge[data-state="orphan"] {
+    color: var(--fullred);
+}
+
+.cm-data-maid-controls .cm-status-badge[data-state="uncertain"] {
+    color: var(--golden);
+}
+
+.cm-data-maid-viewer {
+    display: flex;
+    flex-direction: column;
+    width: min(980px, 94vw);
+    height: min(760px, 90dvh);
+}
+
+.cm-data-maid-viewer .cm-result-summary {
+    margin: 12px 16px 0;
+}
+
+.cm-data-maid-viewer .cm-message-list {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 12px 16px;
+}
+
+@media (max-width: 700px) {
+    .cm-data-maid-primary {
+        flex-wrap: wrap;
+    }
+
+    .cm-data-maid-primary .cm-search-wrap {
+        order: -1;
+        width: 100%;
+        flex-basis: 100%;
+    }
+
+    .cm-data-maid-primary select {
+        min-width: 0;
+        flex: 1 1 135px;
+    }
+
+    .cm-data-maid-secondary {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .cm-data-maid-selection {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .cm-data-maid-progress {
+        flex-basis: auto;
+    }
+}

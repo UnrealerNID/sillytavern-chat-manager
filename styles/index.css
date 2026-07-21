@@ -1,7 +1,7 @@
-@import url("./base.css");
-@import url("./components.css");
-@import url("./panel.css");
-@import url("./dialogs.css");
-@import url("./data-maid-enhancer.css");
-@import url("./responsive.css");
+@import url("./chat-files/base.css");
+@import url("./chat-files/components.css");
+@import url("./chat-files/panel.css");
+@import url("./chat-files/dialogs.css");
+@import url("./chat-files/data-maid-enhancer.css");
+@import url("./chat-files/responsive.css");
 @import url("./settings.css");

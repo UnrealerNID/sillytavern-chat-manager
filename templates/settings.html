@@ -1,16 +1,25 @@
-<div id="chat_manager_extension_status" class="inline-drawer chat-manager-extension-status">
-    <div class="inline-drawer-toggle inline-drawer-header">
-        <b>酒馆工具箱</b>
+<div id="tavern_toolbox_settings" class="inline-drawer toolbox-settings">
+    <div class="inline-drawer-toggle inline-drawer-header toolbox-settings-header">
+        <span class="toolbox-settings-title">
+            <b>酒馆工具箱</b>
+        </span>
         <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
     </div>
-    <div class="inline-drawer-content">
-        <div class="chat-manager-extension-meta">
-            <small class="chat-manager-extension-version"></small>
-            <button id="chat_manager_update" class="chat-manager-update-action" type="button" disabled>检查更新…</button>
+    <div class="inline-drawer-content toolbox-settings-content">
+        <div class="toolbox-settings-meta">
+            <small data-toolbox-version></small>
+            <button data-toolbox-update class="toolbox-update-action" type="button" disabled>检查更新…</button>
         </div>
-        <label class="checkbox_label" for="chat_manager_enabled">
-            <input id="chat_manager_enabled" class="checkbox" type="checkbox">
-            <span>启用扩展</span>
-        </label>
+        <div class="toolbox-settings-row toolbox-settings-master">
+            <span class="toolbox-settings-copy">
+                <strong>启用酒馆工具箱</strong>
+                <small>统一控制所有工具模块</small>
+            </span>
+            <label class="toolbox-switch" title="启用酒馆工具箱">
+                <input data-toolbox-enabled type="checkbox" role="switch">
+                <span class="toolbox-switch-track"></span>
+            </label>
+        </div>
+        <div data-toolbox-modules class="toolbox-settings-modules"></div>
     </div>
 </div>

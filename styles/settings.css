@@ -1,19 +1,50 @@
-.chat-manager-extension-status .inline-drawer-header {
+.toolbox-settings .toolbox-settings-header,
+.toolbox-settings .toolbox-settings-row,
+.toolbox-settings .toolbox-settings-meta,
+.toolbox-settings .toolbox-module-legend {
+    display: flex;
     align-items: center;
 }
 
-.chat-manager-extension-status .chat-manager-extension-meta {
+.toolbox-settings .toolbox-settings-header {
     justify-content: space-between;
-    margin-bottom: 5px;
 }
 
-.chat-manager-extension-version {
+.toolbox-settings-title,
+.toolbox-module-legend {
+    display: inline-flex;
+    gap: 0.55em;
+    min-width: 0;
+    align-items: center;
+}
+
+.toolbox-module-legend > i {
+    color: var(--SmartThemeQuoteColor);
+}
+
+.toolbox-settings-content {
+    display: grid;
+    gap: 10px;
+    padding-bottom: 10px;
+}
+
+.toolbox-settings-modules {
+    display: grid;
+    gap: 10px;
+}
+
+.toolbox-settings-meta {
+    justify-content: space-between;
+    min-height: 24px;
+}
+
+.toolbox-settings-meta small {
     color: var(--grey50);
     font-size: calc(var(--mainFontSize) * 0.8);
     font-variant-numeric: tabular-nums;
 }
 
-.chat-manager-update-action {
+.toolbox-update-action {
     padding: 0;
     border: 0;
     color: var(--SmartThemeQuoteColor);
@@ -22,11 +53,141 @@
     cursor: pointer;
 }
 
-.chat-manager-update-action:not(:disabled):hover {
+.toolbox-update-action:not(:disabled):hover {
     text-decoration: underline;
 }
 
-.chat-manager-update-action:disabled {
+.toolbox-update-action:disabled {
     color: var(--grey50);
     cursor: default;
+}
+
+.toolbox-settings-row {
+    justify-content: space-between;
+    gap: 14px;
+    min-width: 0;
+    padding: 9px 10px;
+}
+
+.toolbox-settings-master,
+.toolbox-module-card {
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 8px;
+    background: var(--black30a);
+}
+
+.toolbox-module-card {
+    min-inline-size: 0;
+    margin-inline: 0;
+    padding: 0;
+}
+
+.toolbox-module-legend {
+    gap: 0.45em;
+    margin-left: 8px;
+    padding-inline: 6px;
+    color: var(--grey70);
+    font-size: calc(var(--mainFontSize) * 0.85);
+    line-height: 1;
+}
+
+.toolbox-feature-list {
+    border-top: 1px solid var(--SmartThemeBorderColor);
+    transition: opacity 120ms ease;
+}
+
+.toolbox-feature-list .toolbox-settings-copy strong {
+    font-size: calc(var(--mainFontSize) * 0.95);
+    font-weight: 600;
+}
+
+.toolbox-feature-list .toolbox-settings-row + .toolbox-settings-row {
+    border-top: 1px solid var(--SmartThemeBorderColor);
+}
+
+.toolbox-settings-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.toolbox-settings-copy strong,
+.toolbox-settings-copy small {
+    overflow-wrap: anywhere;
+}
+
+.toolbox-settings-copy small {
+    color: var(--grey70);
+    line-height: 1.3;
+}
+
+.toolbox-settings-disabled {
+    opacity: 0.55;
+}
+
+.toolbox-switch {
+    position: relative;
+    flex: 0 0 auto;
+    width: 42px;
+    height: 24px;
+    cursor: pointer;
+}
+
+.toolbox-switch input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.toolbox-switch-track {
+    position: absolute;
+    inset: 0;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 999px;
+    background: var(--black50a);
+    transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.toolbox-switch-track::after {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--SmartThemeBodyColor);
+    box-shadow: 0 1px 3px var(--black50a);
+    content: '';
+    transition: transform 120ms ease;
+}
+
+.toolbox-switch input:checked + .toolbox-switch-track {
+    border-color: var(--SmartThemeQuoteColor);
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor) 70%, transparent);
+}
+
+.toolbox-switch input:checked + .toolbox-switch-track::after {
+    transform: translateX(18px);
+}
+
+.toolbox-switch input:focus-visible + .toolbox-switch-track {
+    outline: 2px solid var(--SmartThemeQuoteColor);
+    outline-offset: 2px;
+}
+
+.toolbox-switch:has(input:disabled) {
+    cursor: default;
+    opacity: 0.5;
+}
+
+@media (max-width: 600px) {
+    .toolbox-settings-row {
+        gap: 10px;
+        padding-inline: 8px;
+    }
+
+    .toolbox-module-legend > i {
+        display: none;
+    }
 }

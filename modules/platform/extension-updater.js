@@ -1,18 +1,17 @@
 import {
     getRequestHeaders,
-    saveSettingsDebounced,
 } from '/script.js';
 import {
     extensionTypes,
-    renderExtensionTemplateAsync,
 } from '/scripts/extensions.js';
 import { isAdmin } from '/scripts/user.js';
 
-import { isNewerVersion } from '../shared/utils.js';
-
-const EXTENSION_ID = 'third-party/sillytavern-toolbox';
-const EXTENSION_FOLDER = 'sillytavern-toolbox';
-const REMOTE_MANIFEST_URL = 'https://raw.githubusercontent.com/UnrealerNID/sillytavern-toolbox/main/manifest.json';
+import { isNewerVersion } from './version.js';
+import {
+    EXTENSION_FOLDER,
+    EXTENSION_ID,
+    REMOTE_MANIFEST_URL,
+} from './extension-identity.js';
 
 /**
  * 读取插件自身清单
@@ -20,7 +19,7 @@ const REMOTE_MANIFEST_URL = 'https://raw.githubusercontent.com/UnrealerNID/silly
  */
 export async function loadExtensionMetadata() {
     try {
-        const response = await fetch(new URL('../manifest.json', import.meta.url), {
+        const response = await fetch(new URL('../../manifest.json', import.meta.url), {
             cache: 'no-store',
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -57,46 +56,27 @@ export class ExtensionUpdater {
      */
     register(button, version) {
         this.views.add({ button, version });
-        button.addEventListener('click', () => void this.#update());
+        button.addEventListener('click', () => void this.#activate());
         this.#render();
-        this.checkTask ??= this.#check();
+        if (this.state.phase === 'checking') void this.#requestCheck();
     }
 
     /**
-     * 插入酒馆原生扩展设置卡片
-     * @param {object} settings 插件设置
-     * @param {(enabled:boolean)=>void} applyEnabledState 应用启停状态
-     * @returns {Promise<boolean>} 是否成功插入
+     * 合并并发更新检查，并允许失败后重新执行
      */
-    async insertSettings(settings, applyEnabledState) {
-        if (document.querySelector('#chat_manager_extension_status')) return true;
-        const container = selectExtensionColumn(settings.column);
-        if (!container) return false;
+    #requestCheck() {
+        this.checkTask ??= this.#check().finally(() => {
+            this.checkTask = null;
+        });
+        return this.checkTask;
+    }
 
-        const selectedColumn = container.id === 'extensions_settings' ? 'left' : 'right';
-        if (settings.column !== selectedColumn) {
-            settings.column = selectedColumn;
-            saveSettingsDebounced();
-        }
-
-        const html = await renderExtensionTemplateAsync(EXTENSION_ID, 'templates/settings');
-        const template = document.createElement('template');
-        template.innerHTML = html.trim();
-        const drawer = template.content.firstElementChild;
-        const version = drawer?.querySelector('.chat-manager-extension-version');
-        const toggle = drawer?.querySelector('#chat_manager_enabled');
-        const update = drawer?.querySelector('#chat_manager_update');
-        if (!(drawer instanceof HTMLElement)
-            || !(version instanceof HTMLElement)
-            || !(toggle instanceof HTMLInputElement)
-            || !(update instanceof HTMLButtonElement)) {
-            throw new Error('扩展设置模板结构无效');
-        }
-
-        bindEnabledToggle(toggle, settings, applyEnabledState);
-        container.append(drawer);
-        this.register(update, version);
-        return true;
+    /**
+     * 根据当前状态执行检查或更新
+     */
+    #activate() {
+        if (this.state.phase === 'check-failed') return this.#requestCheck();
+        return this.#update();
     }
 
     /**
@@ -112,12 +92,12 @@ export class ExtensionUpdater {
             updating: '更新中…',
             updated: '更新完成',
             retry: '重试更新',
-            failed: '检查失败',
+            'check-failed': '重试检查',
         };
         for (const view of this.views) {
             view.version.textContent = `version ${state.semanticVersion}${hash}`;
             view.button.textContent = labels[state.phase];
-            view.button.disabled = (state.phase !== 'available' && state.phase !== 'retry')
+            view.button.disabled = !['available', 'retry', 'check-failed'].includes(state.phase)
                 || (state.phase === 'available' && !state.canUpdate);
             view.button.title = state.phase === 'available' && state.remoteVersion
                 ? `更新至 version ${state.remoteVersion}`
@@ -142,7 +122,7 @@ export class ExtensionUpdater {
         }
         if (remote.status === 'rejected') {
             console.warn('[酒馆工具箱] 检查扩展更新失败', remote.reason);
-            this.state.phase = 'failed';
+            this.state.phase = 'check-failed';
             this.#render();
             return;
         }
@@ -236,48 +216,4 @@ async function getRemoteExtensionVersion() {
     const metadata = await response.json();
     if (typeof metadata.version !== 'string') throw new Error('远端扩展清单缺少版本号');
     return metadata.version;
-}
-
-/**
- * 绑定插件启用开关
- * @param {HTMLInputElement} toggle 启用开关
- * @param {object} settings 插件设置
- * @param {(enabled:boolean)=>void} applyEnabledState 应用状态
- */
-function bindEnabledToggle(toggle, settings, applyEnabledState) {
-    toggle.checked = settings.enabled !== false;
-    toggle.addEventListener('change', () => {
-        settings.enabled = toggle.checked;
-        saveSettingsDebounced();
-        applyEnabledState(toggle.checked);
-        globalThis.toastr?.success?.(`酒馆工具箱已${toggle.checked ? '启用' : '停用'}`);
-    });
-}
-
-/**
- * 选择要插入插件设置卡片的扩展栏
- * @param {'left'|'right'|undefined} savedColumn 已保存位置
- * @returns {HTMLElement|null} 扩展栏
- */
-function selectExtensionColumn(savedColumn) {
-    const left = document.querySelector('#extensions_settings');
-    const right = document.querySelector('#extensions_settings2');
-    if (savedColumn === 'left' && left instanceof HTMLElement) return left;
-    if (savedColumn === 'right' && right instanceof HTMLElement) return right;
-    if (!(left instanceof HTMLElement)) return right instanceof HTMLElement ? right : null;
-    if (!(right instanceof HTMLElement)) return left;
-    return renderedCardCount(left) <= renderedCardCount(right) ? left : right;
-}
-
-/**
- * 统计扩展栏中的可见卡片
- * @param {HTMLElement} container 扩展栏
- * @returns {number} 可见卡片数量
- */
-function renderedCardCount(container) {
-    return Array.from(container.children).filter(child => {
-        if (!(child instanceof HTMLElement)) return false;
-        if (child.hidden || getComputedStyle(child).display === 'none') return false;
-        return child.childElementCount > 0 || Boolean(child.textContent?.trim());
-    }).length;
 }
