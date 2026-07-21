@@ -28,13 +28,16 @@
         flex-basis: 100%;
     }
 
-    .cm-control-cluster,
+    .cm-toolbar-actions,
     .cm-delete-controls {
-        flex: 1;
+        flex: 0 0 auto;
     }
 
-    .cm-control-cluster {
-        justify-content: flex-start;
+    .cm-toolbar-actions {
+        width: 100%;
+        margin-left: 0;
+        overflow-x: auto;
+        padding-bottom: 2px;
     }
 
     .cm-delete-controls .menu_button {

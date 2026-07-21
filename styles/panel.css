@@ -22,11 +22,14 @@
 }
 
 .cm-toolbar {
+    --cm-toolbar-control-height: 34px;
+
+    align-items: center;
     padding: 12px 16px;
     border-bottom: 1px solid var(--SmartThemeBorderColor);
 }
 
-.cm-control-cluster,
+.cm-toolbar-actions,
 .cm-scope-controls,
 .cm-view-controls,
 .cm-delete-controls {
@@ -35,22 +38,19 @@
     align-items: center;
 }
 
-.cm-control-cluster {
-    gap: 6px;
-}
-
-.cm-control-label {
-    color: var(--grey70);
-    font-size: calc(var(--mainFontSize) * .78);
-    white-space: nowrap;
+.cm-toolbar-actions {
+    gap: 7px;
+    margin-left: auto;
 }
 
 .cm-scope-controls {
+    height: var(--cm-toolbar-control-height);
+    box-sizing: border-box;
     gap: 0;
     padding: 2px;
     border: 1px solid var(--SmartThemeBorderColor);
     border-radius: 7px;
-    background: var(--black20a);
+    background: rgb(0 0 0 / 20%);
 }
 
 .cm-view-controls,
@@ -61,11 +61,15 @@
 .cm-scope-controls .menu_button,
 .cm-view-controls .menu_button,
 .cm-delete-controls .menu_button {
+    height: var(--cm-toolbar-control-height);
+    min-height: var(--cm-toolbar-control-height);
     gap: 5px;
     margin: 0;
 }
 
 .cm-scope-controls .menu_button {
+    min-height: 28px;
+    height: 28px;
     border: 0;
     border-radius: 5px;
     background: transparent;
@@ -87,13 +91,16 @@
 }
 
 .cm-view-controls .menu_button {
+    position: relative;
     color: var(--grey70);
 }
 
 .cm-view-controls .menu_button::after {
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
     width: 7px;
     height: 7px;
-    flex: 0 0 7px;
     border: 1px solid currentColor;
     border-radius: 50%;
     content: "";
@@ -113,6 +120,7 @@
 .cm-search-wrap {
     position: relative;
     display: flex;
+    min-width: 220px;
     flex: 1;
     align-items: center;
 }
@@ -126,18 +134,25 @@
 }
 
 .cm-search {
+    box-sizing: border-box;
+    height: var(--cm-toolbar-control-height);
     width: 100%;
     padding-left: 36px;
 }
 
+.cm-toolbar-icon-action {
+    display: inline-grid !important;
+    width: var(--cm-toolbar-control-height) !important;
+    min-width: var(--cm-toolbar-control-height) !important;
+    height: var(--cm-toolbar-control-height) !important;
+    min-height: var(--cm-toolbar-control-height) !important;
+    padding: 0 !important;
+    place-items: center;
+}
+
 .cm-refresh-button {
-    width: auto;
-    min-width: max-content;
-    align-self: stretch;
-    gap: 6px;
+    align-self: center;
     margin: 0;
-    padding-inline: 12px;
-    white-space: nowrap;
 }
 
 .cm-panel > .cm-state {

@@ -35,3 +35,10 @@ test('all plugin panels use the same readable disabled button style', async () =
     assert.match(css, /opacity:\s*0\.7\s*!important/);
     assert.match(css, /filter:\s*grayscale\(1\)\s*!important/);
 });
+
+test('toolbar controls share one fixed height without stretching refresh', async () => {
+    const css = await readFile(new URL('../styles/panel.css', import.meta.url), 'utf8');
+    assert.match(css, /--cm-toolbar-control-height:\s*34px/);
+    assert.match(css, /\.cm-toolbar-icon-action\s*{[\s\S]*height:\s*var\(--cm-toolbar-control-height\)\s*!important/);
+    assert.doesNotMatch(css, /\.cm-refresh-button\s*{[^}]*align-self:\s*stretch/s);
+});

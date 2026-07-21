@@ -31,8 +31,12 @@ test('panel template exposes all stable UI mounts', async () => {
     assert.match(html, /role="radio"[^>]*data-cm-scope-all/);
     assert.match(html, /role="switch"[^>]*data-cm-group-owners/);
     assert.match(html, /role="switch"[^>]*data-cm-group-splits/);
-    assert.match(html, /角色分组/);
-    assert.match(html, /分卷分组/);
+    assert.match(html, /class="cm-toolbar-actions"/);
+    assert.match(html, /title="按角色或群组分组显示"/);
+    assert.match(html, /title="按分卷组分组显示"/);
+    assert.match(html, /title="打开酒馆数据清理"/);
+    assert.match(html, /title="重新加载聊天列表"/);
+    assert.doesNotMatch(html, />范围<|>显示<|>数据清理<|>刷新</);
 });
 
 test('data maid enhancement mounts after either native or plugin-triggered scans', async () => {
