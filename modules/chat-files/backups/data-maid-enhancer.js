@@ -288,7 +288,7 @@ export class DataMaidEnhancer {
             const confirmed = await Popup.show.confirm(
                 '删除所选聊天备份',
                 `将永久删除 ${unique.length} 个聊天备份，共 ${formatBytes(bytes)}。此操作无法撤销。`,
-                { okButton: '删除', cancelButton: '取消' },
+                { okButton: '确认', cancelButton: '取消' },
             );
             if (!confirmed) return;
             await this.api.deleteDataMaidFiles(this.token, unique.map(item => item.record.hash));

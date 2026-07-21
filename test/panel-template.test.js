@@ -239,12 +239,13 @@ test('backup listing is only requested explicitly while chat files are stable', 
 });
 
 test('chat deletion uses SillyTavern native character and group workflows', async () => {
-    const [entry, ui, inventory, actions, deletion] = await Promise.all([
+    const [entry, ui, inventory, actions, deletion, dialogs] = await Promise.all([
         readFile(new URL('../modules/chat-files/module.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/chat-files/ui/ui.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/chat-files/chat/inventory.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/chat-files/chat/chat-actions.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/chat-files/ui/chat-delete-dialog.js', import.meta.url), 'utf8'),
+        readFile(new URL('../templates/chat-files/dialogs.html', import.meta.url), 'utf8'),
     ]);
     assert.match(actions, /deleteCharacterChatByName\(String\(characterId\), record\.fileId\)/);
     assert.match(actions, /deleteGroupChatByName\(group\.id, record\.fileId\)/);
@@ -257,6 +258,9 @@ test('chat deletion uses SillyTavern native character and group workflows', asyn
     assert.match(ui, /onLoading: loading => this\.#setLoading\(loading\)/);
     assert.match(inventory, /async #drain\(\)[\s\S]*this\.onLoading\(true\)[\s\S]*finally\s*{\s*this\.onLoading\(false\)/);
     assert.match(deletion, /if \(succeeded > 0\) await this\.#refreshRecentChats\(\)/);
+    assert.match(deletion, /if \(!failed\)\s*{\s*dialog\.close\(\)/);
+    assert.match(dialogs, /data-cm-delete-confirm>确认<\/button>/);
+    assert.doesNotMatch(dialogs, /data-cm-delete-confirm[^>]*>[\s\S]{0,120}fa-trash-can/);
     assert.match(ui, /if \(this\.selectionMode\) this\.#setSelectionMode\(false\)/);
 });
 

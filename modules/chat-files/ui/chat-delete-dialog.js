@@ -42,7 +42,6 @@ export class ChatDeleteDialog {
         const list = this.ui.mount(dialog.body, '[data-cm-delete-list]');
         const cancel = this.ui.mount(dialog.body, '[data-cm-delete-cancel]', HTMLButtonElement);
         const confirm = this.ui.mount(dialog.body, '[data-cm-delete-confirm]', HTMLButtonElement);
-        const confirmText = this.ui.mount(dialog.body, '[data-cm-delete-confirm-text]');
         const aggregate = aggregateRecords(unique);
         const rows = new Map();
 
@@ -50,9 +49,6 @@ export class ChatDeleteDialog {
             `${unique.length} 个聊天文件`,
             `合计 ${aggregate.messageCount} 层 / ${formatBytes(aggregate.bytes)}`,
         ].join(' · ');
-        confirmText.textContent = unique.length === 1
-            ? '确认删除'
-            : `确认删除 ${unique.length} 条`;
         for (const record of unique) {
             const row = this.#targetRow(record);
             rows.set(chatKey(record), row);
@@ -137,20 +133,28 @@ export class ChatDeleteDialog {
             summary.textContent = progressText(unique.length, succeeded, failed);
         }
 
-        dialog.setClosable(true);
-        cancel.disabled = false;
-        cancel.textContent = '关闭';
-        confirm.classList.add('cm-hidden');
         summary.textContent = resultText(succeeded, failed);
         this.resetSelection();
         if (succeeded > 0) await this.#refreshRecentChats();
-        await this.refresh();
+        try {
+            await this.refresh();
+        } catch (error) {
+            console.warn('[酒馆工具箱] 刷新聊天管理列表失败', error);
+        }
         this.notify(
             failed ? 'warning' : 'success',
             failed
                 ? `已删除 ${succeeded} 条，${failed} 条失败`
                 : `已删除 ${succeeded} 条聊天`,
         );
+        dialog.setClosable(true);
+        if (!failed) {
+            dialog.close();
+            return;
+        }
+        cancel.disabled = false;
+        cancel.textContent = '关闭';
+        confirm.classList.add('cm-hidden');
     }
 
     /**
