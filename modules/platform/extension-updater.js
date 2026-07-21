@@ -10,9 +10,9 @@ import { isAdmin } from '/scripts/user.js';
 
 import { isNewerVersion } from '../shared/utils.js';
 
-const EXTENSION_ID = 'third-party/sillytavern-chat-manager';
-const EXTENSION_FOLDER = 'sillytavern-chat-manager';
-const REMOTE_MANIFEST_URL = 'https://raw.githubusercontent.com/UnrealerNID/sillytavern-chat-manager/main/manifest.json';
+const EXTENSION_ID = 'third-party/sillytavern-toolbox';
+const EXTENSION_FOLDER = 'sillytavern-toolbox';
+const REMOTE_MANIFEST_URL = 'https://raw.githubusercontent.com/UnrealerNID/sillytavern-toolbox/main/manifest.json';
 
 /**
  * 读取插件自身清单
@@ -26,7 +26,7 @@ export async function loadExtensionMetadata() {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return await response.json();
     } catch (error) {
-        console.warn('[聊天文件管理] 读取扩展元数据失败', error);
+        console.warn('[酒馆工具箱] 读取扩展元数据失败', error);
         return { version: '未知' };
     }
 }
@@ -138,10 +138,10 @@ export class ExtensionUpdater {
         if (installation.status === 'fulfilled') {
             this.state.shortHash = installation.value.currentCommitHash?.slice(0, 7) ?? '';
         } else {
-            console.warn('[聊天文件管理] 读取扩展提交号失败', installation.reason);
+            console.warn('[酒馆工具箱] 读取扩展提交号失败', installation.reason);
         }
         if (remote.status === 'rejected') {
-            console.warn('[聊天文件管理] 检查扩展更新失败', remote.reason);
+            console.warn('[酒馆工具箱] 检查扩展更新失败', remote.reason);
             this.state.phase = 'failed';
             this.#render();
             return;
@@ -174,7 +174,7 @@ export class ExtensionUpdater {
             globalThis.toastr?.success?.('插件更新完成，正在刷新页面');
             setTimeout(() => location.reload(), 500);
         } catch (error) {
-            console.error('[聊天文件管理] 更新扩展失败', error);
+            console.error('[酒馆工具箱] 更新扩展失败', error);
             this.state.phase = 'retry';
             this.#render();
             globalThis.toastr?.error?.(`插件更新失败：${error.message}`);
@@ -250,7 +250,7 @@ function bindEnabledToggle(toggle, settings, applyEnabledState) {
         settings.enabled = toggle.checked;
         saveSettingsDebounced();
         applyEnabledState(toggle.checked);
-        globalThis.toastr?.success?.(`聊天文件管理已${toggle.checked ? '启用' : '停用'}`);
+        globalThis.toastr?.success?.(`酒馆工具箱已${toggle.checked ? '启用' : '停用'}`);
     });
 }
 

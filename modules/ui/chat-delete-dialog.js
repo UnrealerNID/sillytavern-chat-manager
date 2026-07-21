@@ -156,7 +156,7 @@ export class ChatDeleteDialog {
         try {
             await this.refreshRecentChats();
         } catch (error) {
-            console.warn('[聊天文件管理] 刷新最近聊天失败', error);
+            console.warn('[酒馆工具箱] 刷新最近聊天失败', error);
         }
     }
 }

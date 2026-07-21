@@ -1,6 +1,6 @@
-# 聊天文件管理
+# 酒馆工具箱
 
-## 能做什么
+## 聊天文件管理
 
 - 浏览、搜索、排序和分页查看全部聊天
 - 在聊天管理和欢迎页按角色或分卷组显示，并保持两边设置同步
@@ -18,7 +18,7 @@
 打开 SillyTavern 的扩展管理，选择“安装扩展”，填入：
 
 ```text
-https://github.com/UnrealerNID/sillytavern-chat-manager
+https://github.com/UnrealerNID/sillytavern-toolbox
 ```
 
 安装完成后刷新页面，然后从“聊天文件”菜单进入“聊天管理”。原生聊天文件列表中也会出现查找备份和创建分卷的快捷操作。
