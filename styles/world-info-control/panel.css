@@ -108,21 +108,32 @@
 .world-info-control-content {
     min-height: 0;
     overflow: auto;
-    padding: 8px;
+    padding: 6px;
 }
 
-.world-info-control-group,
-.world-info-control-entry {
-    margin-bottom: 6px;
+.world-info-control-group {
+    margin-bottom: 8px;
     overflow: hidden;
     border: 1px solid var(--SmartThemeBorderColor);
     border-radius: 8px;
     background: var(--black20a);
 }
 
+.world-info-control-group:last-child {
+    margin-bottom: 0;
+}
+
+.world-info-control-entry {
+    margin: 0;
+    border: 0;
+    border-top: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 0;
+    background: transparent;
+}
+
 .world-info-control-group > summary,
 .world-info-control-entry > summary {
-    padding: 8px 10px;
+    padding: 7px 10px;
     cursor: pointer;
 }
 
@@ -131,7 +142,7 @@
 }
 
 .world-info-control-list {
-    padding: 0 6px 6px;
+    padding: 0;
 }
 
 .world-info-control-entry-copy {
@@ -161,60 +172,33 @@
 }
 
 .world-info-control-entry-metadata > small {
-    padding: 2px 6px;
-    border: 1px solid var(--SmartThemeBorderColor);
-    border-radius: 999px;
     line-height: 1.2;
     white-space: nowrap;
 }
 
+.world-info-control-entry-metadata > small + small::before {
+    margin-right: 5px;
+    content: "·";
+}
+
 .world-info-control-entry pre {
     max-height: 220px;
-    margin: 0 8px 8px;
-    padding: 8px 10px;
+    margin: 0;
+    padding: 8px 16px 10px;
     overflow: auto;
-    border-radius: 6px;
+    border-top: 1px solid var(--SmartThemeBorderColor);
     background: var(--black30a);
     color: inherit;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
 
-.world-info-control-excluded {
+.world-info-control-excluded :is(.world-info-control-entry-copy, .world-info-control-entry-metadata, pre) {
     opacity: 0.55;
 }
 
 .world-info-control-switch {
     flex: 0 0 auto;
-}
-
-.world-info-control-switch input {
-    position: absolute;
-    opacity: 0;
-}
-
-.world-info-control-switch span {
-    display: block;
-    width: 34px;
-    height: 18px;
-    padding: 2px;
-    border: 1px solid var(--SmartThemeBorderColor);
-    border-radius: 999px;
-    background: var(--black30a);
-}
-
-.world-info-control-switch span::after {
-    content: "";
-    display: block;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: currentColor;
-    transition: transform 120ms ease;
-}
-
-.world-info-control-switch input:checked + span::after {
-    transform: translateX(16px);
 }
 
 .world-info-control-state {

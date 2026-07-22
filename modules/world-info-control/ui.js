@@ -41,7 +41,11 @@ export class WorldInfoControlUi {
         form.append(this.root);
         this.#restoreHeight();
         this.#bindEvents();
-        this.store.subscribe(() => this.render());
+        // 条目开关只同步现有节点，避免在表单事件中重建整个列表
+        this.store.subscribe(change => {
+            if (change === 'exclusions') this.#syncExclusionState();
+            else this.render();
+        });
         this.render();
     }
 
@@ -79,11 +83,8 @@ export class WorldInfoControlUi {
         const status = this.store.getStatus();
         const entries = this.store.getEntries();
         const excluded = this.store.getExclusions();
-        this.summary.textContent = status === 'ready'
-            ? `${entries.length} 个条目 · 已关闭 ${excluded.size} 个`
-            : '';
         this.refreshButton.disabled = status === 'loading';
-        this.clearButton.disabled = status === 'loading' || excluded.size === 0;
+        this.#updateSummary(entries.length, excluded.size, status);
         this.content.replaceChildren();
         if (status === 'loading') {
             this.content.append(createState('fa-circle-notch', '正在扫描世界书…', true));
@@ -142,6 +143,7 @@ export class WorldInfoControlUi {
     #createEntry(entry) {
         const controlId = worldControlId(entry);
         const details = element('details', { className: 'world-info-control-entry' });
+        details.dataset.worldInfoControlId = controlId;
         details.classList.toggle('world-info-control-excluded', this.store.isExcluded(controlId));
         const summary = document.createElement('summary');
         const copy = element('span', { className: 'world-info-control-entry-copy' });
@@ -166,6 +168,24 @@ export class WorldInfoControlUi {
             element('pre', { text: entry.processedContent || '空内容' }),
         );
         return details;
+    }
+
+    #syncExclusionState() {
+        const excluded = this.store.getExclusions();
+        this.#updateSummary(this.store.getEntries().length, excluded.size, this.store.getStatus());
+        for (const entry of this.content.querySelectorAll('[data-world-info-control-id]')) {
+            const isExcluded = this.store.isExcluded(entry.dataset.worldInfoControlId);
+            entry.classList.toggle('world-info-control-excluded', isExcluded);
+            const input = entry.querySelector('.world-info-control-switch input');
+            if (input instanceof HTMLInputElement) input.checked = !isExcluded;
+        }
+    }
+
+    #updateSummary(entryCount, excludedCount, status) {
+        this.summary.textContent = status === 'ready'
+            ? `${entryCount} 个条目 · 已关闭 ${excludedCount} 个`
+            : '';
+        this.clearButton.disabled = status === 'loading' || excludedCount === 0;
     }
 
     #restoreHeight() {
@@ -245,7 +265,7 @@ function insertionPosition(entry) {
         case world_info_position.EMBottom:
             return '示例消息后';
         case world_info_position.outlet:
-            return entry.outletName ? `出口 ${entry.outletName}` : '出口';
+            return entry.outletName ? `锚点 ${entry.outletName}` : '锚点';
         default:
             return '角色定义前';
     }
@@ -253,13 +273,15 @@ function insertionPosition(entry) {
 
 function createToggle(checked) {
     const label = element('label', {
-        className: 'world-info-control-switch',
+        className: 'toolbox-switch world-info-control-switch',
         title: '是否发送此世界书条目',
     });
     const input = document.createElement('input');
     input.type = 'checkbox';
+    input.setAttribute('role', 'switch');
+    input.setAttribute('aria-label', '是否发送此世界书条目');
     input.checked = checked;
-    label.append(input, element('span'));
+    label.append(input, element('span', { className: 'toolbox-switch-track' }));
     return label;
 }
 

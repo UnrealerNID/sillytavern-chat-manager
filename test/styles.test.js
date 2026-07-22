@@ -61,8 +61,12 @@ test('世界书控制使用贴靠输入区的单一折叠入口', async () => {
     assert.match(ui, /form\.append\(this\.root\)/);
     assert.doesNotMatch(ui, /#leftSendForm|tools\.append|this\.trigger/);
     assert.match(ui, /store\.setExcluded\(controlId/);
+    assert.match(ui, /change === 'exclusions'/);
+    assert.match(ui, /#syncExclusionState\(\)/);
     assert.match(ui, /scheduleRefresh\(\)/);
     assert.match(ui, /PANEL_HEIGHT_KEY/);
+    assert.match(ui, /`锚点 \$\{entry\.outletName\}`/);
+    assert.doesNotMatch(ui, /出口/);
     assert.match(scanner, /processedContent \?\? ''\)\.trim\(\)/);
     assert.match(template, /data-world-info-control-toggle/);
     assert.match(template, /data-world-info-control-body/);
@@ -70,6 +74,8 @@ test('世界书控制使用贴靠输入区的单一折叠入口', async () => {
     assert.doesNotMatch(template, /data-world-info-control-trigger/);
     assert.match(template, /data-world-info-control-search/);
     assert.match(template, /data-world-info-control-clear/);
+    assert.match(ui, /className: 'toolbox-switch world-info-control-switch'/);
+    assert.doesNotMatch(css, /\.world-info-control-switch span::after/);
 });
 
 test('chat manager panels and modal dialogs use their dedicated layers', async () => {
