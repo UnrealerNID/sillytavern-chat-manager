@@ -15,7 +15,7 @@ import {
 } from '../modules/prompt-viewer/ui.js';
 import { groupAdjacentPromptNodes } from '../modules/prompt-viewer/view-model.js';
 import { nextSearchIndex } from '../modules/prompt-viewer/search.js';
-import { groupWorldInfoByNativeOrder } from '../modules/world-info-control/order.js';
+import { groupWorldInfoSections } from '../modules/world-info-control/order.js';
 import {
     WorldInfoControlStore,
     getWorldInfoControlChatKey,
@@ -121,15 +121,37 @@ test('世界书扫描结果保留条目标识和处理后正文', () => {
     assert.equal(entry.processedContent, '处理:正文');
 });
 
-test('世界书组与组内条目按酒馆最终组装方向反转扫描顺序', () => {
-    const groups = groupWorldInfoByNativeOrder([
-        { world: '后扫描', uid: 1, nativeOrder: 3, order: 1007 },
-        { world: '先扫描', uid: 2, nativeOrder: 1, order: 3 },
-        { world: '先扫描', uid: 3, nativeOrder: 0, order: 2 },
-        { world: '中间扫描', uid: 4, nativeOrder: 2, order: 1 },
+test('世界书按来源分区并在分区内沿用酒馆文件名排序', () => {
+    const sections = groupWorldInfoSections([
+        { world: '!! Table.custom', sourceType: 'global', uid: 1, nativeOrder: 3 },
+        { world: '__SSVGG', sourceType: 'global', uid: 2, nativeOrder: 1 },
+        { world: '__SSVGG', sourceType: 'global', uid: 3, nativeOrder: 0 },
+        { world: '角色书', sourceType: 'character', uid: 4, nativeOrder: 2 },
     ]);
-    assert.deepEqual(groups.map(group => group.name), ['后扫描', '中间扫描', '先扫描']);
-    assert.deepEqual(groups[2].entries.map(entry => entry.uid), [2, 3]);
+    assert.deepEqual(sections.map(section => section.label), ['角色世界书', '全局世界书']);
+    assert.deepEqual(sections[1].groups.map(group => group.name), ['__SSVGG', '!! Table.custom']);
+    assert.deepEqual(sections[1].groups[0].entries.map(entry => entry.uid), [2, 3]);
+});
+
+test('世界书适配器保留酒馆加载事件中的来源分类', () => {
+    const store = new WorldInfoControlStore();
+    const adapter = new WorldInfoPromptAdapter({ store });
+    const characterEntry = { world: '角色书', uid: 1, content: '角色' };
+    const globalEntry = { world: '全局书', uid: 2, content: '全局' };
+    adapter.filterLoadedEntries({
+        characterLore: [characterEntry],
+        globalLore: [globalEntry],
+        chatLore: [],
+        personaLore: [],
+    });
+    adapter.captureActivatedEntries({
+        sortedEntries: [characterEntry, globalEntry],
+        activated: { entries: new Set([characterEntry, globalEntry]) },
+    });
+    assert.deepEqual(
+        adapter.getActivatedEntries().map(entry => entry.sourceType),
+        ['character', 'global'],
+    );
 });
 
 test('世界书适配器保留酒馆 sortedEntries 的原生索引', () => {

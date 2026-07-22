@@ -114,6 +114,17 @@
     padding: 6px;
 }
 
+.world-info-control-source + .world-info-control-source {
+    margin-top: 10px;
+}
+
+.world-info-control-source-header {
+    margin: 0 2px 5px;
+    color: var(--SmartThemeBodyColor);
+    font-size: calc(var(--mainFontSize) * 0.85);
+    opacity: 0.7;
+}
+
 .world-info-control-group {
     margin-bottom: 8px;
     overflow: hidden;

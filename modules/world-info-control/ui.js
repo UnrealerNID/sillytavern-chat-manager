@@ -1,5 +1,5 @@
 import { element } from '../shared/dom.js';
-import { groupWorldInfoByNativeOrder } from './order.js';
+import { groupWorldInfoSections } from './order.js';
 import { worldControlId } from './world-info.js';
 
 const PANEL_HEIGHT_KEY = 'sillytavern-toolbox:world-info-control-height';
@@ -106,8 +106,8 @@ export class WorldInfoControlUi {
             this.content.append(createState('fa-magnifying-glass', query ? '没有匹配条目' : '本轮未触发世界书条目'));
             return;
         }
-        for (const group of groupWorldInfoByNativeOrder(visible)) {
-            this.content.append(this.#createWorldGroup(group));
+        for (const section of groupWorldInfoSections(visible)) {
+            this.content.append(this.#createSourceSection(section));
         }
     }
 
@@ -125,6 +125,17 @@ export class WorldInfoControlUi {
         } catch (error) {
             globalThis.toastr?.error?.(`世界书扫描失败：${error.message}`);
         }
+    }
+
+    #createSourceSection(section) {
+        const root = element('section', { className: 'world-info-control-source' });
+        const count = section.groups.reduce((total, group) => total + group.entries.length, 0);
+        root.append(element('header', {
+            className: 'world-info-control-source-header',
+            text: `${section.label} · ${count} 个条目`,
+        }));
+        for (const group of section.groups) root.append(this.#createWorldGroup(group));
+        return root;
     }
 
     #createWorldGroup(group) {

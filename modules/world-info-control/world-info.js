@@ -12,6 +12,7 @@ export class WorldInfoPromptAdapter {
         this.processEntry = processEntry;
         this.activatedEntries = [];
         this.knownEntries = new Map();
+        this.entrySources = new Map();
     }
 
     /**
@@ -20,9 +21,18 @@ export class WorldInfoPromptAdapter {
      */
     filterLoadedEntries(payload) {
         const exclusions = this.store.getExclusions();
-        for (const key of ['globalLore', 'characterLore', 'chatLore', 'personaLore']) {
+        const sources = {
+            characterLore: 'character',
+            globalLore: 'global',
+            chatLore: 'chat',
+            personaLore: 'persona',
+        };
+        for (const [key, sourceType] of Object.entries(sources)) {
             const entries = payload?.[key];
             if (!Array.isArray(entries)) continue;
+            for (const entry of entries) {
+                this.entrySources.set(worldControlId(entry), sourceType);
+            }
             for (let index = entries.length - 1; index >= 0; index -= 1) {
                 if (exclusions.has(worldControlId(entries[index]))) entries.splice(index, 1);
             }
@@ -46,6 +56,7 @@ export class WorldInfoPromptAdapter {
         this.activatedEntries = this.activatedEntries.map(entry => ({
             ...entry,
             nativeOrder: nativeOrder.get(worldControlId(entry)) ?? Number.MAX_SAFE_INTEGER,
+            sourceType: this.entrySources.get(worldControlId(entry)) ?? 'unknown',
             // 事件中的正文已替换宏；此处继续复用酒馆同一正则链路得到实际发送文本
             processedContent: this.processEntry(entry),
         }));
@@ -69,6 +80,7 @@ export class WorldInfoPromptAdapter {
     reset() {
         this.activatedEntries = [];
         this.knownEntries.clear();
+        this.entrySources.clear();
     }
 }
 
