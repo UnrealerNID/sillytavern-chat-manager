@@ -580,27 +580,46 @@
     padding: 8px 10px;
 }
 
+.prompt-control-source-group > .prompt-control-source-branch,
 .prompt-control-source-group > .prompt-control-source-entry {
-    margin-left: 14px;
-    border-left: 1px solid var(--SmartThemeBorderColor);
+    margin: 0 8px 8px 14px;
 }
 
 .prompt-control-source-branch {
     display: grid;
     min-width: 0;
-    margin: 0 6px 6px 14px;
     border: 1px solid var(--SmartThemeBorderColor);
+    border-left-width: 3px;
     border-radius: 5px;
-    background: var(--black30a);
+    background: var(--black20a);
 }
 
 .prompt-control-source-branch-heading {
     padding: 6px 8px;
 }
 
-.prompt-control-source-branch > .prompt-control-source-entry summary,
-.prompt-control-source-branch > .prompt-control-source-entry pre {
-    padding-left: 28px;
+.prompt-control-source-branch > .prompt-control-source-branch,
+.prompt-control-source-branch > .prompt-control-source-entry {
+    margin: 0 6px 6px 14px;
+}
+
+.prompt-control-source-entry {
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-left-width: 3px;
+    border-radius: 4px;
+    background: var(--black30a);
+}
+
+.prompt-control-source-group > .prompt-control-group-heading strong {
+    font-size: 1.04em;
+}
+
+.prompt-control-source-branch > .prompt-control-group-heading strong {
+    font-size: 1em;
+}
+
+.prompt-control-source-entry > summary strong {
+    font-size: 0.96em;
 }
 
 .prompt-control-excluded {

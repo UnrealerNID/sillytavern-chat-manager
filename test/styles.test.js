@@ -43,8 +43,16 @@ test('prompt panel stays compact, resizable and free of horizontal scrolling', a
     assert.match(css, /prompt-control-loading-icon[^}]*animation:\s*prompt-control-spin/s);
     assert.match(css, /prompt-control-content-state[^}]*place-content:\s*center/s);
     assert.match(css, /prompt-control-message pre,[\s\S]*padding:\s*7px 7px 7px 24px/s);
-    assert.match(css, /prompt-control-source-group > \.prompt-control-source-entry[^}]*margin-left:\s*14px/s);
-    assert.match(css, /prompt-control-source-branch[^}]*margin:\s*0 6px 6px 14px/s);
+    assert.match(
+        css,
+        /prompt-control-source-group > \.prompt-control-source-branch,[\s\S]*margin:\s*0 8px 8px 14px/s,
+    );
+    assert.match(
+        css,
+        /prompt-control-source-branch > \.prompt-control-source-branch,[\s\S]*margin:\s*0 6px 6px 14px/s,
+    );
+    assert.match(css, /prompt-control-source-branch[^}]*border-left-width:\s*3px/s);
+    assert.match(css, /prompt-control-source-entry[^}]*border-left-width:\s*3px/s);
     assert.match(css, /\.prompt-control-action-separator\s*\{[^}]*width:\s*1px/s);
     assert.match(
         css,
