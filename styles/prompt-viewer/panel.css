@@ -290,7 +290,7 @@
     white-space: nowrap;
 }
 
-.prompt-control-message pre {
+.prompt-control-message-body {
     max-height: min(420px, 50vh);
     margin: 0 6px 6px 20px;
     padding: 8px 10px;

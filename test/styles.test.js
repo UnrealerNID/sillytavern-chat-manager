@@ -58,6 +58,10 @@ test('世界书控制使用贴靠输入区的单一折叠入口', async () => {
     assert.match(css, /\.world-info-control-content\s*\{[^}]*overflow:\s*auto/s);
     assert.match(css, /\.world-info-control-resize\s*\{[^}]*cursor:\s*ns-resize/s);
     assert.match(css, /\.world-info-control-entry-metadata\s*\{/);
+    assert.match(css, /font-family:\s*var\(--mainFontFamily\)/);
+    assert.match(css, /font-size:\s*calc\(var\(--mainFontSize\) \* 0\.9\)/);
+    assert.match(css, /\.world-info-control-entry-content\s*\{[^}]*white-space:\s*pre-wrap/s);
+    assert.doesNotMatch(ui, /element\('pre'/);
     assert.match(ui, /form\.append\(this\.root\)/);
     assert.doesNotMatch(ui, /#leftSendForm|tools\.append|this\.trigger/);
     assert.match(ui, /store\.setExcluded\(controlId/);
@@ -76,6 +80,20 @@ test('世界书控制使用贴靠输入区的单一折叠入口', async () => {
     assert.match(template, /data-world-info-control-clear/);
     assert.match(ui, /className: 'toolbox-switch world-info-control-switch'/);
     assert.doesNotMatch(css, /\.world-info-control-switch span::after/);
+});
+
+test('普通消息正文保留换行但不使用代码块字体', async () => {
+    const files = await Promise.all([
+        readFile(new URL('../modules/prompt-viewer/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../styles/prompt-viewer/panel.css', import.meta.url), 'utf8'),
+        readFile(new URL('../templates/chat-files/components.html', import.meta.url), 'utf8'),
+        readFile(new URL('../templates/chat-files/data-maid-enhancer.html', import.meta.url), 'utf8'),
+        readFile(new URL('../styles/chat-files/components.css', import.meta.url), 'utf8'),
+    ]);
+    const source = files.join('\n');
+    assert.doesNotMatch(source, /<pre|element\('pre'|\.cm-message pre|\.prompt-control-message pre/);
+    assert.match(source, /\.cm-message-content\s*\{[^}]*white-space:\s*pre-wrap/s);
+    assert.match(source, /\.prompt-control-message-body\s*\{[^}]*white-space:\s*pre-wrap/s);
 });
 
 test('chat manager panels and modal dialogs use their dedicated layers', async () => {

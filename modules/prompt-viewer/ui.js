@@ -160,7 +160,7 @@ export class PromptViewerUi {
             label,
             element('small', { text: `${formatNumber(node.tokenCount)} Tokens` }),
         );
-        const body = element('pre');
+        const body = element('div', { className: 'prompt-control-message-body' });
         this.search.appendHighlighted(body, node.content);
         details.append(summary, body);
         if (this.search.matches(node.content)) this.search.mark(details);

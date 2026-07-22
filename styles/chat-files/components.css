@@ -293,7 +293,7 @@
     white-space: nowrap;
 }
 
-.cm-message pre {
+.cm-message-content {
     overflow: auto;
     max-height: 45vh;
     margin: 8px 0 0;

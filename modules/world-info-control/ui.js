@@ -165,7 +165,10 @@ export class WorldInfoControlUi {
         summary.append(copy, metadata, toggle);
         details.append(
             summary,
-            element('pre', { text: entry.processedContent || '空内容' }),
+            element('div', {
+                className: 'world-info-control-entry-content',
+                text: entry.processedContent,
+            }),
         );
         return details;
     }

@@ -20,6 +20,9 @@
     border-radius: 8px 8px 0 0;
     background: var(--SmartThemeBlurTintColor);
     box-shadow: 0 -5px 18px rgb(0 0 0 / 25%);
+    font-family: var(--mainFontFamily);
+    font-size: calc(var(--mainFontSize) * 0.9);
+    line-height: inherit;
 }
 
 .world-info-control-resize {
@@ -181,7 +184,7 @@
     content: "·";
 }
 
-.world-info-control-entry pre {
+.world-info-control-entry-content {
     max-height: 220px;
     margin: 0;
     padding: 8px 16px 10px;
@@ -193,7 +196,11 @@
     overflow-wrap: anywhere;
 }
 
-.world-info-control-excluded :is(.world-info-control-entry-copy, .world-info-control-entry-metadata, pre) {
+.world-info-control-excluded :is(
+    .world-info-control-entry-copy,
+    .world-info-control-entry-metadata,
+    .world-info-control-entry-content
+) {
     opacity: 0.55;
 }
 
