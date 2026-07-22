@@ -1,40 +1,40 @@
-.prompt-control-anchor {
-    position: relative;
-}
-
 .prompt-control-host {
-    position: absolute;
-    right: 0;
-    bottom: 100%;
-    left: 0;
-    z-index: 2000;
-    height: 0;
+    position: fixed;
+    z-index: 3000;
+    width: 42px;
+    height: 42px;
     pointer-events: none;
 }
 
 .prompt-control-trigger {
-    position: absolute;
-    right: 4px;
-    bottom: 2px;
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    min-width: 24px;
-    height: 22px;
-    padding: 0 5px;
+    width: 42px;
+    height: 42px;
+    padding: 0;
     border: 1px solid var(--SmartThemeBorderColor);
-    border-radius: 5px;
-    font-size: 0.82em;
+    border-radius: 50%;
+    font-size: 1.05em;
     color: var(--SmartThemeBodyColor);
     background: var(--SmartThemeBlurTintColor);
-    opacity: 0.8;
+    box-shadow: 0 3px 12px rgb(0 0 0 / 32%);
+    opacity: 0.88;
     pointer-events: auto;
-    cursor: pointer;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    backdrop-filter: blur(var(--SmartThemeBlurStrength));
 }
 
 .prompt-control-trigger:hover {
     opacity: 1;
+    filter: brightness(1.12);
+}
+
+.prompt-control-trigger.dragging {
+    cursor: grabbing;
 }
 
 .prompt-control-trigger span:empty {
@@ -42,23 +42,29 @@
 }
 
 .prompt-control-trigger span {
-    font-size: 0.7rem;
+    position: absolute;
+    top: -5px;
+    right: -7px;
+    min-width: 18px;
+    padding: 1px 4px;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 999px;
+    font-size: 0.62rem;
     font-weight: 600;
+    line-height: 1.2;
+    background: var(--SmartThemeBlurTintColor);
 }
 
 .prompt-control-panel {
-    position: absolute;
-    right: 0;
-    bottom: 28px;
-    left: 0;
+    position: fixed;
     display: flex;
     overflow: hidden;
     flex-direction: column;
-    width: 100%;
+    width: min(760px, calc(100vw - 16px));
     min-width: 0;
     height: min(52dvh, 620px);
-    min-height: 220px;
-    max-height: 75dvh;
+    min-height: min(220px, calc(100dvh - 16px));
+    max-height: calc(100dvh - 16px);
     box-sizing: border-box;
     margin: 0;
     color: var(--SmartThemeBodyColor);
@@ -68,11 +74,86 @@
     box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
     backdrop-filter: blur(var(--SmartThemeBlurStrength));
     pointer-events: auto;
-    resize: vertical;
 }
 
 .prompt-control-panel[hidden] {
     display: none;
+}
+
+.prompt-control-resize-handles > span {
+    position: absolute;
+    z-index: 2;
+    touch-action: none;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="n"],
+.prompt-control-resize-handles [data-prompt-resize="s"] {
+    right: 10px;
+    left: 10px;
+    height: 7px;
+    cursor: ns-resize;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="n"] {
+    top: 0;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="s"] {
+    bottom: 0;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="e"],
+.prompt-control-resize-handles [data-prompt-resize="w"] {
+    top: 10px;
+    bottom: 10px;
+    width: 7px;
+    cursor: ew-resize;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="e"] {
+    right: 0;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="w"] {
+    left: 0;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="ne"],
+.prompt-control-resize-handles [data-prompt-resize="se"],
+.prompt-control-resize-handles [data-prompt-resize="sw"],
+.prompt-control-resize-handles [data-prompt-resize="nw"] {
+    width: 12px;
+    height: 12px;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="ne"],
+.prompt-control-resize-handles [data-prompt-resize="sw"] {
+    cursor: nesw-resize;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="se"],
+.prompt-control-resize-handles [data-prompt-resize="nw"] {
+    cursor: nwse-resize;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="ne"],
+.prompt-control-resize-handles [data-prompt-resize="nw"] {
+    top: 0;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="se"],
+.prompt-control-resize-handles [data-prompt-resize="sw"] {
+    bottom: 0;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="ne"],
+.prompt-control-resize-handles [data-prompt-resize="se"] {
+    right: 0;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="sw"],
+.prompt-control-resize-handles [data-prompt-resize="nw"] {
+    left: 0;
 }
 
 .prompt-control-header,
@@ -324,7 +405,6 @@
 
 @media (max-width: 700px) {
     .prompt-control-panel {
-        height: 58dvh;
-        max-height: 58dvh;
+        max-height: calc(100dvh - 16px);
     }
 }

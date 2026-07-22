@@ -10,6 +10,11 @@ import {
     groupContributionsBySource,
 } from '../modules/prompt-control/snapshot.js';
 import { countPromptMessageTokens } from '../modules/prompt-control/token-counter.js';
+import {
+    clampFloatingPosition,
+    placeFloatingPanel,
+    resizeFloatingPanel,
+} from '../modules/prompt-control/ui.js';
 import { WorldInfoPromptAdapter } from '../modules/prompt-control/world-info.js';
 
 const countTokens = async text => String(text).length;
@@ -179,6 +184,33 @@ test('不把内部哈希标识直接显示为来源名称', async () => {
         dryRun: true,
     });
     assert.equal(snapshot.contributions[0].sourceName, '其他提示词');
+});
+
+test('悬浮气泡和面板移动后始终保留在视口内', () => {
+    assert.deepEqual(
+        clampFloatingPosition({ x: -20, y: 900 }, { width: 42, height: 42 }, { width: 1000, height: 800 }),
+        { x: 8, y: 750 },
+    );
+    assert.deepEqual(
+        placeFloatingPanel(
+            { left: 4, top: 730, right: 46, bottom: 772, width: 42, height: 42 },
+            { width: 400, height: 300 },
+            { width: 1000, height: 800 },
+        ),
+        { left: 8, top: 422 },
+    );
+});
+
+test('面板四边与四角均可调整且不会越出视口', () => {
+    const bounds = { left: 200, top: 180, width: 500, height: 360 };
+    assert.deepEqual(
+        resizeFloatingPanel(bounds, 'nw', { x: -300, y: -300 }, { width: 1000, height: 800 }),
+        { left: 8, top: 8, width: 692, height: 532 },
+    );
+    assert.deepEqual(
+        resizeFloatingPanel(bounds, 'se', { x: 500, y: 500 }, { width: 1000, height: 800 }),
+        { left: 200, top: 180, width: 792, height: 612 },
+    );
 });
 
 function message(identifier, role, content) {

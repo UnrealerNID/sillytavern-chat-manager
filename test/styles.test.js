@@ -23,13 +23,14 @@ test('style entry imports every responsibility module', async () => {
 test('prompt panel stays compact, resizable and free of horizontal scrolling', async () => {
     const css = await readFile(new URL('../styles/prompt-control/panel.css', import.meta.url), 'utf8');
     const ui = await readFile(new URL('../modules/prompt-control/ui.js', import.meta.url), 'utf8');
-    assert.match(css, /\.prompt-control-panel\s*\{[^}]*resize:\s*vertical/s);
-    assert.match(css, /\.prompt-control-host\s*\{[^}]*position:\s*absolute/s);
-    assert.match(css, /\.prompt-control-host\s*\{[^}]*bottom:\s*100%/s);
+    assert.match(css, /\.prompt-control-host\s*\{[^}]*position:\s*fixed/s);
+    assert.match(css, /data-prompt-resize="n"/);
+    assert.match(css, /data-prompt-resize="se"/);
     assert.match(css, /\.prompt-control-content\s*\{[^}]*overflow-x:\s*hidden/s);
     assert.match(css, /\.prompt-control-tabs\s*\{[^}]*flex-wrap:\s*wrap/s);
-    assert.match(ui, /form\.append\(root\)/);
-    assert.doesNotMatch(ui, /leftSendForm|optionsButton/);
+    assert.match(ui, /document\.body\.append\(root\)/);
+    assert.match(ui, /POSITION_KEY/);
+    assert.match(ui, /PANEL_SIZE_KEY/);
     assert.match(ui, /Role: \$\{roleIcon\(node\.role\)\} \$\{node\.role\} \| Tokens:/);
 });
 
