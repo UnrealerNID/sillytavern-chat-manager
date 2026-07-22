@@ -88,6 +88,12 @@ export class PromptControlModule {
         this.#addBinding(events.CHAT_COMPLETION_PROMPT_READY, payload => {
             return this.capture.captureChat(payload);
         });
+        this.#addBinding(events.CHAT_COMPLETION_SETTINGS_READY, () => {
+            this.capture.stopPreviewRequest();
+        });
+        this.#addBinding(events.GENERATE_AFTER_DATA, () => {
+            this.capture.stopPreviewRequest();
+        });
         this.#addBinding(events.GENERATE_BEFORE_COMBINE_PROMPTS, payload => {
             this.capture.captureTextParts(payload);
         });

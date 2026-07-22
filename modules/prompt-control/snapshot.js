@@ -102,6 +102,23 @@ export class PromptSnapshotStore {
     }
 
     /**
+     * 批量切换同一消息组的临时排除状态
+     * @param {string[]} controlIds 控制标识
+     * @param {boolean} excluded 是否排除
+     */
+    setExclusions(controlIds, excluded) {
+        if (!this.chatKey) return;
+        const values = this.exclusions.get(this.chatKey) ?? new Set();
+        for (const controlId of controlIds.filter(Boolean)) {
+            if (excluded) values.add(controlId);
+            else values.delete(controlId);
+        }
+        if (values.size) this.exclusions.set(this.chatKey, values);
+        else this.exclusions.delete(this.chatKey);
+        this.#notify();
+    }
+
+    /**
      * 清空当前聊天的临时排除
      */
     clearCurrent() {

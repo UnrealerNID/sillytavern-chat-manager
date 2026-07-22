@@ -24,13 +24,19 @@ export class PromptCaptureController {
         this.worldInfo = worldInfo;
         this.enabled = false;
         this.refreshTask = null;
+        this.previewing = false;
+        this.previewAbortExpected = false;
         this.textParts = [];
         this.captureRevision = 0;
     }
 
     setEnabled(enabled) {
         this.enabled = enabled;
-        if (!enabled) this.refreshTask = null;
+        if (!enabled) {
+            this.refreshTask = null;
+            this.previewing = false;
+            this.previewAbortExpected = false;
+        }
     }
 
     /**
@@ -41,7 +47,7 @@ export class PromptCaptureController {
     }
 
     /**
-     * 使用酒馆原生干跑生成刷新预览
+     * 使用完整生成链路装配预览，并在网络请求前中止
      * @returns {Promise<void>} 刷新完成
      */
     async refresh() {
@@ -54,16 +60,28 @@ export class PromptCaptureController {
             return;
         }
         this.store.setStatus('loading');
-        this.refreshTask = context.generate('normal', {}, true).then(() => {
-            if (this.store.getStatus() === 'loading') this.store.setStatus('ready');
-        }).catch(error => {
+        this.previewing = true;
+        this.previewAbortExpected = false;
+        this.refreshTask = context.generate('normal').catch(error => {
+            if (this.previewAbortExpected) return;
             this.store.setStatus('error');
             console.error('[酒馆工具箱] 刷新本轮提示词失败', error);
             throw error;
         }).finally(() => {
+            this.previewing = false;
+            this.previewAbortExpected = false;
             this.refreshTask = null;
         });
         return this.refreshTask;
+    }
+
+    /**
+     * 在最终请求参数生成后终止本次预览，阻止请求发送到模型
+     */
+    stopPreviewRequest() {
+        if (!this.previewing || !this.refreshTask) return;
+        this.previewAbortExpected = true;
+        this.getContext().stopGeneration();
     }
 
     /**

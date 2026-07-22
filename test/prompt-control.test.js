@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
@@ -12,6 +13,7 @@ import {
 import { countPromptMessageTokens } from '../modules/prompt-control/token-counter.js';
 import {
     clampFloatingPosition,
+    groupAdjacentPromptNodes,
     placeFloatingPanel,
     resizeFloatingPanel,
 } from '../modules/prompt-control/ui.js';
@@ -93,6 +95,11 @@ test('排除状态按聊天隔离且不写入快照', () => {
     assert.equal(store.isExcluded('final:a'), false);
     store.setChatKey('character:1:chat-a');
     assert.equal(store.isExcluded('final:a'), true);
+    store.setExclusions(['final:a', 'final:b'], false);
+    assert.equal(store.isExcluded('final:a'), false);
+    assert.equal(store.isExcluded('final:b'), false);
+    store.setExclusions(['final:a', 'final:b'], true);
+    assert.equal(store.isExcluded('final:b'), true);
     store.clearCurrent();
     assert.equal(store.isExcluded('final:a'), false);
 });
@@ -184,6 +191,39 @@ test('不把内部哈希标识直接显示为来源名称', async () => {
         dryRun: true,
     });
     assert.equal(snapshot.contributions[0].sourceName, '其他提示词');
+});
+
+test('提示词视图只合并发送顺序中连续且相同的角色', () => {
+    const groups = groupAdjacentPromptNodes([
+        { id: 's1', role: 'system', content: '系统一', tokenCount: 3 },
+        { id: 's2', role: 'system', content: '系统二', tokenCount: 4 },
+        { id: 'u1', role: 'user', content: '用户', tokenCount: 2 },
+        { id: 's3', role: 'system', content: '系统三', tokenCount: 5 },
+    ]);
+
+    assert.deepEqual(groups.map(group => ({
+        role: group.role,
+        ids: group.nodes.map(node => node.id),
+        tokenCount: group.tokenCount,
+        content: group.content,
+    })), [
+        { role: 'system', ids: ['s1', 's2'], tokenCount: 7, content: '系统一\n\n系统二' },
+        { role: 'user', ids: ['u1'], tokenCount: 2, content: '用户' },
+        { role: 'system', ids: ['s3'], tokenCount: 5, content: '系统三' },
+    ]);
+});
+
+test('提示词预览走完整装配链路并在网络请求前停止', async () => {
+    const [capture, moduleSource] = await Promise.all([
+        readFile(new URL('../modules/prompt-control/capture.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/prompt-control/module.js', import.meta.url), 'utf8'),
+    ]);
+
+    assert.match(capture, /context\.generate\('normal'\)/);
+    assert.doesNotMatch(capture, /context\.generate\('normal', \{\}, true\)/);
+    assert.match(capture, /this\.getContext\(\)\.stopGeneration\(\)/);
+    assert.match(moduleSource, /CHAT_COMPLETION_SETTINGS_READY/);
+    assert.match(moduleSource, /GENERATE_AFTER_DATA/);
 });
 
 test('悬浮气泡和面板移动后始终保留在视口内', () => {

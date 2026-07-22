@@ -100,9 +100,9 @@ export class TavernHelperPromptIntegration {
         enhanced.hidden = true;
         const mount = { dialog, body, original, tabs, enhanced, view: 'prompt' };
         for (const [view, label] of [
-            ['prompt', '本轮提示词'],
-            ['position', '发送位置'],
-            ['source', '来源类型'],
+            ['prompt', '提示词'],
+            ['position', '发送顺序'],
+            ['source', '来源'],
         ]) {
             const button = element('button', {
                 className: `menu_button${view === 'prompt' ? ' selected' : ''}`,

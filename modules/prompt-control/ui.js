@@ -1,11 +1,6 @@
 import { element } from '../shared/dom.js';
 import { groupContributionsBySource } from './snapshot.js';
 
-const VIEW_LABELS = Object.freeze({
-    prompt: '本轮提示词',
-    position: '发送位置',
-    source: '来源类型',
-});
 const RENDER_BATCH_SIZE = 100;
 const POSITION_KEY = 'sillytavern-toolbox:prompt-control-position';
 const PANEL_SIZE_KEY = 'sillytavern-toolbox:prompt-control-panel-size';
@@ -239,16 +234,16 @@ export class PromptControlUi {
             idle: '选择角色或群聊后可读取',
             stale: '内容已变化，等待刷新',
             loading: '',
-            ready: snapshot?.kind === 'actual' ? '已捕获实际发送' : '当前预览',
+            ready: '',
             error: '读取失败，不影响正常发送',
         }[status] ?? '';
         this.status.textContent = statusText;
-        this.status.hidden = status === 'loading';
+        this.status.hidden = status === 'loading' || status === 'ready';
         const total = enabledTokenTotal(snapshot, this.store);
         this.summary.textContent = status === 'loading'
             ? '正在读取'
             : snapshot
-            ? `${VIEW_LABELS[this.view]} · Tokens: ${total}`
+            ? `${formatNumber(total)} Tokens · ${snapshot.finalNodes.length} 条消息`
             : '尚未读取';
         this.triggerTokens.textContent = snapshot && status !== 'loading' ? String(total) : '';
         this.trigger.title = snapshot && status !== 'loading'
@@ -259,9 +254,49 @@ export class PromptControlUi {
     #renderPrompt(container, snapshot) {
         appendInBatches(
             container,
-            snapshot.finalNodes,
-            node => this.#createFinalNode(node, false, snapshot),
+            groupAdjacentPromptNodes(snapshot.finalNodes),
+            group => this.#createRoleGroup(group),
         );
+    }
+
+    #createRoleGroup(group) {
+        const card = element('article', { className: 'prompt-control-role-group' });
+        const header = element('header', { className: 'prompt-control-role-header' });
+        header.append(
+            element('strong', { text: `${roleIcon(group.role)} ${group.role}` }),
+            element('small', {
+                text: group.nodes.length > 1
+                    ? `${group.nodes.length} 条 · ${formatNumber(group.tokenCount)} Tokens`
+                    : `${formatNumber(group.tokenCount)} Tokens`,
+            }),
+            this.#createGroupToggle(group.nodes),
+        );
+        card.append(header, createContent(group.content));
+        const controllable = group.nodes.filter(node => node.controlLevel !== 'locked');
+        card.classList.toggle(
+            'prompt-control-excluded',
+            Boolean(controllable.length && controllable.every(node => this.store.isExcluded(node.id))),
+        );
+        return card;
+    }
+
+    #createGroupToggle(nodes) {
+        const controllable = nodes.filter(node => node.controlLevel !== 'locked');
+        const label = element('label', {
+            className: 'prompt-control-switch',
+            title: controllable.length ? '是否发送该组消息' : '该组消息不可单独关闭',
+        });
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.disabled = !controllable.length;
+        const enabledCount = controllable.filter(node => !this.store.isExcluded(node.id)).length;
+        input.checked = enabledCount > 0;
+        input.indeterminate = enabledCount > 0 && enabledCount < controllable.length;
+        input.addEventListener('change', () => {
+            this.store.setExclusions(controllable.map(node => node.id), !input.checked);
+        });
+        label.append(input, element('span'));
+        return label;
     }
 
     #renderPositions(container, snapshot) {
@@ -591,6 +626,31 @@ export function clampFloatingPosition(position, size, viewport) {
 }
 
 /**
+ * 按发送顺序合并连续且角色相同的消息
+ * @param {object[]} nodes 最终消息节点
+ * @returns {object[]} 角色消息组
+ */
+export function groupAdjacentPromptNodes(nodes) {
+    const groups = [];
+    for (const node of nodes) {
+        const current = groups.at(-1);
+        if (!current || current.role !== node.role) {
+            groups.push({
+                role: node.role,
+                nodes: [node],
+                tokenCount: node.tokenCount,
+                content: node.content,
+            });
+            continue;
+        }
+        current.nodes.push(node);
+        current.tokenCount += node.tokenCount;
+        current.content = [current.content, node.content].filter(Boolean).join('\n\n');
+    }
+    return groups;
+}
+
+/**
  * 根据拖动方向调整面板边界并限制在视口内
  * @param {object} bounds 初始边界
  * @param {number} bounds.left 左边界
@@ -681,6 +741,10 @@ function createLoadingState() {
         element('span', { text: '正在读取本轮提示词…' }),
     );
     return loading;
+}
+
+function formatNumber(value) {
+    return new Intl.NumberFormat().format(Number(value) || 0);
 }
 
 function appendInBatches(container, items, renderItem) {
