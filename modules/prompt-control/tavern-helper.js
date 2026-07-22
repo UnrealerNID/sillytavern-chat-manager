@@ -101,11 +101,10 @@ export class TavernHelperPromptIntegration {
         const mount = { dialog, body, original, tabs, enhanced, view: 'prompt' };
         for (const [view, label] of [
             ['prompt', '提示词'],
-            ['position', '发送顺序'],
             ['source', '来源'],
         ]) {
             const button = element('button', {
-                className: `menu_button${view === 'prompt' ? ' selected' : ''}`,
+                className: view === 'prompt' ? 'selected' : '',
                 text: label,
                 type: 'button',
                 attrs: { 'data-prompt-helper-view': view },

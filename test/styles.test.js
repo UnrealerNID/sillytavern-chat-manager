@@ -23,6 +23,7 @@ test('style entry imports every responsibility module', async () => {
 test('prompt panel stays compact, resizable and free of horizontal scrolling', async () => {
     const css = await readFile(new URL('../styles/prompt-control/panel.css', import.meta.url), 'utf8');
     const ui = await readFile(new URL('../modules/prompt-control/ui.js', import.meta.url), 'utf8');
+    const template = await readFile(new URL('../templates/prompt-control/panel.html', import.meta.url), 'utf8');
     assert.match(css, /\.prompt-control-host\.prompt-control-floating\s*\{[^}]*position:\s*fixed/s);
     assert.match(css, /\.prompt-control-host\.prompt-control-floating\s*\{[^}]*z-index:\s*31100/s);
     assert.match(css, /\.prompt-control-host\.prompt-control-input\s*\{[^}]*bottom:\s*100%/s);
@@ -39,7 +40,13 @@ test('prompt panel stays compact, resizable and free of horizontal scrolling', a
     assert.match(css, /prompt-control-loading-icon[^}]*animation:\s*prompt-control-spin/s);
     assert.match(ui, /POSITION_KEY/);
     assert.match(ui, /PANEL_SIZE_KEY/);
-    assert.match(ui, /Role: \$\{roleIcon\(node\.role\)\} \$\{node\.role\} \| Tokens:/);
+    assert.match(ui, /Role: \$\{roleIcon\(group\.role\)\} \$\{group\.role\}/);
+    assert.match(ui, /Tokens: \$\{formatNumber\(node\.tokenCount\)\}/);
+    assert.match(ui, /group\.nodes\.length > 1/);
+    assert.doesNotMatch(template, /data-prompt-view="position"/);
+    assert.match(template, /prompt-control-header[\s\S]*data-prompt-control-collapse[\s\S]*<\/header>/);
+    assert.match(template, /prompt-control-viewbar[\s\S]*data-prompt-control-refresh/);
+    assert.match(template, /prompt-control-statebar[\s\S]*data-prompt-control-clear/);
 });
 
 test('chat manager panels and modal dialogs use their dedicated layers', async () => {

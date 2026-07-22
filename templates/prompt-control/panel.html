@@ -25,36 +25,37 @@
                 <strong>提示词</strong>
                 <small data-prompt-control-summary>尚未读取</small>
             </div>
-            <div class="prompt-control-actions">
-                <button
-                    data-prompt-control-refresh
-                    class="menu_button fa-solid fa-rotate-right"
-                    type="button"
-                    title="刷新本轮提示词"
-                    aria-label="刷新本轮提示词"
-                ></button>
-                <button
-                    data-prompt-control-clear
-                    class="menu_button fa-solid fa-eraser"
-                    type="button"
-                    title="清空临时排除"
-                    aria-label="清空临时排除"
-                ></button>
-                <button
-                    data-prompt-control-collapse
-                    class="menu_button fa-solid fa-chevron-down"
-                    type="button"
-                    title="收起面板"
-                    aria-label="收起面板"
-                ></button>
-            </div>
+            <button
+                data-prompt-control-collapse
+                class="menu_button fa-solid fa-chevron-down prompt-control-collapse"
+                type="button"
+                title="收起面板"
+                aria-label="收起面板"
+            ></button>
         </header>
-        <nav class="prompt-control-tabs" aria-label="提示词查看方式">
-            <button data-prompt-view="prompt" class="selected" type="button">提示词</button>
-            <button data-prompt-view="position" type="button">发送顺序</button>
-            <button data-prompt-view="source" type="button">来源</button>
-        </nav>
-        <div data-prompt-control-status class="prompt-control-status" role="status"></div>
+        <div class="prompt-control-viewbar">
+            <nav class="prompt-control-tabs" aria-label="提示词查看方式">
+                <button data-prompt-view="prompt" class="selected" type="button">提示词</button>
+                <button data-prompt-view="source" type="button">来源</button>
+            </nav>
+            <button
+                data-prompt-control-refresh
+                class="menu_button fa-solid fa-rotate-right prompt-control-refresh"
+                type="button"
+                title="刷新本轮提示词"
+                aria-label="刷新本轮提示词"
+            ></button>
+        </div>
+        <div class="prompt-control-statebar">
+            <div data-prompt-control-status class="prompt-control-status" role="status"></div>
+            <button
+                data-prompt-control-clear
+                class="menu_button fa-solid fa-eraser prompt-control-clear"
+                type="button"
+                title="恢复临时关闭的内容"
+                aria-label="恢复临时关闭的内容"
+            ></button>
+        </div>
         <div data-prompt-control-content class="prompt-control-content"></div>
     </section>
 </div>

@@ -193,7 +193,7 @@ test('不把内部哈希标识直接显示为来源名称', async () => {
     assert.equal(snapshot.contributions[0].sourceName, '其他提示词');
 });
 
-test('提示词视图只合并发送顺序中连续且相同的角色', () => {
+test('提示词视图只合并最终顺序中连续且相同的角色', () => {
     const groups = groupAdjacentPromptNodes([
         { id: 's1', role: 'system', content: '系统一', tokenCount: 3 },
         { id: 's2', role: 'system', content: '系统二', tokenCount: 4 },
@@ -205,11 +205,10 @@ test('提示词视图只合并发送顺序中连续且相同的角色', () => {
         role: group.role,
         ids: group.nodes.map(node => node.id),
         tokenCount: group.tokenCount,
-        content: group.content,
     })), [
-        { role: 'system', ids: ['s1', 's2'], tokenCount: 7, content: '系统一\n\n系统二' },
-        { role: 'user', ids: ['u1'], tokenCount: 2, content: '用户' },
-        { role: 'system', ids: ['s3'], tokenCount: 5, content: '系统三' },
+        { role: 'system', ids: ['s1', 's2'], tokenCount: 7 },
+        { role: 'user', ids: ['u1'], tokenCount: 2 },
+        { role: 'system', ids: ['s3'], tokenCount: 5 },
     ]);
 });
 

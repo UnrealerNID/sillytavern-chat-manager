@@ -58,6 +58,7 @@ export class PromptControlUi {
         this.content = requireElement(root, '[data-prompt-control-content]');
         this.status = requireElement(root, '[data-prompt-control-status]');
         this.summary = requireElement(root, '[data-prompt-control-summary]');
+        this.clearButton = requireButton(root, '[data-prompt-control-clear]');
         this.triggerTokens = requireElement(trigger, '[data-prompt-control-trigger-tokens]');
         this.root.classList.add('prompt-control-floating');
         this.#restorePosition();
@@ -151,7 +152,7 @@ export class PromptControlUi {
     /**
      * 将指定结构视图渲染到外部容器
      * @param {HTMLElement} container 目标容器
-     * @param {'position'|'source'|'prompt'} view 视图类型
+     * @param {'source'|'prompt'} view 视图类型
      */
     renderInto(container, view) {
         const snapshot = this.store.getSnapshot();
@@ -168,7 +169,6 @@ export class PromptControlUi {
             return;
         }
         if (view === 'prompt') this.#renderPrompt(container, snapshot);
-        if (view === 'position') this.#renderPositions(container, snapshot);
         if (view === 'source') this.#renderSources(container, snapshot);
     }
 
@@ -203,11 +203,10 @@ export class PromptControlUi {
             .addEventListener('click', () => this.setOpen(false));
         requireButton(this.root, '[data-prompt-control-refresh]')
             .addEventListener('click', () => void this.#refresh());
-        requireButton(this.root, '[data-prompt-control-clear]')
-            .addEventListener('click', () => {
-                this.store.clearCurrent();
-                void this.#refresh();
-            });
+        this.clearButton.addEventListener('click', () => {
+            this.store.clearCurrent();
+            void this.#refresh();
+        });
         for (const tab of this.root.querySelectorAll('[data-prompt-view]')) {
             tab.addEventListener('click', () => {
                 this.view = tab.dataset.promptView;
@@ -239,6 +238,8 @@ export class PromptControlUi {
         }[status] ?? '';
         this.status.textContent = statusText;
         this.status.hidden = status === 'loading' || status === 'ready';
+        const hasExclusions = this.store.getExclusions().size > 0;
+        this.clearButton.disabled = !hasExclusions || status === 'loading';
         const total = enabledTokenTotal(snapshot, this.store);
         this.summary.textContent = status === 'loading'
             ? '正在读取'
@@ -263,20 +264,17 @@ export class PromptControlUi {
         const card = element('article', { className: 'prompt-control-role-group' });
         const header = element('header', { className: 'prompt-control-role-header' });
         header.append(
-            element('strong', { text: `${roleIcon(group.role)} ${group.role}` }),
+            element('strong', { text: `Role: ${roleIcon(group.role)} ${group.role}` }),
             element('small', {
-                text: group.nodes.length > 1
-                    ? `${group.nodes.length} 条 · ${formatNumber(group.tokenCount)} Tokens`
-                    : `${formatNumber(group.tokenCount)} Tokens`,
+                text: `${group.nodes.length} 条 · Tokens: ${formatNumber(group.tokenCount)}`,
             }),
-            this.#createGroupToggle(group.nodes),
         );
-        card.append(header, createContent(group.content));
-        const controllable = group.nodes.filter(node => node.controlLevel !== 'locked');
-        card.classList.toggle(
-            'prompt-control-excluded',
-            Boolean(controllable.length && controllable.every(node => this.store.isExcluded(node.id))),
-        );
+        if (group.nodes.length > 1) header.append(this.#createGroupToggle(group.nodes));
+        const messages = element('div', { className: 'prompt-control-role-messages' });
+        group.nodes.forEach((node, index) => {
+            messages.append(this.#createPromptMessage(node, index, group.nodes.length));
+        });
+        card.append(header, messages);
         return card;
     }
 
@@ -299,12 +297,25 @@ export class PromptControlUi {
         return label;
     }
 
-    #renderPositions(container, snapshot) {
-        appendInBatches(
-            container,
-            snapshot.finalNodes,
-            node => this.#createFinalNode(node, true, snapshot),
+    #createPromptMessage(node, index, groupSize) {
+        const details = element('details', { className: 'prompt-control-message' });
+        details.open = groupSize === 1;
+        const summary = document.createElement('summary');
+        const preview = node.content.trim().split(/\r?\n/)[0].slice(0, 160) || '空内容';
+        summary.append(
+            element('span', {
+                className: 'prompt-control-message-label',
+                text: groupSize > 1 ? `#${index + 1} ${preview}` : preview,
+            }),
+            element('small', { text: `Tokens: ${formatNumber(node.tokenCount)}` }),
+            this.#createToggle(node.id, node.controlLevel),
         );
+        summary.querySelector('.prompt-control-switch')?.addEventListener('click', event => {
+            event.stopPropagation();
+        });
+        details.append(summary, element('pre', { text: node.content }));
+        details.classList.toggle('prompt-control-excluded', this.store.isExcluded(node.id));
+        return details;
     }
 
     #renderSources(container, snapshot) {
@@ -319,31 +330,6 @@ export class PromptControlUi {
             appendInBatches(section, group.items, item => this.#createContribution(item));
             container.append(section);
         }
-    }
-
-    #createFinalNode(node, includeContributions, snapshot) {
-        const card = element('article', { className: 'prompt-control-card' });
-        const header = element('header', { className: 'prompt-control-card-header' });
-        header.append(
-            element('span', {
-                className: 'prompt-control-item-meta',
-                text: `Role: ${roleIcon(node.role)} ${node.role} | Tokens: ${node.tokenCount}`,
-            }),
-            this.#createToggle(node.id, node.controlLevel),
-        );
-        card.append(header, createContent(node.content));
-        if (includeContributions) {
-            const items = snapshot.contributions.filter(item => item.finalNodeId === node.id);
-            const details = element('div', { className: 'prompt-control-contributions' });
-            if (!items.length) {
-                details.append(element('small', { text: '该消息没有可识别的来源边界' }));
-            } else {
-                for (const item of items) details.append(this.#createContribution(item));
-            }
-            card.append(details);
-        }
-        card.classList.toggle('prompt-control-excluded', this.store.isExcluded(node.id));
-        return card;
     }
 
     #createContribution(item) {
@@ -626,7 +612,7 @@ export function clampFloatingPosition(position, size, viewport) {
 }
 
 /**
- * 按发送顺序合并连续且角色相同的消息
+ * 按最终提示词顺序合并连续且角色相同的消息
  * @param {object[]} nodes 最终消息节点
  * @returns {object[]} 角色消息组
  */
@@ -639,13 +625,11 @@ export function groupAdjacentPromptNodes(nodes) {
                 role: node.role,
                 nodes: [node],
                 tokenCount: node.tokenCount,
-                content: node.content,
             });
             continue;
         }
         current.nodes.push(node);
         current.tokenCount += node.tokenCount;
-        current.content = [current.content, node.content].filter(Boolean).join('\n\n');
     }
     return groups;
 }
