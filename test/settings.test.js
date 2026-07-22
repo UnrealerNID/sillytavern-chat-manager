@@ -55,3 +55,15 @@ test('extension version reads the manifest from the repository root', async () =
     assert.match(source, /new URL\('\.\.\/\.\.\/manifest\.json', import\.meta\.url\)/);
     assert.doesNotMatch(source, /new URL\('\.\.\/manifest\.json', import\.meta\.url\)/);
 });
+
+test('prompt control exposes floating bubble and input panel as one display mode', async () => {
+    const [html, definition, moduleSource] = await Promise.all([
+        readFile(new URL('../templates/prompt-control/settings.html', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/prompt-control/definition.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/prompt-control/module.js', import.meta.url), 'utf8'),
+    ]);
+
+    assert.match(html, /data-prompt-floating-enabled/);
+    assert.match(definition, /floatingBubble:\s*true/);
+    assert.match(moduleSource, /setFloatingMode\(this\.settings\.floatingBubble !== false\)/);
+});

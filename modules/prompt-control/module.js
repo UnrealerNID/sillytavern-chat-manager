@@ -69,6 +69,7 @@ export class PromptControlModule {
     setEnabled(enabled) {
         if (!this.initialized) return;
         this.enabled = enabled;
+        this.ui.setFloatingMode(this.settings.floatingBubble !== false);
         this.capture.setEnabled(enabled);
         this.ui.setEnabled(enabled);
         this.#setEventsEnabled(enabled);

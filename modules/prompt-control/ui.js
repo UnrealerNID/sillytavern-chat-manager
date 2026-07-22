@@ -29,6 +29,7 @@ export class PromptControlUi {
         this.store = store;
         this.refresh = refresh;
         this.enabled = false;
+        this.floating = true;
         this.opened = false;
         this.view = 'prompt';
         this.refreshTimer = null;
@@ -62,6 +63,7 @@ export class PromptControlUi {
         this.status = requireElement(root, '[data-prompt-control-status]');
         this.summary = requireElement(root, '[data-prompt-control-summary]');
         this.triggerTokens = requireElement(trigger, '[data-prompt-control-trigger-tokens]');
+        this.root.classList.add('prompt-control-floating');
         this.#restorePosition();
         this.#restorePanelSize();
         this.#bindEvents();
@@ -75,6 +77,35 @@ export class PromptControlUi {
         this.trigger?.classList.toggle('displayNone', !enabled);
         if (!enabled) this.setOpen(false);
         else requestAnimationFrame(() => this.#keepBubbleVisible());
+    }
+
+    /**
+     * 在全局悬浮气泡与输入区入口之间切换
+     * @param {boolean} floating 是否使用悬浮气泡
+     */
+    setFloatingMode(floating) {
+        if (!this.root || this.floating === floating && this.root.isConnected) return;
+        const inputItems = document.querySelector('#nonQRFormItems');
+        if (!floating && !(inputItems instanceof HTMLElement)) return;
+        this.floating = floating;
+        this.root.classList.toggle('prompt-control-floating', floating);
+        this.root.classList.toggle('prompt-control-input', !floating);
+        if (floating) {
+            document.body.append(this.root);
+            this.#restorePosition();
+            this.#restorePanelSize();
+            requestAnimationFrame(() => {
+                this.#keepBubbleVisible();
+                this.#positionPanel();
+            });
+            return;
+        }
+        inputItems.append(this.root);
+        this.root.style.removeProperty('left');
+        this.root.style.removeProperty('top');
+        for (const property of ['left', 'top', 'width', 'height']) {
+            this.panel.style.removeProperty(property);
+        }
     }
 
     /**
@@ -298,7 +329,7 @@ export class PromptControlUi {
     }
 
     #startDrag(event) {
-        if (event.button !== 0) return;
+        if (!this.floating || event.button !== 0) return;
         const rect = this.root.getBoundingClientRect();
         this.dragState = {
             pointerId: event.pointerId,
@@ -342,7 +373,7 @@ export class PromptControlUi {
     }
 
     #startPanelResize(event, direction) {
-        if (event.button !== 0 || !direction) return;
+        if (!this.floating || event.button !== 0 || !direction) return;
         event.preventDefault();
         event.stopPropagation();
         const rect = this.panel.getBoundingClientRect();
@@ -447,6 +478,7 @@ export class PromptControlUi {
     }
 
     #fitPanelToViewport() {
+        if (!this.floating) return;
         const rect = this.panel.getBoundingClientRect();
         const width = this.preferredPanelSize?.width
             ?? rect.width
@@ -465,7 +497,7 @@ export class PromptControlUi {
     }
 
     #keepBubbleVisible() {
-        if (!this.root) return;
+        if (!this.root || !this.floating) return;
         const rect = this.root.getBoundingClientRect();
         this.#applyPosition(clampFloatingPosition(
             { x: rect.left, y: rect.top },
@@ -481,7 +513,7 @@ export class PromptControlUi {
     }
 
     #positionPanel() {
-        if (!this.opened || !this.panel || this.panel.hidden) return;
+        if (!this.floating || !this.opened || !this.panel || this.panel.hidden) return;
         const bubble = this.root.getBoundingClientRect();
         const panel = this.panel.getBoundingClientRect();
         const position = placeFloatingPanel(bubble, panel, {

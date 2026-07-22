@@ -1,12 +1,12 @@
-.prompt-control-host {
+.prompt-control-host.prompt-control-floating {
     position: fixed;
-    z-index: 3000;
+    z-index: 31100;
     width: 42px;
     height: 42px;
     pointer-events: none;
 }
 
-.prompt-control-trigger {
+.prompt-control-host.prompt-control-floating .prompt-control-trigger {
     position: relative;
     display: flex;
     align-items: center;
@@ -28,12 +28,12 @@
     backdrop-filter: blur(var(--SmartThemeBlurStrength));
 }
 
-.prompt-control-trigger:hover {
+.prompt-control-host.prompt-control-floating .prompt-control-trigger:hover {
     opacity: 1;
     filter: brightness(1.12);
 }
 
-.prompt-control-trigger.dragging {
+.prompt-control-host.prompt-control-floating .prompt-control-trigger.dragging {
     cursor: grabbing;
 }
 
@@ -41,7 +41,7 @@
     display: none;
 }
 
-.prompt-control-trigger span {
+.prompt-control-host.prompt-control-floating .prompt-control-trigger span {
     position: absolute;
     top: -5px;
     right: -7px;
@@ -55,7 +55,7 @@
     background: var(--SmartThemeBlurTintColor);
 }
 
-.prompt-control-panel {
+.prompt-control-host.prompt-control-floating .prompt-control-panel {
     position: fixed;
     display: flex;
     overflow: hidden;
@@ -76,7 +76,76 @@
     pointer-events: auto;
 }
 
-.prompt-control-panel[hidden] {
+.prompt-control-host.prompt-control-input {
+    position: relative;
+    z-index: 2000;
+    display: flex;
+    flex: 0 0 auto;
+    order: 999;
+    width: 26px;
+    height: 24px;
+    margin-left: auto;
+    pointer-events: none;
+}
+
+.prompt-control-host.prompt-control-input .prompt-control-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    width: 26px;
+    height: 24px;
+    padding: 0 4px;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 5px;
+    color: var(--SmartThemeBodyColor);
+    background: var(--SmartThemeBlurTintColor);
+    opacity: 0.85;
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.prompt-control-host.prompt-control-input .prompt-control-trigger:hover {
+    opacity: 1;
+}
+
+.prompt-control-host.prompt-control-input .prompt-control-trigger span {
+    position: absolute;
+    top: -6px;
+    right: -7px;
+    padding: 1px 3px;
+    border-radius: 999px;
+    font-size: 0.62rem;
+    background: var(--SmartThemeBlurTintColor);
+}
+
+.prompt-control-host.prompt-control-input .prompt-control-panel {
+    position: absolute;
+    right: 0;
+    bottom: 30px;
+    display: flex;
+    overflow: hidden;
+    flex-direction: column;
+    width: min(760px, calc(100vw - 16px));
+    min-width: 0;
+    height: min(52dvh, 620px);
+    min-height: min(220px, calc(100dvh - 16px));
+    max-height: calc(100dvh - 16px);
+    box-sizing: border-box;
+    color: var(--SmartThemeBodyColor);
+    background: var(--SmartThemeBlurTintColor);
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 8px 8px 4px 4px;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
+    backdrop-filter: blur(var(--SmartThemeBlurStrength));
+    pointer-events: auto;
+}
+
+.prompt-control-host.prompt-control-input .prompt-control-resize-handles {
+    display: none;
+}
+
+.prompt-control-host .prompt-control-panel[hidden] {
     display: none;
 }
 
