@@ -28,6 +28,7 @@ test('prompt panel stays compact, resizable and free of horizontal scrolling', a
     assert.match(css, /\.prompt-control-host\.prompt-control-floating\s*\{[^}]*position:\s*fixed/s);
     assert.match(css, /\.prompt-control-host\.prompt-control-floating\s*\{[^}]*z-index:\s*31100/s);
     assert.match(css, /\.prompt-control-host\.prompt-control-input\s*\{[^}]*bottom:\s*100%/s);
+    assert.match(css, /\.prompt-control-trigger\.prompt-control-input-trigger > i\s*\{[^}]*transform:\s*scale\(0\.86\)/s);
     assert.match(css, /data-prompt-resize="n"/);
     assert.match(css, /data-prompt-resize="se"/);
     assert.match(css, /\.prompt-control-content\s*\{[^}]*overflow-x:\s*hidden/s);

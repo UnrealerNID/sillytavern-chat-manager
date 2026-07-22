@@ -116,6 +116,12 @@
     filter: brightness(1.2);
 }
 
+.prompt-control-trigger.prompt-control-input-trigger > i {
+    /* 脑图标比相邻线性图标更饱满，仅缩放字形而不改变原生按钮占位 */
+    line-height: 1;
+    transform: scale(0.86);
+}
+
 .prompt-control-trigger.prompt-control-input-trigger span {
     display: none;
 }
@@ -429,47 +435,76 @@
 
 .prompt-control-role-header,
 .prompt-control-group-heading {
-    justify-content: space-between;
-    gap: 6px;
+    gap: 7px;
     padding: 6px 8px;
 }
 
 .prompt-control-group-heading {
-    cursor: pointer;
-    list-style: none;
-}
-
-.prompt-control-role-header {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     cursor: pointer;
     list-style: none;
 }
 
-.prompt-control-role-header::before,
-.prompt-control-group-heading::before,
-.prompt-control-world-heading::before {
+.prompt-control-role-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.prompt-control-group-heading::before {
     color: var(--SmartThemeEmColor);
     content: "\203A";
     transition: transform 120ms ease;
 }
 
-.prompt-control-role-group[open] > .prompt-control-role-header::before,
+.prompt-control-role-group[open] > .prompt-control-group-heading::before,
 .prompt-control-source-group[open] > .prompt-control-group-heading::before,
-.prompt-control-world-group[open] > .prompt-control-world-heading::before {
+.prompt-control-world-group[open] > .prompt-control-group-heading::before {
     transform: rotate(90deg);
 }
 
-.prompt-control-role-header small {
+.prompt-control-group-title small,
+.prompt-control-group-summary {
     color: var(--SmartThemeEmColor);
+}
+
+.prompt-control-group-title small {
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.prompt-control-group-copy,
+.prompt-control-contribution-copy {
+    min-width: 0;
+    flex: 1;
+}
+
+.prompt-control-group-copy {
+    display: grid;
+    gap: 2px;
+}
+
+.prompt-control-group-title {
+    display: flex;
+    min-width: 0;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.prompt-control-group-title strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.prompt-control-group-summary {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .prompt-control-group-heading strong,
 .prompt-control-contribution-copy {
-    min-width: 0;
-    flex: 1;
     overflow-wrap: anywhere;
 }
 
@@ -574,23 +609,7 @@
 }
 
 .prompt-control-world-heading {
-    display: flex;
-    align-items: center;
-    gap: 6px;
     padding: 5px 7px 5px 18px;
-    cursor: pointer;
-    list-style: none;
-}
-
-.prompt-control-world-heading strong {
-    min-width: 0;
-    flex: 1 1 auto;
-    overflow-wrap: anywhere;
-}
-
-.prompt-control-world-heading small {
-    color: var(--SmartThemeEmColor);
-    white-space: nowrap;
 }
 
 .prompt-control-source-group > .prompt-control-contribution {
@@ -696,13 +715,12 @@
         grid-template-columns: auto minmax(0, 1fr) auto;
     }
 
-    .prompt-control-role-header small {
-        grid-row: 2;
-        grid-column: 2;
+    .prompt-control-group-title {
+        display: grid;
+        gap: 1px;
     }
 
     .prompt-control-role-header .prompt-control-switch {
-        grid-row: 1 / 3;
         grid-column: 3;
     }
 

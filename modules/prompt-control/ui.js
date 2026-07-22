@@ -278,16 +278,13 @@ export class PromptControlUi {
     #createRoleGroup(group) {
         const card = element('details', { className: 'prompt-control-role-group' });
         this.#bindGroupState(card, `role:${group.id}`);
-        const header = document.createElement('summary');
-        header.className = 'prompt-control-role-header';
-        const roleLabel = element('strong');
-        this.search.appendHighlighted(roleLabel, `Role: ${roleIcon(group.role)} ${group.role}`);
-        header.append(
-            roleLabel,
-            element('small', {
-                text: `${group.nodes.length} 条 · Tokens: ${formatNumber(group.tokenCount)}`,
-            }),
-        );
+        const header = this.#createGroupHeading({
+            className: 'prompt-control-role-header',
+            label: `Role: ${roleIcon(group.role)} ${group.role}`,
+            count: group.nodes.length,
+            tokenCount: group.tokenCount,
+            preview: summarizeItems(group.nodes, item => item.content),
+        });
         if (group.nodes.length > 1) {
             const toggle = this.#createGroupToggle(group.nodes);
             toggle.addEventListener('click', event => event.stopPropagation());
@@ -350,14 +347,12 @@ export class PromptControlUi {
         for (const group of groupContributionsBySource(snapshot.contributions)) {
             const section = element('details', { className: 'prompt-control-source-group' });
             this.#bindGroupState(section, `source:${group.id}`);
-            const heading = document.createElement('summary');
-            heading.className = 'prompt-control-group-heading';
-            const label = element('strong');
-            this.search.appendHighlighted(label, group.label);
-            heading.append(
-                label,
-                element('small', { text: `${group.items.length} 项` }),
-            );
+            const heading = this.#createGroupHeading({
+                label: group.label,
+                count: group.items.length,
+                tokenCount: sumTokens(group.items),
+                preview: summarizeItems(group.items, item => item.content),
+            });
             section.append(heading);
             if (group.id === 'worldInfo') {
                 for (const world of groupWorldInfoContributions(group.items)) {
@@ -374,15 +369,47 @@ export class PromptControlUi {
     #createWorldGroup(group) {
         const section = element('details', { className: 'prompt-control-world-group' });
         this.#bindGroupState(section, `world:${group.id}`);
-        const heading = document.createElement('summary');
-        heading.className = 'prompt-control-world-heading';
-        const label = element('strong');
-        this.search.appendHighlighted(label, group.label);
-        heading.append(label, element('small', { text: `${group.items.length} 项` }));
+        const heading = this.#createGroupHeading({
+            className: 'prompt-control-world-heading',
+            label: group.label,
+            count: group.items.length,
+            tokenCount: sumTokens(group.items),
+            preview: summarizeItems(group.items, item => item.content),
+        });
         section.append(heading);
         appendInBatches(section, group.items, item => this.#createContribution(item));
         if (this.search.matches(group.label)) this.search.mark(section);
         return section;
+    }
+
+    /**
+     * 创建两种视图共用的折叠组头
+     * @param {object} options 组头数据
+     * @param {string} [options.className] 附加类名
+     * @param {string} options.label 标题
+     * @param {number} options.count 项目数
+     * @param {number} options.tokenCount Token 数
+     * @param {string} options.preview 内容摘要
+     * @returns {HTMLElement} 折叠组头
+     */
+    #createGroupHeading({ className = '', label, count, tokenCount, preview }) {
+        const heading = document.createElement('summary');
+        heading.className = `prompt-control-group-heading ${className}`.trim();
+        const title = element('span', { className: 'prompt-control-group-title' });
+        const name = element('strong');
+        this.search.appendHighlighted(name, label);
+        title.append(
+            name,
+            element('small', {
+                text: `${count} 条 · ${formatNumber(tokenCount)} Tokens`,
+            }),
+        );
+        const summary = element('span', { className: 'prompt-control-group-summary' });
+        this.search.appendHighlighted(summary, preview);
+        const copy = element('span', { className: 'prompt-control-group-copy' });
+        copy.append(title, summary);
+        heading.append(copy);
+        return heading;
     }
 
     #createContribution(item) {
@@ -405,7 +432,7 @@ export class PromptControlUi {
     }
 
     #bindGroupState(details, key) {
-        details.open = this.groupStates.get(key) ?? true;
+        details.open = this.groupStates.get(key) ?? false;
         details.addEventListener('toggle', () => this.groupStates.set(key, details.open));
     }
 
@@ -797,6 +824,14 @@ function formatNumber(value) {
 
 function summarizeContent(content) {
     return String(content ?? '').trim().replace(/\s+/g, ' ').slice(0, 320) || '空内容';
+}
+
+function summarizeItems(items, getContent) {
+    return summarizeContent(items.map(getContent).filter(Boolean).join(' '));
+}
+
+function sumTokens(items) {
+    return items.reduce((total, item) => total + (Number(item.tokenCount) || 0), 0);
 }
 
 function appendInBatches(container, items, renderItem) {
