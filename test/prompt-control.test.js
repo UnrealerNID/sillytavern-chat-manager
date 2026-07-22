@@ -370,17 +370,17 @@ test('搜索定位支持首次定位与首尾循环', () => {
     assert.equal(nextSearchIndex(0, 0, 1), -1);
 });
 
-test('提示词预览走完整装配链路并在网络请求前停止', async () => {
+test('提示词预览使用原生 dry-run 且不接管正式发送状态', async () => {
     const [capture, moduleSource] = await Promise.all([
         readFile(new URL('../modules/prompt-control/capture.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/prompt-control/module.js', import.meta.url), 'utf8'),
     ]);
 
-    assert.match(capture, /context\.generate\('normal'\)/);
-    assert.doesNotMatch(capture, /context\.generate\('normal', \{\}, true\)/);
-    assert.match(capture, /this\.getContext\(\)\.stopGeneration\(\)/);
-    assert.match(moduleSource, /CHAT_COMPLETION_SETTINGS_READY/);
-    assert.match(moduleSource, /GENERATE_AFTER_DATA/);
+    assert.match(capture, /context\.generate\('normal', \{\}, true\)/);
+    assert.match(capture, /setStatus\('loading'\)[\s\S]*waitForUiPaint\(\)/);
+    assert.doesNotMatch(capture, /stopGeneration\(\)/);
+    assert.doesNotMatch(moduleSource, /CHAT_COMPLETION_SETTINGS_READY/);
+    assert.doesNotMatch(moduleSource, /GENERATE_AFTER_DATA/);
 });
 
 test('悬浮气泡和面板移动后始终保留在视口内', () => {

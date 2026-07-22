@@ -26,8 +26,6 @@ export class PromptCaptureController {
         this.worldInfo = worldInfo;
         this.enabled = false;
         this.refreshTask = null;
-        this.previewing = false;
-        this.previewAbortExpected = false;
         this.textParts = [];
         this.captureRevision = 0;
     }
@@ -36,8 +34,6 @@ export class PromptCaptureController {
         this.enabled = enabled;
         if (!enabled) {
             this.refreshTask = null;
-            this.previewing = false;
-            this.previewAbortExpected = false;
         }
     }
 
@@ -49,7 +45,7 @@ export class PromptCaptureController {
     }
 
     /**
-     * 使用完整生成链路装配预览，并在网络请求前中止
+     * 使用酒馆原生 dry-run 独立装配预览
      * @returns {Promise<void>} 刷新完成
      */
     async refresh() {
@@ -62,28 +58,28 @@ export class PromptCaptureController {
             return;
         }
         this.store.setStatus('loading');
-        this.previewing = true;
-        this.previewAbortExpected = false;
-        this.refreshTask = context.generate('normal').catch(error => {
-            if (this.previewAbortExpected) return;
+        this.refreshTask = this.#runPreview(context).catch(error => {
             this.store.setStatus('error');
             console.error('[酒馆工具箱] 刷新本轮提示词失败', error);
             throw error;
         }).finally(() => {
-            this.previewing = false;
-            this.previewAbortExpected = false;
             this.refreshTask = null;
         });
         return this.refreshTask;
     }
 
     /**
-     * 在最终请求参数生成后终止本次预览，阻止请求发送到模型
+     * 在加载态完成绘制后执行一次不发送请求的提示词装配
+     * @param {object} context 酒馆上下文
+     * @returns {Promise<void>} 装配完成
      */
-    stopPreviewRequest() {
-        if (!this.previewing || !this.refreshTask) return;
-        this.previewAbortExpected = true;
-        this.getContext().stopGeneration();
+    async #runPreview(context) {
+        // 先让加载态完成一帧绘制，再开始可能耗时的提示词装配
+        await waitForUiPaint();
+        await context.generate('normal', {}, true);
+        if (this.store.getStatus() === 'loading') {
+            throw new Error('酒馆未返回可用的提示词预览');
+        }
     }
 
     /**
@@ -109,8 +105,9 @@ export class PromptCaptureController {
             worldEntries: this.worldInfo.getActivatedEntries(),
             getPromptName: this.getPromptName,
         });
+        // 正式发送的排除不受同时进行的预览渲染版本影响
+        if (payload.dryRun !== true) this.#applyFinalExclusions(payload.chat, snapshot);
         if (revision !== this.captureRevision) return;
-        this.#applyFinalExclusions(payload.chat, snapshot);
         this.#markExcluded(snapshot);
         this.store.setSnapshot(snapshot);
         this.store.setStatus('ready');
@@ -192,4 +189,12 @@ export class PromptCaptureController {
 function addTextPart(parts, id, sourceType, sourceName, content) {
     if (!content) return;
     parts.push({ id, sourceType, sourceName, content: String(content) });
+}
+
+/**
+ * 等待浏览器绘制下一帧
+ * @returns {Promise<void>} 下一帧开始时完成
+ */
+function waitForUiPaint() {
+    return new Promise(resolve => requestAnimationFrame(() => resolve()));
 }

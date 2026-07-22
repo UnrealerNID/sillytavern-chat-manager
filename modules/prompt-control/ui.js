@@ -64,6 +64,7 @@ export class PromptControlUi {
         this.content = requireElement(root, '[data-prompt-control-content]');
         this.summary = requireElement(root, '[data-prompt-control-summary]');
         this.clearButton = requireButton(root, '[data-prompt-control-clear]');
+        this.refreshButton = requireButton(root, '[data-prompt-control-refresh]');
         this.search = new PromptSearchController({
             input: requireInput(root, '[data-prompt-control-search]'),
             count: requireElement(root, '[data-prompt-control-search-count]'),
@@ -225,8 +226,7 @@ export class PromptControlUi {
         }
         requireButton(this.root, '[data-prompt-control-collapse]')
             .addEventListener('click', () => this.setOpen(false));
-        requireButton(this.root, '[data-prompt-control-refresh]')
-            .addEventListener('click', () => void this.#refresh());
+        this.refreshButton.addEventListener('click', () => void this.#refresh());
         this.clearButton.addEventListener('click', () => {
             this.store.clearCurrent();
         });
@@ -255,6 +255,7 @@ export class PromptControlUi {
         const status = this.store.getStatus();
         const hasExclusions = this.store.getExclusions().size > 0;
         this.clearButton.disabled = !hasExclusions || status === 'loading';
+        this.refreshButton.disabled = status === 'loading';
         const total = enabledTokenTotal(snapshot, this.store);
         this.summary.textContent = status === 'loading'
             ? '正在读取'
