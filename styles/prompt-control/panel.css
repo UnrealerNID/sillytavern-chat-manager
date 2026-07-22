@@ -381,16 +381,18 @@
     overscroll-behavior: contain;
 }
 
+.prompt-control-content-state {
+    place-content: center;
+}
+
 .prompt-control-empty {
     display: grid;
-    min-height: 90px;
     place-items: center;
     color: var(--SmartThemeEmColor);
 }
 
 .prompt-control-loading {
     display: grid;
-    min-height: 120px;
     place-content: center;
     justify-items: center;
     gap: 10px;

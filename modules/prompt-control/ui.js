@@ -175,6 +175,7 @@ export class PromptControlUi {
     renderInto(container, view) {
         const snapshot = this.store.getSnapshot();
         const status = this.store.getStatus();
+        container.classList.toggle('prompt-control-content-state', status !== 'ready' || !snapshot);
         container.replaceChildren();
         if (status === 'loading') {
             container.append(createLoadingState());

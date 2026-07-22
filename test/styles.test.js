@@ -41,6 +41,7 @@ test('prompt panel stays compact, resizable and free of horizontal scrolling', a
     assert.match(ui, /inputTools\.append\(this\.trigger\)/);
     assert.match(ui, /正在读取本轮提示词…/);
     assert.match(css, /prompt-control-loading-icon[^}]*animation:\s*prompt-control-spin/s);
+    assert.match(css, /prompt-control-content-state[^}]*place-content:\s*center/s);
     assert.match(css, /\.prompt-control-action-separator\s*\{[^}]*width:\s*1px/s);
     assert.match(
         css,
