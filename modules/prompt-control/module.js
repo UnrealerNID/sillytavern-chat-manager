@@ -1,5 +1,7 @@
 import { renderExtensionTemplateAsync } from '/scripts/extensions.js';
+import { getRegexedString, regex_placement } from '/scripts/extensions/regex/engine.js';
 import { promptManager } from '/scripts/openai.js';
+import { DEFAULT_DEPTH, world_info_position } from '/scripts/world-info.js';
 
 import { waitForElement } from '../platform/dom.js';
 import { EXTENSION_ID } from '../platform/extension-identity.js';
@@ -39,7 +41,20 @@ export class PromptControlModule {
             'templates/prompt-control/panel',
         );
         this.store = new PromptSnapshotStore();
-        this.worldInfo = new WorldInfoPromptAdapter({ store: this.store });
+        this.worldInfo = new WorldInfoPromptAdapter({
+            store: this.store,
+            processEntry: entry => getRegexedString(
+                entry.content,
+                regex_placement.WORLD_INFO,
+                {
+                    depth: entry.position === world_info_position.atDepth
+                        ? (entry.depth ?? DEFAULT_DEPTH)
+                        : null,
+                    isMarkdown: false,
+                    isPrompt: true,
+                },
+            ),
+        });
         this.capture = new PromptCaptureController({
             getContext: this.getContext,
             getStructuredMessages: () => promptManager?.messages ?? null,

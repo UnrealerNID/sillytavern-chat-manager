@@ -77,7 +77,10 @@ export class PromptControlUi {
         this.#restorePosition();
         this.#restorePanelSize();
         this.#bindEvents();
-        this.unsubscribe = this.store.subscribe(() => this.render());
+        this.unsubscribe = this.store.subscribe(change => {
+            if (change === 'exclusions') this.#syncExclusionState();
+            else this.render();
+        });
         this.render();
     }
 
@@ -226,7 +229,6 @@ export class PromptControlUi {
             .addEventListener('click', () => void this.#refresh());
         this.clearButton.addEventListener('click', () => {
             this.store.clearCurrent();
-            void this.#refresh();
         });
         this.search.bind();
         for (const tab of this.root.querySelectorAll('[data-prompt-view]')) {
@@ -318,15 +320,16 @@ export class PromptControlUi {
         input.addEventListener('change', () => {
             this.store.setExclusions(controllable.map(node => node.id), !input.checked);
         });
+        label.dataset.promptControlIds = JSON.stringify(controllable.map(node => node.id));
         label.append(input, element('span'));
         return label;
     }
 
     #createPromptMessage(node, index, groupSize) {
-        const preview = summarizeContent(node.content);
-        const source = node.sourceName ? `${node.sourceName} · ` : '';
+        const source = node.sourceName || `消息 ${index + 1}`;
         return this.#createEntry({
-            label: groupSize > 1 ? `#${index + 1} ${source}${preview}` : `${source}${preview}`,
+            label: groupSize > 1 ? `#${index + 1} ${source}` : source,
+            preview: summarizeContent(node.content),
             content: node.content,
             tokenCount: node.tokenCount,
             controlId: node.id,
@@ -394,9 +397,11 @@ export class PromptControlUi {
     #createContribution(item) {
         return this.#createEntry({
             className: 'prompt-control-source-entry',
-            label: `${item.sourceName} · ${summarizeContent(item.content)}`,
+            label: item.sourceName,
+            preview: summarizeContent(item.content),
             content: item.content,
             tokenCount: item.tokenCount,
+            metadata: contributionMetadata(item),
             controlId: item.controlId,
             controlLevel: item.controlLevel,
             searchTerms: [item.sourceName, item.content],
@@ -408,8 +413,10 @@ export class PromptControlUi {
      * @param {object} options 内容行数据
      * @param {string} [options.className] 附加类名
      * @param {string} options.label 折叠摘要
+     * @param {string} [options.preview] 内容摘要
      * @param {string} options.content 完整内容
      * @param {number} options.tokenCount Token 数
+     * @param {string} [options.metadata] 附加信息
      * @param {string} options.controlId 控制标识
      * @param {string} options.controlLevel 控制层级
      * @param {unknown[]} [options.searchTerms] 搜索内容
@@ -418,8 +425,10 @@ export class PromptControlUi {
     #createEntry({
         className = '',
         label,
+        preview = '',
         content,
         tokenCount,
+        metadata = '',
         controlId,
         controlLevel,
         searchTerms = [content],
@@ -429,10 +438,16 @@ export class PromptControlUi {
         });
         const summary = document.createElement('summary');
         const labelElement = element('span', { className: 'prompt-control-message-label' });
-        this.search.appendHighlighted(labelElement, label);
+        const titleElement = element('strong');
+        this.search.appendHighlighted(titleElement, label);
+        const previewElement = element('span', { className: 'prompt-control-message-preview' });
+        this.search.appendHighlighted(previewElement, preview);
+        labelElement.append(titleElement, previewElement);
         summary.append(
             labelElement,
-            element('small', { text: `${formatNumber(tokenCount)} Tokens` }),
+            element('small', {
+                text: [metadata, `${formatNumber(tokenCount)} Tokens`].filter(Boolean).join(' · '),
+            }),
         );
         this.#appendToggle(summary, controlId, controlLevel);
         const body = this.#createContentBody(content);
@@ -473,10 +488,35 @@ export class PromptControlUi {
         input.disabled = level === 'locked' || !controlId;
         input.addEventListener('change', () => {
             this.store.setExcluded(controlId, !input.checked);
-            if (level === 'source') void this.#refresh();
         });
+        label.dataset.promptControlIds = JSON.stringify(controlId ? [controlId] : []);
         label.append(input, element('span'));
         return label;
+    }
+
+    /**
+     * 只同步开关、排除样式和 Token 汇总，不重新构造提示词列表
+     */
+    #syncExclusionState() {
+        for (const label of document.querySelectorAll('.prompt-control-switch[data-prompt-control-ids]')) {
+            const ids = parseControlIds(label.dataset.promptControlIds);
+            const input = label.querySelector('input');
+            if (!(input instanceof HTMLInputElement) || !ids.length) continue;
+            const enabledCount = ids.filter(id => !this.store.isExcluded(id)).length;
+            input.checked = enabledCount > 0;
+            input.indeterminate = enabledCount > 0 && enabledCount < ids.length;
+            if (ids.length === 1) {
+                label.closest('.prompt-control-message')?.classList.toggle(
+                    'prompt-control-excluded',
+                    enabledCount === 0,
+                );
+            }
+            label.closest('.prompt-control-role-group')?.classList.toggle(
+                'prompt-control-excluded',
+                enabledCount === 0,
+            );
+        }
+        this.#renderHeader(this.store.getSnapshot());
     }
 
     #startDrag(event) {
@@ -819,6 +859,25 @@ function summarizeItems(items, getContent) {
 
 function sumTokens(items) {
     return items.reduce((total, item) => total + (Number(item.tokenCount) || 0), 0);
+}
+
+function contributionMetadata(item) {
+    if (!item.insertionPosition) return '';
+    const values = [
+        `位置：${item.insertionPosition}`,
+        `顺序：${item.insertionOrder}`,
+    ];
+    if (item.sendIndex >= 0) values.push(`发送：#${item.sendIndex + 1}`);
+    return values.join(' · ');
+}
+
+function parseControlIds(value) {
+    try {
+        const ids = JSON.parse(value || '[]');
+        return Array.isArray(ids) ? ids : [];
+    } catch {
+        return [];
+    }
 }
 
 function appendInBatches(container, items, renderItem) {

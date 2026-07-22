@@ -31,7 +31,7 @@ export class PromptSnapshotStore {
         if (this.chatKey === chatKey) return;
         this.chatKey = chatKey;
         this.snapshot = null;
-        this.#notify();
+        this.#notify('snapshot');
     }
 
     /**
@@ -40,7 +40,7 @@ export class PromptSnapshotStore {
      */
     setSnapshot(snapshot) {
         this.snapshot = snapshot;
-        this.#notify();
+        this.#notify('snapshot');
     }
 
     /**
@@ -58,7 +58,7 @@ export class PromptSnapshotStore {
     setStatus(status) {
         if (this.status === status) return;
         this.status = status;
-        this.#notify();
+        this.#notify('status');
     }
 
     /**
@@ -98,7 +98,7 @@ export class PromptSnapshotStore {
         else values.delete(controlId);
         if (values.size) this.exclusions.set(this.chatKey, values);
         else this.exclusions.delete(this.chatKey);
-        this.#notify();
+        this.#notify('exclusions');
     }
 
     /**
@@ -115,7 +115,7 @@ export class PromptSnapshotStore {
         }
         if (values.size) this.exclusions.set(this.chatKey, values);
         else this.exclusions.delete(this.chatKey);
-        this.#notify();
+        this.#notify('exclusions');
     }
 
     /**
@@ -123,7 +123,7 @@ export class PromptSnapshotStore {
      */
     clearCurrent() {
         if (!this.exclusions.delete(this.chatKey)) return;
-        this.#notify();
+        this.#notify('exclusions');
     }
 
     /**
@@ -133,12 +133,12 @@ export class PromptSnapshotStore {
         this.snapshot = null;
         this.status = 'idle';
         this.exclusions.clear();
-        this.#notify();
+        this.#notify('snapshot');
     }
 
     /**
      * 订阅状态变化
-     * @param {()=>void} listener 监听器
+     * @param {(change:string)=>void} listener 监听器
      * @returns {()=>void} 取消订阅函数
      */
     subscribe(listener) {
@@ -146,8 +146,8 @@ export class PromptSnapshotStore {
         return () => this.listeners.delete(listener);
     }
 
-    #notify() {
-        for (const listener of this.listeners) listener();
+    #notify(change) {
+        for (const listener of this.listeners) listener(change);
     }
 }
 
@@ -202,7 +202,9 @@ export async function createChatSnapshot({
     for (const node of finalNodes) {
         for (const identifier of node.contributionIds) finalByContribution.set(identifier, node);
     }
-    const contributions = structured.map(item => {
+    const worldItems = await prepareWorldEntries(worldEntries, countTokens);
+    const visibleStructured = detachWorldEntries(structured, worldItems);
+    const contributions = await Promise.all(visibleStructured.map(async item => {
         const finalNode = finalByContribution.get(item.identifier);
         return {
             id: item.identifier,
@@ -210,13 +212,15 @@ export async function createChatSnapshot({
             sourceType: classifySource(item.identifier),
             sourceName: sourceName(item.identifier),
             finalNodeId: finalNode?.id ?? null,
+            sendIndex: finalNode?.sendIndex ?? -1,
+            insertionRole: finalNode?.role ?? item.role,
             orderInNode: finalNode?.contributionIds.indexOf(item.identifier) ?? -1,
             content: item.content,
-            tokenCount: item.tokenCount,
+            tokenCount: item.contentChanged ? await countTokens(item.content) : item.tokenCount,
             controlLevel: finalNode?.contributionIds.length === 1 ? finalNode.controlLevel : 'locked',
         };
-    });
-    await appendWorldEntries(contributions, finalByContribution, worldEntries, countTokens);
+    }));
+    appendWorldEntries(contributions, finalByContribution, worldItems);
     return {
         api: 'chat-completion',
         kind: dryRun ? 'preview' : 'actual',
@@ -234,9 +238,16 @@ export async function createChatSnapshot({
  * @param {(text:string)=>Promise<number>} options.countTokens Token 计算器
  * @param {boolean} options.dryRun 是否为预览
  * @param {object[]} [options.parts] 合并前区段
+ * @param {object[]} [options.worldEntries] 本轮激活世界书条目
  * @returns {Promise<object>} 提示词快照
  */
-export async function createTextSnapshot({ prompt, countTokens, dryRun, parts = [] }) {
+export async function createTextSnapshot({
+    prompt,
+    countTokens,
+    dryRun,
+    parts = [],
+    worldEntries = [],
+}) {
     const content = String(prompt ?? '');
     const finalNode = {
         id: `final:${stableHash(content)}`,
@@ -247,17 +258,26 @@ export async function createTextSnapshot({ prompt, countTokens, dryRun, parts = 
         controlLevel: 'locked',
         contributionIds: parts.map(part => part.id),
     };
-    const contributions = await Promise.all(parts.map(async (part, index) => ({
+    const worldItems = await prepareWorldEntries(worldEntries, countTokens);
+    const visibleParts = detachWorldEntries(parts, worldItems);
+    const contributions = await Promise.all(visibleParts.map(async (part, index) => ({
         id: part.id,
         controlId: '',
         sourceType: part.sourceType,
         sourceName: part.sourceName,
         finalNodeId: finalNode.id,
+        sendIndex: 0,
+        insertionRole: 'prompt',
         orderInNode: index,
         content: part.content,
         tokenCount: await countTokens(part.content),
         controlLevel: 'locked',
     })));
+    appendWorldEntries(
+        contributions,
+        new Map(parts.map(part => [part.id, finalNode])),
+        worldItems,
+    );
     return {
         api: 'text-completion',
         kind: dryRun ? 'preview' : 'actual',
@@ -385,9 +405,40 @@ function matchFinalMessages(chat, structured) {
     return matches;
 }
 
-async function appendWorldEntries(contributions, finalByContribution, entries, countTokens) {
+async function prepareWorldEntries(entries, countTokens) {
+    const items = await Promise.all(entries.map(async entry => {
+        const content = String(entry.processedContent ?? entry.content ?? '');
+        return {
+            ...entry,
+            content,
+            tokenCount: await countTokens(content),
+        };
+    }));
+    return items.filter(item => item.content);
+}
+
+function detachWorldEntries(structured, worldItems) {
+    const remaining = new Map(structured.map(item => [sourceIdentifier(item), item.content]));
+    for (const world of worldItems) {
+        const owner = structured.find(item => remaining.get(sourceIdentifier(item))?.includes(world.content));
+        if (!owner) continue;
+        const identifier = sourceIdentifier(owner);
+        world.structuredIdentifier = identifier;
+        world.contentOffset = owner.content.indexOf(world.content);
+        remaining.set(identifier, removeFirst(remaining.get(identifier), world.content));
+    }
+    return structured.flatMap(item => {
+        const identifier = sourceIdentifier(item);
+        const sourceType = item.sourceType ?? classifySource(identifier);
+        if (sourceType === 'worldInfo' && worldItems.length) return [];
+        const content = remaining.get(identifier)?.trim();
+        return content ? [{ ...item, content, contentChanged: content !== item.content }] : [];
+    });
+}
+
+function appendWorldEntries(contributions, finalByContribution, entries) {
     for (const [index, entry] of entries.entries()) {
-        const anchorId = worldAnchor(entry);
+        const anchorId = entry.structuredIdentifier || worldAnchor(entry);
         const anchor = anchorId ? finalByContribution.get(anchorId) : null;
         const id = `world:${entry.world ?? 'unknown'}:${entry.uid}`;
         contributions.push({
@@ -397,12 +448,26 @@ async function appendWorldEntries(contributions, finalByContribution, entries, c
             sourceName: entry.comment || entry.key?.join?.(', ') || entry.world || '世界书条目',
             worldName: String(entry.world ?? ''),
             finalNodeId: anchor?.id ?? null,
-            orderInNode: index,
-            content: String(entry.content ?? ''),
-            tokenCount: await countTokens(String(entry.content ?? '')),
+            sendIndex: anchor?.sendIndex ?? -1,
+            insertionRole: anchor?.role ?? roleName(entry.role),
+            insertionPosition: worldPositionName(entry),
+            insertionOrder: Number(entry.order ?? 0),
+            orderInNode: entry.contentOffset ?? index,
+            content: entry.content,
+            tokenCount: entry.tokenCount,
             controlLevel: 'source',
         });
     }
+}
+
+function sourceIdentifier(item) {
+    return String(item.identifier ?? item.id);
+}
+
+function removeFirst(content, fragment) {
+    const index = content.indexOf(fragment);
+    if (index < 0) return content;
+    return `${content.slice(0, index)}${content.slice(index + fragment.length)}`;
 }
 
 function worldAnchor(entry) {
@@ -421,7 +486,8 @@ function classifySource(identifier) {
         return 'control';
     }
     if (/^(main|nsfw|jailbreak|enhanceDefinitions)/.test(identifier)) return 'preset';
-    return 'other';
+    // 提示词管理器中的自定义预设项可能使用 UUID 或其他随机标识
+    return 'preset';
 }
 
 function sourceName(identifier) {
@@ -444,6 +510,24 @@ function sourceName(identifier) {
     if (identifier.startsWith('chatHistory-')) return `聊天消息 ${identifier.slice(12)}`;
     if (/^[\da-f]{8}(?:[\da-f-]{8,})$/i.test(identifier)) return '其他提示词';
     return identifier;
+}
+
+function worldPositionName(entry) {
+    const positions = {
+        0: '角色定义前',
+        1: '角色定义后',
+        2: '作者注释顶部',
+        3: '作者注释底部',
+        5: '示例消息前',
+        6: '示例消息后',
+    };
+    if (Number(entry.position) === 4) return `上下文深度 ${entry.depth ?? 4}`;
+    if (Number(entry.position) === 7) return `出口 ${entry.outletName || '未命名'}`;
+    return positions[Number(entry.position)] ?? '未指定位置';
+}
+
+function roleName(role) {
+    return ({ 0: 'system', 1: 'user', 2: 'assistant' })[Number(role)] ?? 'system';
 }
 
 function isProtocolMessage(message) {

@@ -84,7 +84,8 @@ test('世界书条目保留独立控制标识和处理后文本', async () => {
             uid: 7,
             world: '测试世界书',
             comment: '天气',
-            content: '晴天',
+            content: '{{天气}}',
+            processedContent: '晴天',
             position: 0,
             order: 20,
         }],
@@ -96,6 +97,41 @@ test('世界书条目保留独立控制标识和处理后文本', async () => {
     assert.equal(entry.finalNodeId, snapshot.finalNodes[0].id);
     assert.equal(entry.tokenCount, 2);
     assert.equal(entry.worldName, '测试世界书');
+    assert.equal(entry.content, '晴天');
+    assert.equal(entry.insertionPosition, '角色定义前');
+    assert.equal(entry.insertionOrder, 20);
+});
+
+test('插在上下文中的世界书仍按来源归类并从上下文项中分离', async () => {
+    const snapshot = await createChatSnapshot({
+        chat: [{ role: 'system', content: '普通上下文\n处理后的世界书' }],
+        messages: collection(message(
+            'chatHistory-1',
+            'system',
+            '普通上下文\n处理后的世界书',
+        )),
+        countTokens,
+        dryRun: true,
+        worldEntries: [{
+            uid: 9,
+            world: '测试世界书',
+            comment: '深度条目',
+            content: '{{模板}}',
+            processedContent: '处理后的世界书',
+            position: 4,
+            depth: 3,
+            role: 0,
+            order: 80,
+        }],
+    });
+    const context = snapshot.contributions.find(item => item.sourceType === 'chat');
+    const world = snapshot.contributions.find(item => item.id === 'world:测试世界书:9');
+
+    assert.equal(context.content, '普通上下文');
+    assert.equal(world.sourceType, 'worldInfo');
+    assert.equal(world.content, '处理后的世界书');
+    assert.equal(world.insertionPosition, '上下文深度 3');
+    assert.equal(world.sendIndex, 0);
 });
 
 test('排除状态按聊天隔离且不写入快照', () => {
@@ -194,7 +230,7 @@ test('空助手消息按查看器规则计算工具调用', async () => {
     assert.equal(count, JSON.stringify(toolCalls).length);
 });
 
-test('不把内部哈希标识直接显示为来源名称', async () => {
+test('自定义标识归入预设且不直接显示内部哈希', async () => {
     const snapshot = await createChatSnapshot({
         chat: [{ role: 'system', content: '内容' }],
         messages: collection(message('adbe0f3a-e6c6-4532-b274-81a02be7fecf', 'system', '内容')),
@@ -202,6 +238,7 @@ test('不把内部哈希标识直接显示为来源名称', async () => {
         dryRun: true,
     });
     assert.equal(snapshot.contributions[0].sourceName, '其他提示词');
+    assert.equal(snapshot.contributions[0].sourceType, 'preset');
 });
 
 test('提示词视图只合并最终顺序中连续且相同的角色', () => {

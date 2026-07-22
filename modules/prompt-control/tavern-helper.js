@@ -31,9 +31,9 @@ export class TavernHelperPromptIntegration {
         }
         if (this.observer) return;
         this.#installBridge();
-        this.unsubscribe = this.store.subscribe(() => {
+        this.unsubscribe = this.store.subscribe(change => {
             this.#publish();
-            this.#renderMounts();
+            if (change !== 'exclusions') this.#renderMounts();
         });
         this.observer = new MutationObserver(() => this.#scan());
         this.observer.observe(document.body, { childList: true, subtree: true });

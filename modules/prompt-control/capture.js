@@ -159,6 +159,7 @@ export class PromptCaptureController {
             countTokens: text => context.getTokenCountAsync(text),
             dryRun: payload.dryRun === true,
             parts: this.textParts,
+            worldEntries: this.worldInfo.getActivatedEntries(),
         });
         if (revision !== this.captureRevision) return;
         this.#markExcluded(snapshot);

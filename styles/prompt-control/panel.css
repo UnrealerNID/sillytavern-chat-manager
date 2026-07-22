@@ -523,10 +523,22 @@
 }
 
 .prompt-control-message-label {
+    display: grid;
+    min-width: 0;
     overflow: hidden;
-    color: var(--SmartThemeEmColor);
+    gap: 1px;
+}
+
+.prompt-control-message-label strong,
+.prompt-control-message-preview {
+    overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.prompt-control-message-preview {
+    color: var(--SmartThemeEmColor);
+    font-weight: normal;
 }
 
 .prompt-control-message summary small {

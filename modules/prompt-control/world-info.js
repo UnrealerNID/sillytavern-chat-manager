@@ -5,9 +5,11 @@ export class WorldInfoPromptAdapter {
     /**
      * @param {object} options 配置项
      * @param {import('./snapshot.js').PromptSnapshotStore} options.store 快照状态
+     * @param {(entry:object)=>string} [options.processEntry] 酒馆原生世界书正文处理器
      */
-    constructor({ store }) {
+    constructor({ store, processEntry = entry => String(entry?.content ?? '') }) {
         this.store = store;
+        this.processEntry = processEntry;
         this.activatedEntries = [];
         this.knownEntries = new Map();
     }
@@ -38,6 +40,11 @@ export class WorldInfoPromptAdapter {
         } else {
             this.activatedEntries = Array.isArray(entries) ? entries.slice() : [];
         }
+        this.activatedEntries = this.activatedEntries.map(entry => ({
+            ...entry,
+            // 事件中的正文已替换宏；此处继续复用酒馆同一正则链路得到实际发送文本
+            processedContent: this.processEntry(entry),
+        }));
         this.activatedEntries.sort((left, right) => Number(right.order ?? 0) - Number(left.order ?? 0));
         for (const entry of this.activatedEntries) this.knownEntries.set(worldControlId(entry), entry);
     }
