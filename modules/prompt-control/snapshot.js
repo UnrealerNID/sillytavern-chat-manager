@@ -414,7 +414,7 @@ async function prepareWorldEntries(entries, countTokens) {
             tokenCount: await countTokens(content),
         };
     }));
-    return items.filter(item => item.content);
+    return items.filter(item => item.content.trim());
 }
 
 function detachWorldEntries(structured, worldItems) {

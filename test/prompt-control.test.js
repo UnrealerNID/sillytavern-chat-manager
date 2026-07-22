@@ -134,6 +134,42 @@ test('插在上下文中的世界书仍按来源归类并从上下文项中分�
     assert.equal(world.sendIndex, 0);
 });
 
+test('纯变量条目不显示而锚点正文只保留一次', async () => {
+    const snapshot = await createChatSnapshot({
+        chat: [{ role: 'system', content: '预设开头\n锚点正文' }],
+        messages: collection(message('main', 'system', '预设开头\n锚点正文')),
+        countTokens,
+        dryRun: true,
+        worldEntries: [
+            {
+                uid: 10,
+                world: '变量世界书',
+                comment: '设置变量',
+                content: '{{setvar::场景::夜晚}}',
+                processedContent: '  \n',
+                position: 4,
+            },
+            {
+                uid: 11,
+                world: '变量世界书',
+                comment: '锚点内容',
+                content: '锚点正文',
+                processedContent: '锚点正文',
+                position: 7,
+                outletName: '场景锚点',
+            },
+        ],
+    });
+    const contents = snapshot.contributions.map(item => item.content);
+
+    assert.equal(snapshot.contributions.some(item => item.id === 'world:变量世界书:10'), false);
+    assert.equal(contents.filter(content => content.includes('锚点正文')).length, 1);
+    assert.equal(
+        snapshot.contributions.find(item => item.id === 'world:变量世界书:11').insertionPosition,
+        '出口 场景锚点',
+    );
+});
+
 test('排除状态按聊天隔离且不写入快照', () => {
     const store = new PromptSnapshotStore();
     store.setChatKey('character:1:chat-a');
