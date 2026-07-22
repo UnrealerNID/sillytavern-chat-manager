@@ -1,0 +1,50 @@
+<div id="world_info_control_host" class="world-info-control-host">
+    <button
+        data-world-info-control-trigger
+        class="world-info-control-trigger displayNone"
+        type="button"
+        title="世界书控制"
+        aria-label="世界书控制"
+        aria-expanded="false"
+    >
+        <i class="fa-solid fa-book-open"></i>
+    </button>
+    <section data-world-info-control-panel class="world-info-control-panel" hidden>
+        <header>
+            <span>
+                <strong>世界书控制</strong>
+                <small data-world-info-control-summary></small>
+            </span>
+            <button
+                data-world-info-control-collapse
+                class="menu_button fa-solid fa-chevron-down"
+                type="button"
+                title="收起"
+                aria-label="收起"
+            ></button>
+        </header>
+        <div class="world-info-control-toolbar">
+            <input
+                data-world-info-control-search
+                class="text_pole"
+                type="search"
+                placeholder="搜索世界书或条目"
+            >
+            <button
+                data-world-info-control-clear
+                class="menu_button fa-solid fa-eraser"
+                type="button"
+                title="恢复全部临时关闭项"
+                aria-label="恢复全部临时关闭项"
+            ></button>
+            <button
+                data-world-info-control-refresh
+                class="menu_button fa-solid fa-rotate-right"
+                type="button"
+                title="重新扫描"
+                aria-label="重新扫描"
+            ></button>
+        </div>
+        <div data-world-info-control-content class="world-info-control-content"></div>
+    </section>
+</div>

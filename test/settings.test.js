@@ -56,14 +56,20 @@ test('extension version reads the manifest from the repository root', async () =
     assert.doesNotMatch(source, /new URL\('\.\.\/manifest\.json', import\.meta\.url\)/);
 });
 
-test('prompt control exposes floating bubble and input panel as one display mode', async () => {
-    const [html, definition, moduleSource] = await Promise.all([
-        readFile(new URL('../templates/prompt-control/settings.html', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/prompt-control/definition.js', import.meta.url), 'utf8'),
-        readFile(new URL('../modules/prompt-control/module.js', import.meta.url), 'utf8'),
+test('提示词查看器与世界书控制使用独立模块开关', async () => {
+    const [viewerHtml, viewerDefinition, viewerModule, controlHtml, controlModule] = await Promise.all([
+        readFile(new URL('../templates/prompt-viewer/settings.html', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/prompt-viewer/definition.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/prompt-viewer/module.js', import.meta.url), 'utf8'),
+        readFile(new URL('../templates/world-info-control/settings.html', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/world-info-control/module.js', import.meta.url), 'utf8'),
     ]);
 
-    assert.match(html, /data-prompt-floating-enabled/);
-    assert.match(definition, /floatingBubble:\s*true/);
-    assert.match(moduleSource, /setFloatingMode\(this\.settings\.floatingBubble !== false\)/);
+    assert.match(viewerHtml, /data-prompt-viewer-enabled/);
+    assert.match(viewerHtml, /data-prompt-viewer-floating/);
+    assert.match(viewerDefinition, /floatingBubble:\s*true/);
+    assert.match(viewerModule, /setFloatingMode\(this\.settings\.floatingBubble !== false\)/);
+    assert.match(controlHtml, /data-world-info-control-enabled/);
+    assert.match(controlModule, /WORLDINFO_ENTRIES_LOADED/);
+    assert.doesNotMatch(controlModule, /CHAT_COMPLETION_PROMPT_READY/);
 });

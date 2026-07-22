@@ -14,97 +14,50 @@ test('style entry imports every responsibility module', async () => {
         './chat-files/dialogs.css',
         './chat-files/data-maid-enhancer.css',
         './chat-files/responsive.css',
-        './prompt-control/panel.css',
+        './prompt-viewer/panel.css',
+        './world-info-control/panel.css',
         './settings.css',
     ]);
     await Promise.all(imports.map(path => access(new URL(path, entryUrl))));
 });
 
-test('prompt panel stays compact, resizable and free of horizontal scrolling', async () => {
-    const css = await readFile(new URL('../styles/prompt-control/panel.css', import.meta.url), 'utf8');
-    const ui = await readFile(new URL('../modules/prompt-control/ui.js', import.meta.url), 'utf8');
-    const viewModel = await readFile(new URL('../modules/prompt-control/view-model.js', import.meta.url), 'utf8');
-    const search = await readFile(new URL('../modules/prompt-control/search.js', import.meta.url), 'utf8');
-    const template = await readFile(new URL('../templates/prompt-control/panel.html', import.meta.url), 'utf8');
+test('提示词查看器保持只读、可调整且不横向滚动', async () => {
+    const css = await readFile(new URL('../styles/prompt-viewer/panel.css', import.meta.url), 'utf8');
+    const ui = await readFile(new URL('../modules/prompt-viewer/ui.js', import.meta.url), 'utf8');
+    const search = await readFile(new URL('../modules/prompt-viewer/search.js', import.meta.url), 'utf8');
+    const template = await readFile(new URL('../templates/prompt-viewer/panel.html', import.meta.url), 'utf8');
     assert.match(css, /\.prompt-control-host\.prompt-control-floating\s*\{[^}]*position:\s*fixed/s);
     assert.match(css, /\.prompt-control-host\.prompt-control-floating\s*\{[^}]*z-index:\s*31100/s);
     assert.match(css, /\.prompt-control-host\.prompt-control-input\s*\{[^}]*bottom:\s*100%/s);
-    assert.match(css, /\.prompt-control-trigger\.prompt-control-input-trigger > i\s*\{[^}]*transform:\s*scale\(0\.86\)/s);
     assert.match(css, /data-prompt-resize="n"/);
     assert.match(css, /data-prompt-resize="se"/);
     assert.match(css, /\.prompt-control-content\s*\{[^}]*overflow-x:\s*hidden/s);
-    assert.match(css, /\.prompt-control-tabs\s*\{[^}]*flex-wrap:\s*nowrap/s);
-    assert.match(css, /\.prompt-control-tabs \.selected\s*\{[^}]*background:\s*var\(--white20a\)/s);
-    assert.match(ui, /document\.body\.append\(root\)/);
+    assert.match(ui, /document\.body\.append\(this\.root\)/);
     assert.match(ui, /document\.querySelector\('#leftSendForm'\)/);
     assert.match(ui, /form\.append\(this\.root\)/);
-    assert.match(ui, /inputTools\.append\(this\.trigger\)/);
-    assert.match(ui, /正在读取本轮提示词…/);
-    assert.match(css, /prompt-control-loading-icon[^}]*animation:\s*prompt-control-spin/s);
-    assert.match(css, /prompt-control-content-state[^}]*place-content:\s*center/s);
-    assert.match(
-        css,
-        /prompt-control-message pre\s*\{[^}]*margin:\s*0 6px 6px 20px[^}]*padding:\s*8px 10px/s,
-    );
-    assert.match(
-        css,
-        /prompt-control-role-group > \.prompt-control-group-heading,[\s\S]*prompt-control-source-group > \.prompt-control-group-heading[^{]*\{[^}]*min-height:\s*42px/s,
-    );
-    assert.match(
-        css,
-        /prompt-control-role-messages > \.prompt-control-message,[\s\S]*prompt-control-source-group > \.prompt-control-source-entry[^{]*\{[^}]*margin:\s*0 8px 8px 14px/s,
-    );
-    assert.match(
-        css,
-        /prompt-control-source-branch > \.prompt-control-source-branch,[\s\S]*margin:\s*0 6px 6px 12px/s,
-    );
-    assert.match(
-        css,
-        /prompt-control-message\s*\{[^}]*border:\s*0[^}]*background:\s*var\(--black20a\)/s,
-    );
-    assert.match(
-        css,
-        /prompt-control-single-content\s*\{[^}]*border:\s*0[^}]*background:\s*var\(--black20a\)/s,
-    );
-    assert.match(
-        css,
-        /prompt-control-source-branch-heading\s*\{[^}]*background:\s*var\(--black20a\)/s,
-    );
-    assert.match(css, /prompt-control-message pre\s*\{[^}]*background:\s*var\(--black30a\)/s);
-    assert.doesNotMatch(css, /prompt-control-(?:message|single-content|source-branch)[^}]*border-left/s);
-    assert.match(css, /\.prompt-control-action-separator\s*\{[^}]*width:\s*1px/s);
-    assert.match(
-        css,
-        /\.prompt-control-message pre,[\s\S]*\.prompt-control-single-content\s*\{[^}]*overflow-y:\s*auto[^}]*overscroll-behavior:\s*contain/s,
-    );
-    assert.match(css, /\.prompt-control-message\s*\{[^}]*overflow:\s*hidden[^}]*min-width:\s*0/s);
-    assert.doesNotMatch(css, /prompt-control-contribution|prompt-control-text/);
-    assert.doesNotMatch(css, /\.prompt-control-source-group\s*\{[^}]*overflow:\s*hidden/s);
+    assert.match(ui, /tools\.append\(this\.trigger\)/);
     assert.match(ui, /POSITION_KEY/);
     assert.match(ui, /PANEL_SIZE_KEY/);
     assert.match(ui, /Role: \$\{roleIcon\(group\.role\)\} \$\{group\.role\}/);
-    assert.match(ui, /\$\{formatNumber\(tokenCount\)\} Tokens/);
-    assert.match(ui, /group\.nodes\.length === 1/);
-    assert.doesNotMatch(ui, /group\.items\.length === 1/);
-    assert.match(ui, /createSourceTree\(snapshot\.contributions\)/);
-    assert.match(ui, /#createSourceGroup\(child, true\)/);
-    assert.doesNotMatch(ui, /#createWorldGroup/);
-    assert.doesNotMatch(ui, /details\.open = groupSize === 1/);
-    assert.match(ui, /trim\(\)\.replace\(\/\\s\+\/g, ' '\)\.slice\(0, 320\)/);
-    assert.doesNotMatch(template, /data-prompt-view="position"/);
-    assert.match(template, />最终提示词<\/button>/);
-    assert.match(template, />来源分类<\/button>/);
-    assert.match(template, /prompt-control-header[\s\S]*data-prompt-control-collapse[\s\S]*<\/header>/);
-    assert.match(template, /prompt-control-view-actions[\s\S]*data-prompt-control-clear/);
-    assert.match(template, /prompt-control-action-separator[\s\S]*data-prompt-control-refresh/);
-    assert.match(template, /data-prompt-control-search/);
-    assert.doesNotMatch(template, /data-prompt-control-status/);
-    assert.doesNotMatch(ui, /内容已变化，等待刷新/);
+    assert.match(template, /data-prompt-viewer-search/);
+    assert.doesNotMatch(template, /switch|data-prompt-view=/);
     assert.match(ui, /new PromptSearchController/);
     assert.match(search, /scrollIntoView/);
-    assert.match(ui, /element\('details', \{ className: 'prompt-control-role-group' \}\)/);
-    assert.match(ui, /nested \? 'prompt-control-source-branch' : 'prompt-control-source-group'/);
-    assert.match(viewModel, /groupWorldInfoContributions/);
+    assert.doesNotMatch(ui, /setExcluded|clearCurrent|createSourceTree/);
+});
+
+test('世界书控制面板只渲染条目开关并使用输入区承载', async () => {
+    const [css, ui, template] = await Promise.all([
+        readFile(new URL('../styles/world-info-control/panel.css', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/world-info-control/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../templates/world-info-control/panel.html', import.meta.url), 'utf8'),
+    ]);
+    assert.match(css, /\.world-info-control-panel\s*\{[^}]*bottom:\s*calc\(100% \+ 6px\)/s);
+    assert.match(css, /\.world-info-control-content\s*\{[^}]*overflow:\s*auto/s);
+    assert.match(ui, /store\.setExcluded\(controlId/);
+    assert.match(ui, /scheduleRefresh\(\)/);
+    assert.match(template, /data-world-info-control-search/);
+    assert.match(template, /data-world-info-control-clear/);
 });
 
 test('chat manager panels and modal dialogs use their dedicated layers', async () => {

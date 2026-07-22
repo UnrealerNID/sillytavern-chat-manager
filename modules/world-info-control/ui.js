@@ -1,0 +1,250 @@
+import { world_info_position } from '/scripts/world-info.js';
+
+import { element } from '../shared/dom.js';
+import { worldControlId } from './world-info.js';
+
+/**
+ * 管理输入区上方的世界书控制面板
+ */
+export class WorldInfoControlUi {
+    constructor({ template, store, refresh }) {
+        this.template = template;
+        this.store = store;
+        this.refresh = refresh;
+        this.enabled = false;
+        this.opened = false;
+        this.refreshTimer = null;
+        this.groupStates = new Map();
+    }
+
+    initialize() {
+        const holder = document.createElement('template');
+        holder.innerHTML = this.template.trim();
+        this.root = holder.content.firstElementChild;
+        if (!(this.root instanceof HTMLElement)) throw new Error('世界书控制模板结构无效');
+        this.trigger = requireButton(this.root, '[data-world-info-control-trigger]');
+        this.panel = requireElement(this.root, '[data-world-info-control-panel]');
+        this.content = requireElement(this.root, '[data-world-info-control-content]');
+        this.summary = requireElement(this.root, '[data-world-info-control-summary]');
+        this.search = requireInput(this.root, '[data-world-info-control-search]');
+        this.refreshButton = requireButton(this.root, '[data-world-info-control-refresh]');
+        this.clearButton = requireButton(this.root, '[data-world-info-control-clear]');
+        const form = document.querySelector('#send_form');
+        const tools = document.querySelector('#leftSendForm');
+        if (!(form instanceof HTMLElement) || !(tools instanceof HTMLElement)) {
+            throw new Error('未找到酒馆输入区');
+        }
+        form.classList.add('world-info-control-anchor');
+        form.append(this.root);
+        tools.append(this.trigger);
+        this.#bindEvents();
+        this.store.subscribe(() => this.render());
+        this.render();
+    }
+
+    setEnabled(enabled) {
+        this.enabled = enabled;
+        this.trigger?.classList.toggle('displayNone', !enabled);
+        if (!enabled) this.setOpen(false);
+    }
+
+    isOpen() {
+        return this.opened;
+    }
+
+    setOpen(opened) {
+        this.opened = Boolean(opened && this.enabled);
+        this.panel.hidden = !this.opened;
+        this.trigger.setAttribute('aria-expanded', String(this.opened));
+        if (this.opened && this.store.getStatus() !== 'ready') void this.#refresh();
+    }
+
+    scheduleRefresh() {
+        if (!this.enabled) return;
+        this.store.setStatus('stale');
+        if (!this.opened) return;
+        clearTimeout(this.refreshTimer);
+        this.refreshTimer = setTimeout(() => void this.#refresh(), 400);
+    }
+
+    render() {
+        if (!this.content) return;
+        const status = this.store.getStatus();
+        const entries = this.store.getEntries();
+        const excluded = this.store.getExclusions();
+        this.summary.textContent = status === 'ready'
+            ? `${entries.length} 个条目 · 已关闭 ${excluded.size} 个`
+            : '';
+        this.refreshButton.disabled = status === 'loading';
+        this.clearButton.disabled = status === 'loading' || excluded.size === 0;
+        this.content.replaceChildren();
+        if (status === 'loading') {
+            this.content.append(createState('fa-circle-notch', '正在扫描世界书…', true));
+            return;
+        }
+        if (status !== 'ready') {
+            const text = status === 'idle'
+                ? '选择角色或群聊后可扫描'
+                : status === 'error'
+                ? '扫描失败，不影响正常发送'
+                : '打开或刷新以扫描当前上下文';
+            this.content.append(createState('fa-book-open', text));
+            return;
+        }
+
+        const query = this.search.value.trim().toLocaleLowerCase();
+        const visible = entries.filter(entry => matchesEntry(entry, query));
+        if (!visible.length) {
+            this.content.append(createState('fa-magnifying-glass', query ? '没有匹配条目' : '本轮未触发世界书条目'));
+            return;
+        }
+        for (const group of groupByWorld(visible)) this.content.append(this.#createWorldGroup(group));
+    }
+
+    #bindEvents() {
+        this.trigger.addEventListener('click', () => this.setOpen(!this.opened));
+        requireButton(this.root, '[data-world-info-control-collapse]')
+            .addEventListener('click', () => this.setOpen(false));
+        this.refreshButton.addEventListener('click', () => void this.#refresh());
+        this.clearButton.addEventListener('click', () => this.store.clearCurrent());
+        this.search.addEventListener('input', () => this.render());
+    }
+
+    async #refresh() {
+        try {
+            await this.refresh();
+        } catch (error) {
+            globalThis.toastr?.error?.(`世界书扫描失败：${error.message}`);
+        }
+    }
+
+    #createWorldGroup(group) {
+        const details = element('details', { className: 'world-info-control-group' });
+        details.open = this.groupStates.get(group.name) ?? false;
+        details.addEventListener('toggle', () => this.groupStates.set(group.name, details.open));
+        const summary = document.createElement('summary');
+        summary.append(
+            element('strong', { text: group.name }),
+            element('small', { text: `${group.entries.length} 个条目` }),
+        );
+        const list = element('div', { className: 'world-info-control-list' });
+        for (const entry of group.entries) list.append(this.#createEntry(entry));
+        details.append(summary, list);
+        return details;
+    }
+
+    #createEntry(entry) {
+        const controlId = worldControlId(entry);
+        const details = element('details', { className: 'world-info-control-entry' });
+        details.classList.toggle('world-info-control-excluded', this.store.isExcluded(controlId));
+        const summary = document.createElement('summary');
+        const copy = element('span', { className: 'world-info-control-entry-copy' });
+        copy.append(
+            element('strong', { text: entry.comment || `条目 ${entry.uid}` }),
+            element('span', { text: summarize(entry.processedContent) }),
+        );
+        const metadata = element('small', {
+            text: [
+                insertionPosition(entry),
+                `顺序 ${Number(entry.order ?? 0)}`,
+                `${Number(entry.tokenCount ?? 0)} Tokens`,
+            ].join(' · '),
+        });
+        const toggle = createToggle(!this.store.isExcluded(controlId));
+        toggle.addEventListener('click', event => event.stopPropagation());
+        toggle.querySelector('input').addEventListener('change', event => {
+            this.store.setExcluded(controlId, !event.currentTarget.checked);
+        });
+        summary.append(copy, metadata, toggle);
+        details.append(
+            summary,
+            element('pre', { text: entry.processedContent || '空内容' }),
+        );
+        return details;
+    }
+}
+
+function groupByWorld(entries) {
+    const groups = new Map();
+    for (const entry of entries) {
+        const name = entry.world || '未命名世界书';
+        const values = groups.get(name) ?? [];
+        values.push(entry);
+        groups.set(name, values);
+    }
+    return Array.from(groups, ([name, values]) => ({
+        name,
+        entries: values.sort((left, right) => Number(right.order ?? 0) - Number(left.order ?? 0)),
+    }));
+}
+
+function matchesEntry(entry, query) {
+    if (!query) return true;
+    return [entry.world, entry.comment, entry.processedContent]
+        .some(value => String(value ?? '').toLocaleLowerCase().includes(query));
+}
+
+function summarize(content) {
+    return String(content ?? '').trim().replace(/\s+/g, ' ').slice(0, 180) || '空内容';
+}
+
+function insertionPosition(entry) {
+    switch (entry.position) {
+        case world_info_position.after:
+            return '角色定义后';
+        case world_info_position.ANTop:
+            return '作者注释前';
+        case world_info_position.ANBottom:
+            return '作者注释后';
+        case world_info_position.atDepth:
+            return `上下文深度 ${entry.depth ?? 0}`;
+        case world_info_position.EMTop:
+            return '示例消息前';
+        case world_info_position.EMBottom:
+            return '示例消息后';
+        case world_info_position.outlet:
+            return entry.outletName ? `出口 ${entry.outletName}` : '出口';
+        default:
+            return '角色定义前';
+    }
+}
+
+function createToggle(checked) {
+    const label = element('label', {
+        className: 'world-info-control-switch',
+        title: '是否发送此世界书条目',
+    });
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = checked;
+    label.append(input, element('span'));
+    return label;
+}
+
+function createState(icon, text, loading = false) {
+    const state = element('div', {
+        className: `world-info-control-state${loading ? ' loading' : ''}`,
+        text,
+        attrs: { role: 'status' },
+    });
+    state.prepend(element('i', { className: `fa-solid ${icon}` }));
+    return state;
+}
+
+function requireElement(root, selector) {
+    const value = root.querySelector(selector);
+    if (!(value instanceof HTMLElement)) throw new Error(`世界书控制模板缺少 ${selector}`);
+    return value;
+}
+
+function requireButton(root, selector) {
+    const value = root.querySelector(selector);
+    if (!(value instanceof HTMLButtonElement)) throw new Error(`世界书控制模板缺少 ${selector}`);
+    return value;
+}
+
+function requireInput(root, selector) {
+    const value = root.querySelector(selector);
+    if (!(value instanceof HTMLInputElement)) throw new Error(`世界书控制模板缺少 ${selector}`);
+    return value;
+}

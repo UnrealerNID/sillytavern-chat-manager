@@ -4,7 +4,7 @@
 export class WorldInfoPromptAdapter {
     /**
      * @param {object} options 配置项
-     * @param {import('./snapshot.js').PromptSnapshotStore} options.store 快照状态
+     * @param {import('./store.js').WorldInfoControlStore} options.store 控制状态
      * @param {(entry:object)=>string} [options.processEntry] 酒馆原生世界书正文处理器
      */
     constructor({ store, processEntry = entry => String(entry?.content ?? '') }) {

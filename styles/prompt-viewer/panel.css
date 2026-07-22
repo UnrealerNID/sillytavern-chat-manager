@@ -1,0 +1,404 @@
+.prompt-control-host.prompt-control-floating {
+    position: fixed;
+    z-index: 31100;
+    width: 42px;
+    height: 42px;
+    pointer-events: none;
+}
+
+.prompt-control-trigger {
+    pointer-events: auto;
+}
+
+.prompt-control-host.prompt-control-floating .prompt-control-trigger {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    padding: 0;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 50%;
+    background: var(--SmartThemeBlurTintColor);
+    color: var(--SmartThemeBodyColor);
+    box-shadow: 0 4px 14px rgb(0 0 0 / 35%);
+    cursor: grab;
+}
+
+.prompt-control-host.prompt-control-floating .prompt-control-trigger:active {
+    cursor: grabbing;
+}
+
+.prompt-control-trigger span:empty {
+    display: none;
+}
+
+.prompt-control-host.prompt-control-floating .prompt-control-trigger span {
+    position: absolute;
+    right: -3px;
+    bottom: -3px;
+    min-width: 18px;
+    padding: 1px 4px;
+    border-radius: 9px;
+    background: var(--SmartThemeQuoteColor);
+    color: var(--SmartThemeBodyColor);
+    font-size: 9px;
+    line-height: 14px;
+}
+
+.prompt-control-host.prompt-control-input {
+    position: absolute;
+    z-index: 31000;
+    right: 0;
+    bottom: 100%;
+    left: 0;
+    pointer-events: none;
+}
+
+.prompt-control-anchor {
+    position: relative;
+}
+
+.prompt-control-trigger.prompt-control-input-trigger {
+    order: 90;
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+}
+
+.prompt-control-trigger.prompt-control-input-trigger > i {
+    transform: scale(0.86);
+}
+
+.prompt-control-trigger.prompt-control-input-trigger span {
+    margin-left: 2px;
+    font-size: 10px;
+}
+
+.prompt-control-panel {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    min-width: 320px;
+    min-height: 220px;
+    overflow: hidden;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 10px;
+    background: var(--SmartThemeBlurTintColor);
+    box-shadow: 0 8px 28px rgb(0 0 0 / 35%);
+    color: var(--SmartThemeBodyColor);
+    pointer-events: auto;
+}
+
+.prompt-control-host.prompt-control-floating .prompt-control-panel {
+    position: fixed;
+    width: min(760px, calc(100vw - 16px));
+    height: min(620px, calc(100vh - 16px));
+}
+
+.prompt-control-host.prompt-control-input .prompt-control-panel {
+    position: absolute;
+    right: 0;
+    bottom: 6px;
+    left: 0;
+    width: 100%;
+    height: min(520px, 60vh);
+}
+
+.prompt-control-panel[hidden] {
+    display: none;
+}
+
+.prompt-control-header,
+.prompt-control-searchbar,
+.prompt-control-group-heading,
+.prompt-control-message summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.prompt-control-header {
+    justify-content: space-between;
+    min-height: 48px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor);
+}
+
+.prompt-control-title {
+    display: grid;
+    min-width: 0;
+}
+
+.prompt-control-title small,
+.prompt-control-group-title small,
+.prompt-control-message summary small,
+.prompt-control-group-summary,
+.prompt-control-message-preview {
+    color: var(--SmartThemeBodyColor);
+    opacity: 0.62;
+}
+
+.prompt-control-collapse {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    padding: 0;
+}
+
+.prompt-control-searchbar {
+    padding: 8px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor);
+}
+
+.prompt-control-searchbar > i {
+    opacity: 0.7;
+}
+
+.prompt-control-searchbar input {
+    min-width: 0;
+    flex: 1;
+}
+
+.prompt-control-searchbar .menu_button {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    padding: 0;
+}
+
+.prompt-control-search-count {
+    white-space: nowrap;
+    opacity: 0.65;
+}
+
+.prompt-control-content {
+    min-width: 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 8px;
+}
+
+.prompt-control-empty {
+    display: grid;
+    min-height: 100%;
+    place-content: center;
+    text-align: center;
+    opacity: 0.65;
+}
+
+.prompt-control-role-group {
+    margin-bottom: 6px;
+    overflow: visible;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 8px;
+    background: var(--black20a);
+}
+
+.prompt-control-group-heading {
+    min-height: 42px;
+    padding: 7px 10px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.prompt-control-group-heading::-webkit-details-marker,
+.prompt-control-message summary::-webkit-details-marker {
+    display: none;
+}
+
+.prompt-control-group-heading::before,
+.prompt-control-message summary::before {
+    content: "›";
+    flex: 0 0 auto;
+    opacity: 0.65;
+    transition: transform 120ms ease;
+}
+
+.prompt-control-role-group[open] > .prompt-control-group-heading::before,
+.prompt-control-message[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.prompt-control-group-copy,
+.prompt-control-group-title,
+.prompt-control-message-label {
+    min-width: 0;
+}
+
+.prompt-control-group-copy {
+    display: grid;
+    flex: 1;
+}
+
+.prompt-control-group-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.prompt-control-group-title strong,
+.prompt-control-message-label strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.prompt-control-group-summary,
+.prompt-control-message-preview {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.prompt-control-role-messages {
+    padding: 0 8px 8px 14px;
+}
+
+.prompt-control-message {
+    min-width: 0;
+    margin-bottom: 5px;
+    overflow: hidden;
+    border: 0;
+    border-radius: 6px;
+    background: var(--black20a);
+}
+
+.prompt-control-message summary {
+    min-width: 0;
+    min-height: 36px;
+    padding: 6px 8px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.prompt-control-message-label {
+    display: grid;
+    flex: 1;
+}
+
+.prompt-control-message summary small {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.prompt-control-message pre {
+    max-height: min(420px, 50vh);
+    margin: 0 6px 6px 20px;
+    padding: 8px 10px;
+    overflow: auto;
+    border: 0;
+    border-radius: 6px;
+    background: var(--black30a);
+    color: inherit;
+    font: inherit;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.prompt-control-search-match mark {
+    border-radius: 2px;
+    background: var(--SmartThemeQuoteColor);
+    color: inherit;
+}
+
+.prompt-control-search-current {
+    outline: 1px solid var(--SmartThemeQuoteColor);
+    outline-offset: -1px;
+}
+
+.prompt-control-resize-handles > span {
+    position: absolute;
+    z-index: 2;
+}
+
+.prompt-control-host.prompt-control-input .prompt-control-resize-handles > span:not([data-prompt-resize="n"]) {
+    display: none;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="n"],
+.prompt-control-resize-handles [data-prompt-resize="s"] {
+    right: 10px;
+    left: 10px;
+    height: 8px;
+    cursor: ns-resize;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="n"] {
+    top: -4px;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="s"] {
+    bottom: -4px;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="e"],
+.prompt-control-resize-handles [data-prompt-resize="w"] {
+    top: 10px;
+    bottom: 10px;
+    width: 8px;
+    cursor: ew-resize;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="e"] {
+    right: -4px;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="w"] {
+    left: -4px;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="ne"],
+.prompt-control-resize-handles [data-prompt-resize="se"],
+.prompt-control-resize-handles [data-prompt-resize="sw"],
+.prompt-control-resize-handles [data-prompt-resize="nw"] {
+    width: 14px;
+    height: 14px;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="ne"] {
+    top: -5px;
+    right: -5px;
+    cursor: nesw-resize;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="se"] {
+    right: -5px;
+    bottom: -5px;
+    cursor: nwse-resize;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="sw"] {
+    bottom: -5px;
+    left: -5px;
+    cursor: nesw-resize;
+}
+
+.prompt-control-resize-handles [data-prompt-resize="nw"] {
+    top: -5px;
+    left: -5px;
+    cursor: nwse-resize;
+}
+
+@media (max-width: 600px) {
+    .prompt-control-panel {
+        min-width: min(320px, calc(100vw - 16px));
+    }
+
+    .prompt-control-group-title {
+        display: grid;
+    }
+
+    .prompt-control-message summary {
+        align-items: flex-start;
+    }
+}

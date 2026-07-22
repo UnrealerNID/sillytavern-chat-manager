@@ -70,8 +70,10 @@ for (const referenced of [
     'templates/chat-files/data-maid-enhancer.html',
     'templates/chat-files/dialogs.html',
     'templates/chat-files/components.html',
-    'templates/prompt-control/settings.html',
-    'templates/prompt-control/panel.html',
+    'templates/prompt-viewer/settings.html',
+    'templates/prompt-viewer/panel.html',
+    'templates/world-info-control/settings.html',
+    'templates/world-info-control/panel.html',
     ...Object.values(manifest.i18n ?? {}),
 ]) {
     if (!existsSync(join(root, referenced))) throw new Error(`插件引用了不存在的文件：${referenced}`);
