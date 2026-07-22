@@ -1,18 +1,40 @@
-.prompt-control-host {
+.prompt-control-anchor {
     position: relative;
-    width: 100%;
+}
+
+.prompt-control-host {
+    position: absolute;
+    right: 0;
+    bottom: 100%;
+    left: 0;
+    z-index: 2000;
+    height: 0;
+    pointer-events: none;
 }
 
 .prompt-control-trigger {
-    display: inline-flex;
+    position: absolute;
+    right: 4px;
+    bottom: 2px;
+    display: flex;
     align-items: center;
     justify-content: center;
     gap: 4px;
-    min-width: 28px;
-    padding: 0 4px;
-    border: 0;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 5px;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 5px;
+    font-size: 0.82em;
     color: var(--SmartThemeBodyColor);
-    background: transparent;
+    background: var(--SmartThemeBlurTintColor);
+    opacity: 0.8;
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.prompt-control-trigger:hover {
+    opacity: 1;
 }
 
 .prompt-control-trigger span:empty {
@@ -25,6 +47,10 @@
 }
 
 .prompt-control-panel {
+    position: absolute;
+    right: 0;
+    bottom: 28px;
+    left: 0;
     display: flex;
     overflow: hidden;
     flex-direction: column;
@@ -41,6 +67,7 @@
     border-radius: 8px 8px 4px 4px;
     box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
     backdrop-filter: blur(var(--SmartThemeBlurStrength));
+    pointer-events: auto;
     resize: vertical;
 }
 

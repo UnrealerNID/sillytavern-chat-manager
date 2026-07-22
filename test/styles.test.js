@@ -24,9 +24,12 @@ test('prompt panel stays compact, resizable and free of horizontal scrolling', a
     const css = await readFile(new URL('../styles/prompt-control/panel.css', import.meta.url), 'utf8');
     const ui = await readFile(new URL('../modules/prompt-control/ui.js', import.meta.url), 'utf8');
     assert.match(css, /\.prompt-control-panel\s*\{[^}]*resize:\s*vertical/s);
+    assert.match(css, /\.prompt-control-host\s*\{[^}]*position:\s*absolute/s);
+    assert.match(css, /\.prompt-control-host\s*\{[^}]*bottom:\s*100%/s);
     assert.match(css, /\.prompt-control-content\s*\{[^}]*overflow-x:\s*hidden/s);
     assert.match(css, /\.prompt-control-tabs\s*\{[^}]*flex-wrap:\s*wrap/s);
-    assert.match(ui, /optionsButton\.before\(trigger\)/);
+    assert.match(ui, /form\.append\(root\)/);
+    assert.doesNotMatch(ui, /leftSendForm|optionsButton/);
     assert.match(ui, /Role: \$\{roleIcon\(node\.role\)\} \$\{node\.role\} \| Tokens:/);
 });
 

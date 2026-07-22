@@ -41,18 +41,15 @@ export class PromptControlUi {
         const trigger = root.querySelector('[data-prompt-control-trigger]');
         const panel = root.querySelector('[data-prompt-control-panel]');
         const form = document.querySelector('#send_form');
-        const left = document.querySelector('#leftSendForm');
         if (!(trigger instanceof HTMLButtonElement) || !(panel instanceof HTMLElement)) {
             throw new Error('本轮提示词模板缺少入口或面板');
         }
-        if (!(form instanceof HTMLElement) || !(left instanceof HTMLElement)) {
+        if (!(form instanceof HTMLElement)) {
             throw new Error('酒馆输入框尚未就绪');
         }
-        form.insertAdjacentElement('beforebegin', root);
-        // 入口属于输入框左侧原生按钮组，并固定放在菜单按钮之前
-        const optionsButton = left.querySelector('#options_button');
-        if (optionsButton instanceof HTMLElement) optionsButton.before(trigger);
-        else left.prepend(trigger);
+        // 入口与面板悬浮在输入区上边缘，不参与酒馆输入区布局
+        form.classList.add('prompt-control-anchor');
+        form.append(root);
         this.root = root;
         this.trigger = trigger;
         this.panel = panel;
