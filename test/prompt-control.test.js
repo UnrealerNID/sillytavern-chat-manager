@@ -218,7 +218,7 @@ test('文本补全保留最终字符串和来源区段', async () => {
     const groups = groupContributionsBySource(snapshot.contributions);
     assert.equal(snapshot.kind, 'actual');
     assert.equal(snapshot.totalTokens, 5);
-    assert.deepEqual(groups.map(group => group.label), ['预设', '上下文消息']);
+    assert.deepEqual(groups.map(group => group.label), ['预设', '聊天记录']);
 });
 
 test('聊天标识区分角色和群聊', () => {
@@ -277,6 +277,38 @@ test('自定义预设标识回查真实条目名称', async () => {
     });
     assert.equal(snapshot.contributions[0].sourceName, 'NSFW 写作规范');
     assert.equal(snapshot.contributions[0].sourceType, 'preset');
+});
+
+test('来源分类遵循酒馆原生提示词边界', async () => {
+    const identifiers = [
+        ['main', '主提示词', 'preset'],
+        ['charDescription', '角色描述', 'character'],
+        ['personaDescription', '用户人设', 'persona'],
+        ['scenario', '场景', 'scenario'],
+        ['worldInfoBefore', '世界书', 'worldInfo'],
+        ['dialogueExamples 0-0', '示例消息', 'example'],
+        ['chatHistory-0', '聊天记录', 'chat'],
+        ['authorsNote', '作者注释', 'extension'],
+        ['quietPrompt', '静默提示词', 'control'],
+        ['custom_extension', '扩展内容', 'extension'],
+    ];
+    const snapshot = await createChatSnapshot({
+        chat: identifiers.map(([, content]) => ({ role: 'system', content })),
+        messages: collection(...identifiers.map(([identifier, content]) => (
+            message(identifier, 'system', content)
+        ))),
+        countTokens,
+        dryRun: true,
+    });
+
+    assert.deepEqual(
+        snapshot.contributions.map(item => [item.id, item.sourceType]),
+        identifiers.map(([identifier, , sourceType]) => [identifier, sourceType]),
+    );
+    assert.deepEqual(
+        groupContributionsBySource(snapshot.contributions).map(group => group.label),
+        ['预设', '角色', '用户人设', '场景', '世界书', '示例消息', '聊天记录', '扩展注入', '生成控制'],
+    );
 });
 
 test('提示词视图只合并最终顺序中连续且相同的角色', () => {

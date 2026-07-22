@@ -3,9 +3,11 @@ import { countPromptMessageTokens } from './token-counter.js';
 const SOURCE_LABELS = Object.freeze({
     preset: '预设',
     worldInfo: '世界书',
-    character: '角色与人设',
+    character: '角色',
+    persona: '用户人设',
+    scenario: '场景',
     example: '示例消息',
-    chat: '上下文消息',
+    chat: '聊天记录',
     extension: '扩展注入',
     control: '生成控制',
     other: '其他',
@@ -211,7 +213,7 @@ export async function createChatSnapshot({
         return {
             id: item.identifier,
             controlId: finalNode?.id ?? '',
-            sourceType: classifySource(item.identifier),
+            sourceType: classifySource(item.identifier, item.sourceName),
             sourceName: item.sourceName || sourceName(item.identifier),
             finalNodeId: finalNode?.id ?? null,
             sendIndex: finalNode?.sendIndex ?? -1,
@@ -481,9 +483,11 @@ function worldAnchor(entry) {
     return null;
 }
 
-function classifySource(identifier) {
+function classifySource(identifier, promptName = '') {
     if (/^worldInfo/.test(identifier)) return 'worldInfo';
-    if (/^(char|scenario|persona)/.test(identifier)) return 'character';
+    if (/^persona/.test(identifier)) return 'persona';
+    if (/^scenario/.test(identifier)) return 'scenario';
+    if (/^char/.test(identifier)) return 'character';
     if (/^(chatHistory|newMainChat)/.test(identifier)) return 'chat';
     if (/^(dialogueExamples|newChat)/.test(identifier)) return 'example';
     if (/^(authorsNote|summary|vectors|smartContext)/.test(identifier)) return 'extension';
@@ -491,8 +495,8 @@ function classifySource(identifier) {
         return 'control';
     }
     if (/^(main|nsfw|jailbreak|enhanceDefinitions)/.test(identifier)) return 'preset';
-    // 提示词管理器中的自定义预设项可能使用 UUID 或其他随机标识
-    return 'preset';
+    // 未知标识能被提示词管理器回查时属于预设，否则来自扩展提示词注入
+    return promptName ? 'preset' : 'extension';
 }
 
 function sourceName(identifier) {

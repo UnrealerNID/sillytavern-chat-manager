@@ -127,8 +127,8 @@ export class PromptCaptureController {
         addTextPart(parts, 'world-before', 'worldInfo', '角色定义前世界书', payload?.worldInfoBefore);
         addTextPart(parts, 'description', 'character', '角色描述', payload?.description);
         addTextPart(parts, 'personality', 'character', '角色性格', payload?.personality);
-        addTextPart(parts, 'scenario', 'character', '场景', payload?.scenario);
-        addTextPart(parts, 'persona', 'character', '用户人设', payload?.persona);
+        addTextPart(parts, 'scenario', 'scenario', '场景', payload?.scenario);
+        addTextPart(parts, 'persona', 'persona', '用户人设', payload?.persona);
         addTextPart(parts, 'world-after', 'worldInfo', '角色定义后世界书', payload?.worldInfoAfter);
         addTextPart(parts, 'examples', 'example', '示例消息', payload?.mesExmString);
         for (const [index, message] of (payload?.finalMesSend ?? []).entries()) {
