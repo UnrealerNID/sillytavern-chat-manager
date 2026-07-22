@@ -291,7 +291,8 @@ Map<chatKey, Set<controlId>>
 - 不修改来源文件和原生永久启用状态
 - 不通过 DOM 猜测提示词来源
 - 不通过字符串查找删除合并后的单个来源
-- 不覆盖酒馆助手函数或依赖其私有 DOM 层级
+- 不覆盖酒馆助手函数，也不修改酒馆助手源码
+- 增强入口只在当前兼容版本的查看器结构校验通过后挂载，结构变化时自动停用增强
 - 不保证包含服务端再次追加或改写的提示词
 - 其他扩展在本插件捕获事件之后修改请求时，面板只能显示本插件捕获时的前端状态
 - 不可安全排除的协议消息和工具调用显示为锁定
@@ -306,13 +307,9 @@ modules/
     module.js           生命周期与依赖装配
     snapshot.js         统一快照、节点身份与排除状态
     capture.js          预览和正式请求捕获
-    controls.js         来源级与最终节点级控制
-    projections.js      三种视图投影
-    tokens.js           Token 计算与缓存
     ui.js               自带折叠入口和面板交互
-    adapters/
-      world-info.js     世界书条目捕获与过滤
-      tavern-helper.js  酒馆助手查看器增强
+    world-info.js       世界书条目捕获与过滤
+    tavern-helper.js    酒馆助手查看器增强
 templates/
   prompt-control/
     panel.html
@@ -320,7 +317,6 @@ templates/
 styles/
   prompt-control/
     panel.css
-    settings.css
 ```
 
 不为每种来源和每种视图拆出空壳模块。只有存在独立事件边界或兼容边界的来源才使用适配文件。

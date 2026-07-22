@@ -14,6 +14,7 @@ test('style entry imports every responsibility module', async () => {
         './chat-files/dialogs.css',
         './chat-files/data-maid-enhancer.css',
         './chat-files/responsive.css',
+        './prompt-control/panel.css',
         './settings.css',
     ]);
     await Promise.all(imports.map(path => access(new URL(path, entryUrl))));
