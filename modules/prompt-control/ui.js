@@ -86,9 +86,9 @@ export class PromptControlUi {
      */
     setFloatingMode(floating) {
         if (!this.root || this.floating === floating && this.root.isConnected) return;
-        const inputItems = document.querySelector('#nonQRFormItems');
+        const inputTools = document.querySelector('#leftSendForm');
         const form = document.querySelector('#send_form');
-        if (!floating && (!(inputItems instanceof HTMLElement) || !(form instanceof HTMLElement))) return;
+        if (!floating && (!(inputTools instanceof HTMLElement) || !(form instanceof HTMLElement))) return;
         this.floating = floating;
         this.root.classList.toggle('prompt-control-floating', floating);
         this.root.classList.toggle('prompt-control-input', !floating);
@@ -106,7 +106,7 @@ export class PromptControlUi {
         }
         form.classList.add('prompt-control-anchor');
         form.append(this.root);
-        inputItems.append(this.trigger);
+        inputTools.append(this.trigger);
         this.root.style.removeProperty('left');
         this.root.style.removeProperty('top');
         for (const property of ['left', 'top', 'width', 'height']) {
@@ -161,6 +161,10 @@ export class PromptControlUi {
     renderInto(container, view) {
         const snapshot = this.store.getSnapshot();
         container.replaceChildren();
+        if (this.store.getStatus() === 'loading') {
+            container.append(createLoadingState());
+            return;
+        }
         if (!snapshot) {
             container.append(element('div', {
                 className: 'prompt-control-empty',
@@ -234,17 +238,22 @@ export class PromptControlUi {
         const statusText = {
             idle: '选择角色或群聊后可读取',
             stale: '内容已变化，等待刷新',
-            loading: '正在装配本轮提示词…',
+            loading: '',
             ready: snapshot?.kind === 'actual' ? '已捕获实际发送' : '当前预览',
             error: '读取失败，不影响正常发送',
         }[status] ?? '';
         this.status.textContent = statusText;
+        this.status.hidden = status === 'loading';
         const total = enabledTokenTotal(snapshot, this.store);
-        this.summary.textContent = snapshot
+        this.summary.textContent = status === 'loading'
+            ? '正在读取'
+            : snapshot
             ? `${VIEW_LABELS[this.view]} · Tokens: ${total}`
             : '尚未读取';
-        this.triggerTokens.textContent = snapshot ? String(total) : '';
-        this.trigger.title = snapshot ? `查看本轮提示词 · ${total} Token` : '查看本轮提示词';
+        this.triggerTokens.textContent = snapshot && status !== 'loading' ? String(total) : '';
+        this.trigger.title = snapshot && status !== 'loading'
+            ? `查看本轮提示词 · ${total} Token`
+            : '查看本轮提示词';
     }
 
     #renderPrompt(container, snapshot) {
@@ -663,6 +672,15 @@ function createContent(content) {
         }
     });
     return details;
+}
+
+function createLoadingState() {
+    const loading = element('div', { className: 'prompt-control-loading' });
+    loading.append(
+        element('i', { className: 'fa-solid fa-circle-notch prompt-control-loading-icon' }),
+        element('span', { text: '正在读取本轮提示词…' }),
+    );
+    return loading;
 }
 
 function appendInBatches(container, items, renderItem) {

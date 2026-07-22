@@ -97,22 +97,23 @@
     align-items: center;
     justify-content: center;
     gap: 3px;
-    width: 28px;
-    height: 28px;
+    width: var(--bottomFormBlockSize);
+    height: var(--bottomFormBlockSize);
     padding: 0;
     border: 0;
     border-radius: 0;
-    font-size: 1.05em;
-    color: var(--SmartThemeBodyColor);
+    font-size: var(--bottomFormIconSize);
+    color: inherit;
     background: transparent;
-    opacity: 0.85;
+    opacity: 0.7;
     pointer-events: auto;
     cursor: pointer;
+    transition: opacity var(--animation-duration-2x);
 }
 
 .prompt-control-trigger.prompt-control-input-trigger:hover {
     opacity: 1;
-    filter: brightness(1.15);
+    filter: brightness(1.2);
 }
 
 .prompt-control-trigger.prompt-control-input-trigger span {
@@ -323,6 +324,26 @@
     min-height: 90px;
     place-items: center;
     color: var(--SmartThemeEmColor);
+}
+
+.prompt-control-loading {
+    display: grid;
+    min-height: 120px;
+    place-content: center;
+    justify-items: center;
+    gap: 10px;
+    color: var(--SmartThemeEmColor);
+}
+
+.prompt-control-loading-icon {
+    font-size: 1.35em;
+    animation: prompt-control-spin 850ms linear infinite;
+}
+
+@keyframes prompt-control-spin {
+    to {
+        transform: rotate(1turn);
+    }
 }
 
 .prompt-control-load-more {

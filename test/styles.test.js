@@ -31,9 +31,11 @@ test('prompt panel stays compact, resizable and free of horizontal scrolling', a
     assert.match(css, /\.prompt-control-content\s*\{[^}]*overflow-x:\s*hidden/s);
     assert.match(css, /\.prompt-control-tabs\s*\{[^}]*flex-wrap:\s*wrap/s);
     assert.match(ui, /document\.body\.append\(root\)/);
-    assert.match(ui, /document\.querySelector\('#nonQRFormItems'\)/);
+    assert.match(ui, /document\.querySelector\('#leftSendForm'\)/);
     assert.match(ui, /form\.append\(this\.root\)/);
-    assert.match(ui, /inputItems\.append\(this\.trigger\)/);
+    assert.match(ui, /inputTools\.append\(this\.trigger\)/);
+    assert.match(ui, /正在读取本轮提示词…/);
+    assert.match(css, /prompt-control-loading-icon[^}]*animation:\s*prompt-control-spin/s);
     assert.match(ui, /POSITION_KEY/);
     assert.match(ui, /PANEL_SIZE_KEY/);
     assert.match(ui, /Role: \$\{roleIcon\(node\.role\)\} \$\{node\.role\} \| Tokens:/);
