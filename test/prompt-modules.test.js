@@ -123,14 +123,15 @@ test('世界书扫描结果保留条目标识和处理后正文', () => {
 
 test('世界书按来源分区并在分区内沿用酒馆文件名排序', () => {
     const sections = groupWorldInfoSections([
-        { world: '!! Table.custom', sourceType: 'global', uid: 1, nativeOrder: 3 },
-        { world: '__SSVGG', sourceType: 'global', uid: 2, nativeOrder: 1 },
-        { world: '__SSVGG', sourceType: 'global', uid: 3, nativeOrder: 0 },
-        { world: '角色书', sourceType: 'character', uid: 4, nativeOrder: 2 },
+        { world: '!! Table.custom', sourceType: 'global', uid: 1, position: 0, order: 30 },
+        { world: '__SSVGG', sourceType: 'global', uid: 2, position: 1, order: 10 },
+        { world: '__SSVGG', sourceType: 'global', uid: 3, position: 0, order: 20 },
+        { world: '角色书', sourceType: 'character', uid: 4, position: 0, order: 40 },
+        { world: '__SSVGG', sourceType: 'global', uid: 5, position: 0, order: 5 },
     ]);
     assert.deepEqual(sections.map(section => section.label), ['角色世界书', '全局世界书']);
     assert.deepEqual(sections[1].groups.map(group => group.name), ['__SSVGG', '!! Table.custom']);
-    assert.deepEqual(sections[1].groups[0].entries.map(entry => entry.uid), [2, 3]);
+    assert.deepEqual(sections[1].groups[0].entries.map(entry => entry.uid), [5, 3, 2]);
 });
 
 test('世界书适配器保留酒馆加载事件中的来源分类', () => {
@@ -151,21 +152,6 @@ test('世界书适配器保留酒馆加载事件中的来源分类', () => {
     assert.deepEqual(
         adapter.getActivatedEntries().map(entry => entry.sourceType),
         ['character', 'global'],
-    );
-});
-
-test('世界书适配器保留酒馆 sortedEntries 的原生索引', () => {
-    const store = new WorldInfoControlStore();
-    const adapter = new WorldInfoPromptAdapter({ store });
-    const first = { world: '书一', uid: 1, content: '一' };
-    const second = { world: '书二', uid: 2, content: '二' };
-    adapter.captureActivatedEntries({
-        sortedEntries: [second, first],
-        activated: { entries: new Set([first, second]) },
-    });
-    assert.deepEqual(
-        adapter.getActivatedEntries().map(entry => [entry.uid, entry.nativeOrder]),
-        [[1, 1], [2, 0]],
     );
 });
 
