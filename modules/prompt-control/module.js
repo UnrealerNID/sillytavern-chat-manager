@@ -7,12 +7,11 @@ import { waitForElement } from '../platform/dom.js';
 import { EXTENSION_ID } from '../platform/extension-identity.js';
 import { PromptCaptureController } from './capture.js';
 import { PromptSnapshotStore, getPromptChatKey } from './snapshot.js';
-import { TavernHelperPromptIntegration } from './tavern-helper.js';
 import { PromptControlUi } from './ui.js';
 import { WorldInfoPromptAdapter } from './world-info.js';
 
 /**
- * 装配本轮提示词捕获、控制、面板与兼容桥
+ * 装配本轮提示词捕获、控制与面板
  */
 export class PromptControlModule {
     /**
@@ -66,11 +65,6 @@ export class PromptControlModule {
             store: this.store,
             refresh: () => this.capture.refresh(),
         });
-        this.bridge = new TavernHelperPromptIntegration({
-            store: this.store,
-            refresh: () => this.capture.refresh(),
-            renderView: (container, view) => this.ui.renderInto(container, view),
-        });
         this.ui.initialize();
         this.#prepareEventBindings();
         this.#bindInput();
@@ -78,7 +72,7 @@ export class PromptControlModule {
     }
 
     /**
-     * 同步模块总状态与酒馆助手兼容桥状态
+     * 同步模块状态
      * @param {boolean} enabled 是否启用
      */
     setEnabled(enabled) {
@@ -88,7 +82,6 @@ export class PromptControlModule {
         this.capture.setEnabled(enabled);
         this.ui.setEnabled(enabled);
         this.#setEventsEnabled(enabled);
-        this.bridge.setEnabled(enabled && this.settings.tavernHelper !== false);
         if (enabled) this.#syncChat();
         else {
             this.worldInfo.reset();

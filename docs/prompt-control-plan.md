@@ -309,7 +309,6 @@ modules/
     capture.js          预览和正式请求捕获
     ui.js               自带折叠入口和面板交互
     world-info.js       世界书条目捕获与过滤
-    tavern-helper.js    酒馆助手查看器增强
 templates/
   prompt-control/
     panel.html

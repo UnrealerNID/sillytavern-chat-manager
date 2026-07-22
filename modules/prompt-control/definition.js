@@ -3,7 +3,6 @@ import { PromptControlModule } from './module.js';
 const DEFAULT_SETTINGS = Object.freeze({
     enabled: true,
     floatingBubble: true,
-    tavernHelper: true,
 });
 
 /**
@@ -22,7 +21,6 @@ export const promptControlModuleDefinition = {
         const settings = toolboxSettings.modules.promptControl;
         settings.enabled ??= DEFAULT_SETTINGS.enabled;
         settings.floatingBubble ??= DEFAULT_SETTINGS.floatingBubble;
-        settings.tavernHelper ??= DEFAULT_SETTINGS.tavernHelper;
     },
 
     /**
@@ -57,9 +55,6 @@ export const promptControlModuleDefinition = {
         });
         bindSwitch(root, '[data-prompt-floating-enabled]', () => promptControl.floatingBubble, value => {
             promptControl.floatingBubble = value;
-        });
-        bindSwitch(root, '[data-prompt-helper-enabled]', () => promptControl.tavernHelper, value => {
-            promptControl.tavernHelper = value;
         });
     },
 
