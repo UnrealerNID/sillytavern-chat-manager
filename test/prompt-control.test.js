@@ -362,6 +362,16 @@ test('普通来源沿用同一来源树且直接保留来源项', () => {
     assert.equal(source.items[0], items[0]);
 });
 
+test('来源视图最外层不生成正文摘要', async () => {
+    const source = await readFile(
+        new URL('../modules/prompt-control/ui.js', import.meta.url),
+        'utf8',
+    );
+
+    assert.match(source, /preview: nested \? summarizeItems\([\s\S]*?\) : ''/);
+    assert.match(source, /if \(preview\) \{[\s\S]*prompt-control-group-summary/);
+});
+
 test('搜索定位支持首次定位与首尾循环', () => {
     assert.equal(nextSearchIndex(-1, 3, 1), 0);
     assert.equal(nextSearchIndex(-1, 3, -1), 2);

@@ -355,7 +355,7 @@ export class PromptControlUi {
             label: group.label,
             count: group.allItems.length,
             tokenCount: sumTokens(group.allItems),
-            preview: summarizeItems(group.allItems, item => item.content),
+            preview: nested ? summarizeItems(group.allItems, item => item.content) : '',
         });
         section.append(heading);
         for (const child of group.children) {
@@ -388,10 +388,13 @@ export class PromptControlUi {
                 text: `${count} 条 · ${formatNumber(tokenCount)} Tokens`,
             }),
         );
-        const summary = element('span', { className: 'prompt-control-group-summary' });
-        this.search.appendHighlighted(summary, preview);
         const copy = element('span', { className: 'prompt-control-group-copy' });
-        copy.append(title, summary);
+        copy.append(title);
+        if (preview) {
+            const summary = element('span', { className: 'prompt-control-group-summary' });
+            this.search.appendHighlighted(summary, preview);
+            copy.append(summary);
+        }
         heading.append(copy);
         return heading;
     }
