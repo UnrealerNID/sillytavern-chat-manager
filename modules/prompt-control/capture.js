@@ -3,6 +3,8 @@ import {
     createTextSnapshot,
     getPromptChatKey,
 } from './snapshot.js';
+import { countPromptMessageTokens } from './token-counter.js';
+import { getImageSizeFromDataURL } from '/scripts/utils.js';
 
 /**
  * 捕获预览与正式发送提示词，并应用安全的最终消息排除
@@ -78,6 +80,11 @@ export class PromptCaptureController {
             chat: payload.chat,
             messages: this.getStructuredMessages(),
             countTokens: text => context.getTokenCountAsync(text),
+            countMessageTokens: message => countPromptMessageTokens(
+                message,
+                text => context.getTokenCountAsync(text),
+                getImageSizeFromDataURL,
+            ),
             dryRun: payload.dryRun === true,
             worldEntries: this.worldInfo.getActivatedEntries(),
         });

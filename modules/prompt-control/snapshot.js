@@ -1,3 +1,5 @@
+import { countPromptMessageTokens } from './token-counter.js';
+
 const SOURCE_LABELS = Object.freeze({
     preset: '预设',
     worldInfo: '世界书',
@@ -150,6 +152,7 @@ export function getPromptChatKey(context) {
  * @param {object[]} options.chat 最终消息数组
  * @param {object|null} options.messages 酒馆结构化消息集合
  * @param {(text:string)=>Promise<number>} options.countTokens Token 计算器
+ * @param {(message:object)=>Promise<number>} [options.countMessageTokens] 消息 Token 计算器
  * @param {boolean} options.dryRun 是否为预览
  * @param {object[]} [options.worldEntries] 本轮激活世界书条目
  * @returns {Promise<object>} 提示词快照
@@ -158,6 +161,7 @@ export async function createChatSnapshot({
     chat,
     messages,
     countTokens,
+    countMessageTokens = message => countPromptMessageTokens(message, countTokens),
     dryRun,
     worldEntries = [],
 }) {
@@ -172,7 +176,7 @@ export async function createChatSnapshot({
             sendIndex: index,
             role: message.role ?? 'unknown',
             content,
-            tokenCount: await countTokens(content),
+            tokenCount: await countMessageTokens(message),
             controlLevel: isProtocolMessage(message) ? 'locked' : 'final',
             contributionIds: contributions.map(item => item.identifier),
         };
@@ -396,6 +400,7 @@ function sourceName(identifier) {
     };
     if (names[identifier]) return names[identifier];
     if (identifier.startsWith('chatHistory-')) return `聊天消息 ${identifier.slice(12)}`;
+    if (/^[\da-f]{8}(?:[\da-f-]{8,})$/i.test(identifier)) return '其他提示词';
     return identifier;
 }
 

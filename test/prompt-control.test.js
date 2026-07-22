@@ -9,6 +9,7 @@ import {
     getPromptChatKey,
     groupContributionsBySource,
 } from '../modules/prompt-control/snapshot.js';
+import { countPromptMessageTokens } from '../modules/prompt-control/token-counter.js';
 import { WorldInfoPromptAdapter } from '../modules/prompt-control/world-info.js';
 
 const countTokens = async text => String(text).length;
@@ -146,6 +147,38 @@ test('结构展开忽略空消息并保留集合顺序', () => {
         flattenStructuredMessages(root).map(item => item.identifier),
         ['first', 'second'],
     );
+});
+
+test('提示词消息按查看器规则分别计算文本与多模态内容', async () => {
+    const count = await countPromptMessageTokens({
+        role: 'user',
+        content: [
+            { type: 'text', text: '四字文本' },
+            { type: 'image_url', image_url: { url: 'data:image/png;base64,x', detail: 'auto' } },
+            { type: 'video_url', video_url: { url: 'video' } },
+        ],
+    }, countTokens, async () => ({ width: 512, height: 512 }));
+    assert.equal(count, 1089);
+});
+
+test('空助手消息按查看器规则计算工具调用', async () => {
+    const toolCalls = [{ id: 'call-1', function: { name: 'search' } }];
+    const count = await countPromptMessageTokens({
+        role: 'assistant',
+        content: '',
+        tool_calls: toolCalls,
+    }, countTokens);
+    assert.equal(count, JSON.stringify(toolCalls).length);
+});
+
+test('不把内部哈希标识直接显示为来源名称', async () => {
+    const snapshot = await createChatSnapshot({
+        chat: [{ role: 'system', content: '内容' }],
+        messages: collection(message('adbe0f3a-e6c6-4532-b274-81a02be7fecf', 'system', '内容')),
+        countTokens,
+        dryRun: true,
+    });
+    assert.equal(snapshot.contributions[0].sourceName, '其他提示词');
 });
 
 function message(identifier, role, content) {

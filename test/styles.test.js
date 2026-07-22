@@ -20,6 +20,16 @@ test('style entry imports every responsibility module', async () => {
     await Promise.all(imports.map(path => access(new URL(path, entryUrl))));
 });
 
+test('prompt panel stays compact, resizable and free of horizontal scrolling', async () => {
+    const css = await readFile(new URL('../styles/prompt-control/panel.css', import.meta.url), 'utf8');
+    const ui = await readFile(new URL('../modules/prompt-control/ui.js', import.meta.url), 'utf8');
+    assert.match(css, /\.prompt-control-panel\s*\{[^}]*resize:\s*vertical/s);
+    assert.match(css, /\.prompt-control-content\s*\{[^}]*overflow-x:\s*hidden/s);
+    assert.match(css, /\.prompt-control-tabs\s*\{[^}]*flex-wrap:\s*wrap/s);
+    assert.match(ui, /optionsButton\.before\(trigger\)/);
+    assert.match(ui, /Role: \$\{roleIcon\(node\.role\)\} \$\{node\.role\} \| Tokens:/);
+});
+
 test('chat manager panels and modal dialogs use their dedicated layers', async () => {
     const base = await readFile(new URL('../styles/chat-files/base.css', import.meta.url), 'utf8');
     assert.match(base, /\.cm-overlay\s*\{[^}]*z-index:\s*31000/s);

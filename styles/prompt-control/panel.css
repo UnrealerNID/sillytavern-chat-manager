@@ -28,14 +28,20 @@
     display: flex;
     overflow: hidden;
     flex-direction: column;
-    max-height: min(52dvh, 620px);
-    margin: 0 0 6px;
+    width: 100%;
+    min-width: 0;
+    height: min(52dvh, 620px);
+    min-height: 220px;
+    max-height: 75dvh;
+    box-sizing: border-box;
+    margin: 0;
     color: var(--SmartThemeBodyColor);
     background: var(--SmartThemeBlurTintColor);
     border: 1px solid var(--SmartThemeBorderColor);
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgb(0 0 0 / 28%);
+    border-radius: 8px 8px 4px 4px;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
     backdrop-filter: blur(var(--SmartThemeBlurStrength));
+    resize: vertical;
 }
 
 .prompt-control-panel[hidden] {
@@ -53,9 +59,10 @@
 }
 
 .prompt-control-header {
+    flex-wrap: wrap;
     justify-content: space-between;
-    gap: 12px;
-    padding: 10px 12px;
+    gap: 8px;
+    padding: 6px 8px;
     border-bottom: 1px solid var(--SmartThemeBorderColor);
 }
 
@@ -63,6 +70,7 @@
     display: grid;
     min-width: 0;
     gap: 2px;
+    font-size: 0.9em;
 }
 
 .prompt-control-title small,
@@ -81,13 +89,14 @@
 .prompt-control-tabs .menu_button {
     width: auto;
     min-width: 32px;
-    min-height: 32px;
+    min-height: 28px;
     flex-wrap: nowrap;
     white-space: nowrap;
 }
 
 .prompt-control-tabs {
-    padding: 8px 12px 0;
+    flex-wrap: wrap;
+    padding: 6px 8px 0;
 }
 
 .prompt-control-helper-tabs {
@@ -112,18 +121,22 @@
 }
 
 .prompt-control-status {
-    min-height: 24px;
-    padding: 6px 12px;
+    min-height: 20px;
+    padding: 4px 8px;
     color: var(--SmartThemeEmColor);
     font-size: 0.85rem;
 }
 
 .prompt-control-content {
     display: grid;
-    overflow: auto;
-    min-height: 100px;
-    padding: 0 12px 12px;
-    gap: 8px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    align-content: start;
+    padding: 0 8px 8px;
+    gap: 6px;
     overscroll-behavior: contain;
 }
 
@@ -142,23 +155,33 @@
 .prompt-control-card,
 .prompt-control-source-group,
 .prompt-control-contribution {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
     border: 1px solid var(--SmartThemeBorderColor);
-    border-radius: 8px;
+    border-radius: 5px;
     background: var(--black30a);
 }
 
 .prompt-control-card-header,
 .prompt-control-group-heading {
     justify-content: space-between;
-    gap: 10px;
-    padding: 8px 10px;
+    gap: 6px;
+    padding: 5px 7px;
 }
 
-.prompt-control-card-header strong,
+.prompt-control-item-meta,
 .prompt-control-group-heading strong,
 .prompt-control-contribution-copy {
     min-width: 0;
     flex: 1;
+    overflow-wrap: anywhere;
+}
+
+.prompt-control-item-meta,
+.prompt-control-group-heading,
+.prompt-control-contribution {
+    font-size: 0.88em;
 }
 
 .prompt-control-text {
@@ -167,7 +190,7 @@
 
 .prompt-control-text summary {
     overflow: hidden;
-    padding: 8px 10px;
+    padding: 5px 7px;
     cursor: pointer;
     color: var(--SmartThemeEmColor);
     text-overflow: ellipsis;
@@ -175,10 +198,11 @@
 }
 
 .prompt-control-text pre {
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
     max-height: 280px;
     margin: 0;
-    padding: 10px;
+    padding: 7px;
     border-top: 1px solid var(--SmartThemeBorderColor);
     font: inherit;
     line-height: 1.45;
@@ -188,7 +212,7 @@
 
 .prompt-control-contributions {
     display: grid;
-    padding: 8px;
+    padding: 5px;
     border-top: 1px solid var(--SmartThemeBorderColor);
     gap: 6px;
 }
@@ -196,14 +220,20 @@
 .prompt-control-source-group {
     display: grid;
     overflow: hidden;
-    gap: 6px;
-    padding: 0 8px 8px;
+    gap: 0;
+    padding: 0;
+}
+
+.prompt-control-source-group > .prompt-control-contribution {
+    border-width: 1px 0 0;
+    border-radius: 0;
+    background: transparent;
 }
 
 .prompt-control-contribution {
     align-items: flex-start;
-    gap: 10px;
-    padding: 8px 10px;
+    gap: 6px;
+    padding: 5px 7px;
 }
 
 .prompt-control-contribution-copy {
@@ -266,11 +296,8 @@
 }
 
 @media (max-width: 700px) {
-    .prompt-control-tabs {
-        overflow-x: auto;
-    }
-
     .prompt-control-panel {
+        height: 58dvh;
         max-height: 58dvh;
     }
 }

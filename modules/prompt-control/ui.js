@@ -49,7 +49,10 @@ export class PromptControlUi {
             throw new Error('酒馆输入框尚未就绪');
         }
         form.insertAdjacentElement('beforebegin', root);
-        left.append(trigger);
+        // 入口属于输入框左侧原生按钮组，并固定放在菜单按钮之前
+        const optionsButton = left.querySelector('#options_button');
+        if (optionsButton instanceof HTMLElement) optionsButton.before(trigger);
+        else left.prepend(trigger);
         this.root = root;
         this.trigger = trigger;
         this.panel = panel;
@@ -164,7 +167,7 @@ export class PromptControlUi {
         this.status.textContent = statusText;
         const total = enabledTokenTotal(snapshot, this.store);
         this.summary.textContent = snapshot
-            ? `${VIEW_LABELS[this.view]} · ${total} Token`
+            ? `${VIEW_LABELS[this.view]} · Tokens: ${total}`
             : '尚未读取';
         this.triggerTokens.textContent = snapshot ? String(total) : '';
         this.trigger.title = snapshot ? `查看本轮提示词 · ${total} Token` : '查看本轮提示词';
@@ -204,8 +207,10 @@ export class PromptControlUi {
         const card = element('article', { className: 'prompt-control-card' });
         const header = element('header', { className: 'prompt-control-card-header' });
         header.append(
-            element('strong', { text: `#${node.sendIndex + 1} ${roleLabel(node.role)}` }),
-            element('small', { text: `${node.tokenCount} Token` }),
+            element('span', {
+                className: 'prompt-control-item-meta',
+                text: `Role: ${roleIcon(node.role)} ${node.role} | Tokens: ${node.tokenCount}`,
+            }),
             this.#createToggle(node.id, node.controlLevel),
         );
         card.append(header, createContent(node.content));
@@ -228,7 +233,7 @@ export class PromptControlUi {
         const copy = element('div', { className: 'prompt-control-contribution-copy' });
         copy.append(
             element('strong', { text: item.sourceName }),
-            element('small', { text: `${item.tokenCount} Token` }),
+            element('small', { text: `Tokens: ${item.tokenCount}` }),
         );
         if (item.content) copy.append(createContent(item.content));
         row.append(copy, this.#createToggle(item.controlId, item.controlLevel));
@@ -292,14 +297,14 @@ function appendInBatches(container, items, renderItem) {
     appendNext();
 }
 
-function roleLabel(role) {
+function roleIcon(role) {
     return {
-        system: '系统',
-        user: '用户',
-        assistant: '助手',
-        tool: '工具',
-        prompt: '完整提示词',
-    }[role] ?? role;
+        system: '⚙️',
+        user: '👤',
+        assistant: '🤖',
+        tool: '🔧',
+        prompt: '📝',
+    }[role] ?? '•';
 }
 
 function enabledTokenTotal(snapshot, store) {
