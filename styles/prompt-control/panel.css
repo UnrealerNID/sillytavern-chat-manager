@@ -77,56 +77,57 @@
 }
 
 .prompt-control-host.prompt-control-input {
-    position: relative;
+    position: absolute;
+    right: 0;
+    bottom: 100%;
+    left: 0;
     z-index: 2000;
-    display: flex;
-    flex: 0 0 auto;
-    order: 999;
-    width: 26px;
-    height: 24px;
-    margin-left: auto;
+    height: 0;
     pointer-events: none;
 }
 
-.prompt-control-host.prompt-control-input .prompt-control-trigger {
+.prompt-control-anchor {
+    position: relative;
+}
+
+.prompt-control-trigger.prompt-control-input-trigger {
+    position: relative;
     display: flex;
+    flex: 0 0 auto;
     align-items: center;
     justify-content: center;
     gap: 3px;
-    width: 26px;
-    height: 24px;
-    padding: 0 4px;
-    border: 1px solid var(--SmartThemeBorderColor);
-    border-radius: 5px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    font-size: 1.05em;
     color: var(--SmartThemeBodyColor);
-    background: var(--SmartThemeBlurTintColor);
+    background: transparent;
     opacity: 0.85;
     pointer-events: auto;
     cursor: pointer;
 }
 
-.prompt-control-host.prompt-control-input .prompt-control-trigger:hover {
+.prompt-control-trigger.prompt-control-input-trigger:hover {
     opacity: 1;
+    filter: brightness(1.15);
 }
 
-.prompt-control-host.prompt-control-input .prompt-control-trigger span {
-    position: absolute;
-    top: -6px;
-    right: -7px;
-    padding: 1px 3px;
-    border-radius: 999px;
-    font-size: 0.62rem;
-    background: var(--SmartThemeBlurTintColor);
+.prompt-control-trigger.prompt-control-input-trigger span {
+    display: none;
 }
 
 .prompt-control-host.prompt-control-input .prompt-control-panel {
     position: absolute;
     right: 0;
-    bottom: 30px;
+    bottom: 4px;
+    left: 0;
     display: flex;
     overflow: hidden;
     flex-direction: column;
-    width: min(760px, calc(100vw - 16px));
+    width: 100%;
     min-width: 0;
     height: min(52dvh, 620px);
     min-height: min(220px, calc(100dvh - 16px));
@@ -141,7 +142,7 @@
     pointer-events: auto;
 }
 
-.prompt-control-host.prompt-control-input .prompt-control-resize-handles {
+.prompt-control-host.prompt-control-input .prompt-control-resize-handles > span:not([data-prompt-resize="n"]) {
     display: none;
 }
 

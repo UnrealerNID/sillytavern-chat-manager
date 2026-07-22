@@ -9,6 +9,7 @@ const VIEW_LABELS = Object.freeze({
 const RENDER_BATCH_SIZE = 100;
 const POSITION_KEY = 'sillytavern-toolbox:prompt-control-position';
 const PANEL_SIZE_KEY = 'sillytavern-toolbox:prompt-control-panel-size';
+const INPUT_PANEL_HEIGHT_KEY = 'sillytavern-toolbox:prompt-control-input-height';
 const FLOATING_MARGIN = 8;
 const DEFAULT_BUBBLE_SIZE = 42;
 const MIN_PANEL_WIDTH = 320;
@@ -86,11 +87,14 @@ export class PromptControlUi {
     setFloatingMode(floating) {
         if (!this.root || this.floating === floating && this.root.isConnected) return;
         const inputItems = document.querySelector('#nonQRFormItems');
-        if (!floating && !(inputItems instanceof HTMLElement)) return;
+        const form = document.querySelector('#send_form');
+        if (!floating && (!(inputItems instanceof HTMLElement) || !(form instanceof HTMLElement))) return;
         this.floating = floating;
         this.root.classList.toggle('prompt-control-floating', floating);
         this.root.classList.toggle('prompt-control-input', !floating);
+        this.trigger.classList.toggle('prompt-control-input-trigger', !floating);
         if (floating) {
+            this.root.prepend(this.trigger);
             document.body.append(this.root);
             this.#restorePosition();
             this.#restorePanelSize();
@@ -100,12 +104,15 @@ export class PromptControlUi {
             });
             return;
         }
-        inputItems.append(this.root);
+        form.classList.add('prompt-control-anchor');
+        form.append(this.root);
+        inputItems.append(this.trigger);
         this.root.style.removeProperty('left');
         this.root.style.removeProperty('top');
         for (const property of ['left', 'top', 'width', 'height']) {
             this.panel.style.removeProperty(property);
         }
+        this.#restoreInputPanelHeight();
     }
 
     /**
@@ -373,7 +380,7 @@ export class PromptControlUi {
     }
 
     #startPanelResize(event, direction) {
-        if (!this.floating || event.button !== 0 || !direction) return;
+        if (event.button !== 0 || !direction || !this.floating && direction !== 'n') return;
         event.preventDefault();
         event.stopPropagation();
         const rect = this.panel.getBoundingClientRect();
@@ -397,6 +404,12 @@ export class PromptControlUi {
         const state = this.resizeState;
         if (!state || state.pointerId !== event.pointerId) return;
         event.preventDefault();
+        if (!this.floating) {
+            const maximum = Math.max(MIN_PANEL_HEIGHT, state.bounds.top + state.bounds.height - FLOATING_MARGIN);
+            const height = clamp(state.bounds.height - (event.clientY - state.startY), MIN_PANEL_HEIGHT, maximum);
+            this.panel.style.height = `${height}px`;
+            return;
+        }
         const bounds = resizeFloatingPanel(
             state.bounds,
             state.direction,
@@ -419,7 +432,30 @@ export class PromptControlUi {
             state.handle.releasePointerCapture(event.pointerId);
         }
         this.resizeState = null;
-        this.#savePanelSize();
+        if (this.floating) this.#savePanelSize();
+        else this.#saveInputPanelHeight();
+    }
+
+    #restoreInputPanelHeight() {
+        let height = Math.min(620, window.innerHeight * 0.52);
+        try {
+            const saved = Number.parseFloat(localStorage.getItem(INPUT_PANEL_HEIGHT_KEY));
+            if (Number.isFinite(saved)) height = saved;
+        } catch {
+            // 浏览器禁用本地存储时使用默认高度
+        }
+        const anchorTop = this.root.parentElement?.getBoundingClientRect().top ?? window.innerHeight;
+        const maximum = Math.max(MIN_PANEL_HEIGHT, anchorTop - FLOATING_MARGIN);
+        this.panel.style.height = `${clamp(height, MIN_PANEL_HEIGHT, maximum)}px`;
+    }
+
+    #saveInputPanelHeight() {
+        const height = this.panel.getBoundingClientRect().height;
+        try {
+            localStorage.setItem(INPUT_PANEL_HEIGHT_KEY, String(height));
+        } catch {
+            // 浏览器禁用本地存储时仍保留当前会话高度
+        }
     }
 
     #restorePosition() {
