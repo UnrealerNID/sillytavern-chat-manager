@@ -1,18 +1,20 @@
 /**
- * 按酒馆原生世界书扫描顺序比较
+ * 按酒馆最终组装提示词的方向比较
  * @param {object} left 左侧条目
  * @param {object} right 右侧条目
  * @returns {number} 排序结果
  */
 export function compareWorldInfoNativeOrder(left, right) {
-    const nativeDifference = Number(left.nativeOrder ?? Number.MAX_SAFE_INTEGER)
-        - Number(right.nativeOrder ?? Number.MAX_SAFE_INTEGER);
+    const leftNativeOrder = Number.isFinite(left.nativeOrder) ? left.nativeOrder : -1;
+    const rightNativeOrder = Number.isFinite(right.nativeOrder) ? right.nativeOrder : -1;
+    // 酒馆按扫描顺序遍历条目，再用 unshift 组装提示词，因此展示方向需要反转
+    const nativeDifference = rightNativeOrder - leftNativeOrder;
     if (nativeDifference) return nativeDifference;
-    return Number(right.order ?? 0) - Number(left.order ?? 0);
+    return Number(left.order ?? 0) - Number(right.order ?? 0);
 }
 
 /**
- * 先按酒馆原生扫描顺序排列，再建立世界书分组
+ * 先按酒馆最终组装方向排列，再建立世界书分组
  * @param {object[]} entries 激活条目
  * @returns {object[]} 世界书分组
  */

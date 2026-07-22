@@ -121,15 +121,15 @@ test('世界书扫描结果保留条目标识和处理后正文', () => {
     assert.equal(entry.processedContent, '处理:正文');
 });
 
-test('世界书组与组内条目共用酒馆原生扫描顺序', () => {
+test('世界书组与组内条目按酒馆最终组装方向反转扫描顺序', () => {
     const groups = groupWorldInfoByNativeOrder([
         { world: '后扫描', uid: 1, nativeOrder: 3, order: 1007 },
         { world: '先扫描', uid: 2, nativeOrder: 1, order: 3 },
         { world: '先扫描', uid: 3, nativeOrder: 0, order: 2 },
         { world: '中间扫描', uid: 4, nativeOrder: 2, order: 1 },
     ]);
-    assert.deepEqual(groups.map(group => group.name), ['先扫描', '中间扫描', '后扫描']);
-    assert.deepEqual(groups[0].entries.map(entry => entry.uid), [3, 2]);
+    assert.deepEqual(groups.map(group => group.name), ['后扫描', '中间扫描', '先扫描']);
+    assert.deepEqual(groups[2].entries.map(entry => entry.uid), [2, 3]);
 });
 
 test('世界书适配器保留酒馆 sortedEntries 的原生索引', () => {
