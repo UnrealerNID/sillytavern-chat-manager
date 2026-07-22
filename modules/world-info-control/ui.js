@@ -1,6 +1,7 @@
 import { world_info_position } from '/scripts/world-info.js';
 
 import { element } from '../shared/dom.js';
+import { groupWorldInfoByPromptOrder } from './order.js';
 import { worldControlId } from './world-info.js';
 
 const PANEL_HEIGHT_KEY = 'sillytavern-toolbox:world-info-control-height';
@@ -44,6 +45,7 @@ export class WorldInfoControlUi {
         // 条目开关只同步现有节点，避免在表单事件中重建整个列表
         this.store.subscribe(change => {
             if (change === 'exclusions') this.#syncExclusionState();
+            else if (change === 'tokens') this.#syncTokenCounts();
             else this.render();
         });
         this.render();
@@ -75,7 +77,7 @@ export class WorldInfoControlUi {
         this.store.setStatus('stale');
         if (!this.opened) return;
         clearTimeout(this.refreshTimer);
-        this.refreshTimer = setTimeout(() => void this.#refresh(), 400);
+        this.refreshTimer = setTimeout(() => void this.#refresh(), 250);
     }
 
     render() {
@@ -106,7 +108,9 @@ export class WorldInfoControlUi {
             this.content.append(createState('fa-magnifying-glass', query ? '没有匹配条目' : '本轮未触发世界书条目'));
             return;
         }
-        for (const group of groupByWorld(visible)) this.content.append(this.#createWorldGroup(group));
+        for (const group of groupWorldInfoByPromptOrder(visible)) {
+            this.content.append(this.#createWorldGroup(group));
+        }
     }
 
     #bindEvents() {
@@ -153,9 +157,12 @@ export class WorldInfoControlUi {
         );
         const metadata = element('span', { className: 'world-info-control-entry-metadata' });
         metadata.append(
-            element('small', { text: insertionPosition(entry) }),
-            element('small', { text: `顺序 ${Number(entry.order ?? 0)}` }),
-            element('small', { text: `${Number(entry.tokenCount ?? 0)} Tokens` }),
+            element('small', { text: `位置：${insertionPosition(entry)}` }),
+            element('small', { text: `顺序：${Number(entry.order ?? 0)}` }),
+            element('small', {
+                text: tokenCountText(entry.tokenCount),
+                attrs: { 'data-world-info-control-token': '' },
+            }),
         );
         const toggle = createToggle(!this.store.isExcluded(controlId));
         toggle.addEventListener('click', event => event.stopPropagation());
@@ -181,6 +188,15 @@ export class WorldInfoControlUi {
             entry.classList.toggle('world-info-control-excluded', isExcluded);
             const input = entry.querySelector('.world-info-control-switch input');
             if (input instanceof HTMLInputElement) input.checked = !isExcluded;
+        }
+    }
+
+    #syncTokenCounts() {
+        const entries = new Map(this.store.getEntries().map(entry => [entry.controlId, entry]));
+        for (const entry of this.content.querySelectorAll('[data-world-info-control-id]')) {
+            const token = entry.querySelector('[data-world-info-control-token]');
+            const current = entries.get(entry.dataset.worldInfoControlId);
+            if (token && current) token.textContent = tokenCountText(current.tokenCount);
         }
     }
 
@@ -229,24 +245,14 @@ export function clampPanelHeight(height, viewportHeight = window.innerHeight) {
     return Math.min(maximum, Math.max(MIN_PANEL_HEIGHT, Math.round(height)));
 }
 
-function groupByWorld(entries) {
-    const groups = new Map();
-    for (const entry of entries) {
-        const name = entry.world || '未命名世界书';
-        const values = groups.get(name) ?? [];
-        values.push(entry);
-        groups.set(name, values);
-    }
-    return Array.from(groups, ([name, values]) => ({
-        name,
-        entries: values.sort((left, right) => Number(right.order ?? 0) - Number(left.order ?? 0)),
-    }));
-}
-
 function matchesEntry(entry, query) {
     if (!query) return true;
     return [entry.world, entry.comment, entry.processedContent]
         .some(value => String(value ?? '').toLocaleLowerCase().includes(query));
+}
+
+function tokenCountText(tokenCount) {
+    return Number.isFinite(tokenCount) ? `Tokens：${tokenCount}` : 'Tokens：计算中';
 }
 
 function summarize(content) {

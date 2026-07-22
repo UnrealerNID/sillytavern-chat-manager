@@ -1,4 +1,4 @@
-import { world_info_include_names } from '/scripts/world-info.js';
+import { MAX_SCAN_DEPTH, world_info_include_names } from '/scripts/world-info.js';
 import { getMaxPromptTokens } from '/script.js';
 
 import { getWorldInfoControlChatKey } from './store.js';
@@ -22,11 +22,17 @@ export class WorldInfoScanner {
         this.refreshTask = null;
         this.pendingRefresh = false;
         this.revision = 0;
+        this.tokenTimer = null;
+        this.tokenRevision = 0;
     }
 
     setEnabled(enabled) {
         this.enabled = enabled;
-        if (!enabled) this.revision += 1;
+        if (!enabled) {
+            this.revision += 1;
+            this.tokenRevision += 1;
+            clearTimeout(this.tokenTimer);
+        }
     }
 
     /**
@@ -47,6 +53,8 @@ export class WorldInfoScanner {
         }
 
         const revision = ++this.revision;
+        this.tokenRevision += 1;
+        clearTimeout(this.tokenTimer);
         this.store.setStatus('loading');
         this.refreshTask = this.#scan(context, revision).catch(error => {
             if (revision === this.revision) this.store.setStatus('error');
@@ -93,20 +101,44 @@ export class WorldInfoScanner {
      */
     async syncFromAdapter() {
         const context = this.getContext();
+        const chatKey = getWorldInfoControlChatKey(context);
         const activatedEntries = this.adapter.getActivatedEntries()
             .filter(entry => String(entry.processedContent ?? '').trim());
-        const entries = await Promise.all(activatedEntries.map(async entry => ({
+        const entries = activatedEntries.map(entry => ({
             ...entry,
             controlId: worldControlId(entry),
-            tokenCount: await context.getTokenCountAsync(entry.processedContent ?? ''),
-        })));
+            tokenCount: null,
+        }));
         this.store.setEntries(entries);
         this.store.setStatus('ready');
+        this.#scheduleTokenCounts(context, chatKey, entries);
+    }
+
+    // Token 统计不参与扫描完成判定，避免大量条目阻塞触发结果
+    #scheduleTokenCounts(context, chatKey, entries) {
+        clearTimeout(this.tokenTimer);
+        const revision = ++this.tokenRevision;
+        if (!entries.length) return;
+        this.tokenTimer = setTimeout(async () => {
+            try {
+                const counts = await Promise.all(entries.map(entry => (
+                    context.getTokenCountAsync(entry.processedContent ?? '')
+                )));
+                if (!this.enabled || revision !== this.tokenRevision) return;
+                if (getWorldInfoControlChatKey(this.getContext()) !== chatKey) return;
+                this.store.setTokenCounts(new Map(entries.map((entry, index) => (
+                    [entry.controlId, counts[index]]
+                ))));
+            } catch (error) {
+                console.warn('[酒馆工具箱] 世界书条目 Token 统计失败', error);
+            }
+        }, 300);
     }
 }
 
 function buildScanChat(context) {
     const messages = context.chat
+        .slice(-MAX_SCAN_DEPTH)
         .filter(message => !message?.is_system)
         .map(message => ({
             name: message.name ?? '',

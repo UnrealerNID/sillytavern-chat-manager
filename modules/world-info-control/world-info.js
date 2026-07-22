@@ -45,7 +45,6 @@ export class WorldInfoPromptAdapter {
             // 事件中的正文已替换宏；此处继续复用酒馆同一正则链路得到实际发送文本
             processedContent: this.processEntry(entry),
         }));
-        this.activatedEntries.sort((left, right) => Number(right.order ?? 0) - Number(left.order ?? 0));
         for (const entry of this.activatedEntries) this.knownEntries.set(worldControlId(entry), entry);
     }
 

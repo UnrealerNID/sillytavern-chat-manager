@@ -58,6 +58,8 @@ test('世界书控制使用贴靠输入区的单一折叠入口', async () => {
     assert.match(css, /\.world-info-control-content\s*\{[^}]*overflow:\s*auto/s);
     assert.match(css, /\.world-info-control-resize\s*\{[^}]*cursor:\s*ns-resize/s);
     assert.match(css, /\.world-info-control-entry-metadata\s*\{/);
+    assert.match(css, /\.world-info-control-entry-metadata\s*\{[^}]*display:\s*grid/s);
+    assert.match(css, /\.world-info-control-switch\s*\{[^}]*width:\s*28px[^}]*height:\s*16px/s);
     assert.match(css, /font-family:\s*var\(--mainFontFamily\)/);
     assert.match(css, /font-size:\s*calc\(var\(--mainFontSize\) \* 0\.9\)/);
     assert.match(css, /\.world-info-control-entry-content\s*\{[^}]*white-space:\s*pre-wrap/s);
@@ -72,6 +74,8 @@ test('世界书控制使用贴靠输入区的单一折叠入口', async () => {
     assert.match(ui, /`锚点 \$\{entry\.outletName\}`/);
     assert.doesNotMatch(ui, /出口/);
     assert.match(scanner, /processedContent \?\? ''\)\.trim\(\)/);
+    assert.match(scanner, /setStatus\('ready'\)[\s\S]*#scheduleTokenCounts/);
+    assert.doesNotMatch(scanner, /await Promise\.all\(activatedEntries/);
     assert.match(template, /data-world-info-control-toggle/);
     assert.match(template, /data-world-info-control-body/);
     assert.match(template, /data-world-info-control-resize/);

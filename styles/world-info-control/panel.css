@@ -167,21 +167,21 @@
 }
 
 .world-info-control-entry-metadata {
-    display: flex;
+    display: grid;
     flex: 0 1 auto;
     align-items: center;
     justify-content: flex-end;
-    gap: 5px;
+    gap: 1px;
 }
 
 .world-info-control-entry-metadata > small {
+    font-size: 0.82em;
     line-height: 1.2;
     white-space: nowrap;
 }
 
 .world-info-control-entry-metadata > small + small::before {
-    margin-right: 5px;
-    content: "·";
+    content: none;
 }
 
 .world-info-control-entry-content {
@@ -206,6 +206,19 @@
 
 .world-info-control-switch {
     flex: 0 0 auto;
+    width: 28px;
+    height: 16px;
+}
+
+.world-info-control-switch .toolbox-switch-track::after {
+    top: 2px;
+    left: 2px;
+    width: 10px;
+    height: 10px;
+}
+
+.world-info-control-switch input:checked + .toolbox-switch-track::after {
+    transform: translateX(12px);
 }
 
 .world-info-control-state {
@@ -234,6 +247,13 @@
 
     .world-info-control-entry-metadata {
         grid-column: 1 / -1;
-        justify-content: flex-start;
+        grid-row: 2;
+        justify-content: start;
+        gap: 1px;
+    }
+
+    .world-info-control-switch {
+        grid-column: 2;
+        grid-row: 1;
     }
 }

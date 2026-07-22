@@ -26,6 +26,20 @@ export class WorldInfoControlStore {
         this.#notify('entries');
     }
 
+    /**
+     * 原位补充 Token 数，避免后台统计完成时重建条目列表
+     * @param {Map<string,number>} counts 条目标识与 Token 数
+     */
+    setTokenCounts(counts) {
+        let changed = false;
+        for (const entry of this.entries) {
+            if (!counts.has(entry.controlId)) continue;
+            entry.tokenCount = counts.get(entry.controlId);
+            changed = true;
+        }
+        if (changed) this.#notify('tokens');
+    }
+
     getEntries() {
         return this.entries;
     }
