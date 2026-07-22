@@ -417,8 +417,11 @@
 
 .prompt-control-role-group,
 .prompt-control-source-group {
+    display: grid;
     min-width: 0;
     max-width: 100%;
+    gap: 0;
+    padding: 0;
     box-sizing: border-box;
     border: 1px solid var(--SmartThemeBorderColor);
     border-radius: 6px;
@@ -500,7 +503,10 @@
     overflow: hidden;
     min-width: 0;
     max-width: 100%;
-    border-top: 1px solid var(--SmartThemeBorderColor);
+    border: 0;
+    border-left: 2px solid var(--SmartThemeBorderColor);
+    border-radius: 0 4px 4px 0;
+    background: var(--black20a);
 }
 
 .prompt-control-message summary {
@@ -567,19 +573,20 @@
 
 .prompt-control-single-content {
     max-width: 100%;
+    border: 0;
+    border-left: 2px solid var(--SmartThemeBorderColor);
+    border-radius: 0 4px 4px 0;
+    background: var(--black20a);
 }
 
-.prompt-control-source-group {
-    display: grid;
-    gap: 0;
-    padding: 0;
-}
-
+.prompt-control-role-group > .prompt-control-group-heading,
 .prompt-control-source-group > .prompt-control-group-heading {
     min-height: 42px;
     padding: 8px 10px;
 }
 
+.prompt-control-role-messages > .prompt-control-message,
+.prompt-control-role-group > .prompt-control-single-content,
 .prompt-control-source-group > .prompt-control-source-branch,
 .prompt-control-source-group > .prompt-control-source-entry {
     margin: 0 8px 8px 14px;
@@ -588,10 +595,10 @@
 .prompt-control-source-branch {
     display: grid;
     min-width: 0;
-    border: 1px solid var(--SmartThemeBorderColor);
-    border-left-width: 3px;
-    border-radius: 5px;
-    background: var(--black20a);
+    border: 0;
+    border-left: 2px solid var(--SmartThemeBorderColor);
+    border-radius: 0;
+    background: transparent;
 }
 
 .prompt-control-source-branch-heading {
@@ -603,13 +610,7 @@
     margin: 0 6px 6px 14px;
 }
 
-.prompt-control-source-entry {
-    border: 1px solid var(--SmartThemeBorderColor);
-    border-left-width: 3px;
-    border-radius: 4px;
-    background: var(--black30a);
-}
-
+.prompt-control-role-group > .prompt-control-group-heading strong,
 .prompt-control-source-group > .prompt-control-group-heading strong {
     font-size: 1.04em;
 }
@@ -618,7 +619,7 @@
     font-size: 1em;
 }
 
-.prompt-control-source-entry > summary strong {
+.prompt-control-message > summary strong {
     font-size: 0.96em;
 }
 
