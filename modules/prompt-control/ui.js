@@ -62,7 +62,6 @@ export class PromptControlUi {
         this.trigger = trigger;
         this.panel = panel;
         this.content = requireElement(root, '[data-prompt-control-content]');
-        this.status = requireElement(root, '[data-prompt-control-status]');
         this.summary = requireElement(root, '[data-prompt-control-summary]');
         this.clearButton = requireButton(root, '[data-prompt-control-clear]');
         this.search = new PromptSearchController({
@@ -159,7 +158,7 @@ export class PromptControlUi {
     render() {
         if (!this.content) return;
         const snapshot = this.store.getSnapshot();
-        this.#renderStatus(snapshot);
+        this.#renderHeader(snapshot);
         this.renderInto(this.content, this.view);
         this.search.sync();
     }
@@ -171,15 +170,22 @@ export class PromptControlUi {
      */
     renderInto(container, view) {
         const snapshot = this.store.getSnapshot();
+        const status = this.store.getStatus();
         container.replaceChildren();
-        if (this.store.getStatus() === 'loading') {
+        if (status === 'loading') {
             container.append(createLoadingState());
             return;
         }
-        if (!snapshot) {
+        if (status !== 'ready' || !snapshot) {
+            const message = {
+                idle: '选择角色或群聊后可读取',
+                stale: '刷新以读取本轮提示词',
+                error: '读取失败，不影响正常发送',
+            }[status] ?? '刷新以读取本轮提示词';
             container.append(element('div', {
                 className: 'prompt-control-empty',
-                text: '刷新以读取本轮提示词',
+                text: message,
+                attrs: { role: 'status' },
             }));
             return;
         }
@@ -243,27 +249,18 @@ export class PromptControlUi {
         }
     }
 
-    #renderStatus(snapshot) {
+    #renderHeader(snapshot) {
         const status = this.store.getStatus();
-        const statusText = {
-            idle: '选择角色或群聊后可读取',
-            stale: '内容已变化，等待刷新',
-            loading: '',
-            ready: '',
-            error: '读取失败，不影响正常发送',
-        }[status] ?? '';
-        this.status.textContent = statusText;
-        this.status.hidden = status === 'loading' || status === 'ready';
         const hasExclusions = this.store.getExclusions().size > 0;
         this.clearButton.disabled = !hasExclusions || status === 'loading';
         const total = enabledTokenTotal(snapshot, this.store);
         this.summary.textContent = status === 'loading'
             ? '正在读取'
-            : snapshot
+            : status === 'ready' && snapshot
             ? `${formatNumber(total)} Tokens · ${snapshot.finalNodes.length} 条消息`
-            : '尚未读取';
-        this.triggerTokens.textContent = snapshot && status !== 'loading' ? String(total) : '';
-        this.trigger.title = snapshot && status !== 'loading'
+            : '';
+        this.triggerTokens.textContent = status === 'ready' && snapshot ? String(total) : '';
+        this.trigger.title = status === 'ready' && snapshot
             ? `查看本轮提示词 · ${total} Token`
             : '查看本轮提示词';
     }

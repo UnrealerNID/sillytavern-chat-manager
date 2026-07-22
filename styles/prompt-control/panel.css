@@ -337,12 +337,6 @@
     background: var(--SmartThemeBorderColor);
 }
 
-.prompt-control-status {
-    padding: 0 8px 6px;
-    color: var(--SmartThemeEmColor);
-    font-size: 0.85rem;
-}
-
 .prompt-control-searchbar {
     gap: 6px;
     padding: 0 8px 6px;

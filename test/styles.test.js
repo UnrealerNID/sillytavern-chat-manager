@@ -67,6 +67,8 @@ test('prompt panel stays compact, resizable and free of horizontal scrolling', a
     assert.match(template, /prompt-control-view-actions[\s\S]*data-prompt-control-clear/);
     assert.match(template, /prompt-control-action-separator[\s\S]*data-prompt-control-refresh/);
     assert.match(template, /data-prompt-control-search/);
+    assert.doesNotMatch(template, /data-prompt-control-status/);
+    assert.doesNotMatch(ui, /内容已变化，等待刷新/);
     assert.match(ui, /new PromptSearchController/);
     assert.match(search, /scrollIntoView/);
     assert.match(ui, /element\('details', \{ className: 'prompt-control-role-group' \}\)/);
