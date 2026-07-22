@@ -46,16 +46,28 @@ test('提示词查看器保持只读、可调整且不横向滚动', async () =>
     assert.doesNotMatch(ui, /setExcluded|clearCurrent|createSourceTree/);
 });
 
-test('世界书控制面板只渲染条目开关并使用输入区承载', async () => {
-    const [css, ui, template] = await Promise.all([
+test('世界书控制使用贴靠输入区的单一折叠入口', async () => {
+    const [css, ui, scanner, template] = await Promise.all([
         readFile(new URL('../styles/world-info-control/panel.css', import.meta.url), 'utf8'),
         readFile(new URL('../modules/world-info-control/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/world-info-control/scanner.js', import.meta.url), 'utf8'),
         readFile(new URL('../templates/world-info-control/panel.html', import.meta.url), 'utf8'),
     ]);
-    assert.match(css, /\.world-info-control-panel\s*\{[^}]*bottom:\s*calc\(100% \+ 6px\)/s);
+    assert.match(css, /\.world-info-control-host\s*\{[^}]*bottom:\s*100%/s);
+    assert.match(css, /\.world-info-control-body\s*\{[^}]*height:\s*min\(420px, 55vh\)/s);
     assert.match(css, /\.world-info-control-content\s*\{[^}]*overflow:\s*auto/s);
+    assert.match(css, /\.world-info-control-resize\s*\{[^}]*cursor:\s*ns-resize/s);
+    assert.match(css, /\.world-info-control-entry-metadata\s*\{/);
+    assert.match(ui, /form\.append\(this\.root\)/);
+    assert.doesNotMatch(ui, /#leftSendForm|tools\.append|this\.trigger/);
     assert.match(ui, /store\.setExcluded\(controlId/);
     assert.match(ui, /scheduleRefresh\(\)/);
+    assert.match(ui, /PANEL_HEIGHT_KEY/);
+    assert.match(scanner, /processedContent \?\? ''\)\.trim\(\)/);
+    assert.match(template, /data-world-info-control-toggle/);
+    assert.match(template, /data-world-info-control-body/);
+    assert.match(template, /data-world-info-control-resize/);
+    assert.doesNotMatch(template, /data-world-info-control-trigger/);
     assert.match(template, /data-world-info-control-search/);
     assert.match(template, /data-world-info-control-clear/);
 });

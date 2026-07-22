@@ -3,6 +3,9 @@ import { world_info_position } from '/scripts/world-info.js';
 import { element } from '../shared/dom.js';
 import { worldControlId } from './world-info.js';
 
+const PANEL_HEIGHT_KEY = 'sillytavern-toolbox:world-info-control-height';
+const MIN_PANEL_HEIGHT = 180;
+
 /**
  * 管理输入区上方的世界书控制面板
  */
@@ -22,21 +25,21 @@ export class WorldInfoControlUi {
         holder.innerHTML = this.template.trim();
         this.root = holder.content.firstElementChild;
         if (!(this.root instanceof HTMLElement)) throw new Error('世界书控制模板结构无效');
-        this.trigger = requireButton(this.root, '[data-world-info-control-trigger]');
         this.panel = requireElement(this.root, '[data-world-info-control-panel]');
+        this.body = requireElement(this.root, '[data-world-info-control-body]');
+        this.toggleButton = requireButton(this.root, '[data-world-info-control-toggle]');
+        this.indicator = requireElement(this.root, '[data-world-info-control-indicator]');
+        this.resizeHandle = requireElement(this.root, '[data-world-info-control-resize]');
         this.content = requireElement(this.root, '[data-world-info-control-content]');
         this.summary = requireElement(this.root, '[data-world-info-control-summary]');
         this.search = requireInput(this.root, '[data-world-info-control-search]');
         this.refreshButton = requireButton(this.root, '[data-world-info-control-refresh]');
         this.clearButton = requireButton(this.root, '[data-world-info-control-clear]');
         const form = document.querySelector('#send_form');
-        const tools = document.querySelector('#leftSendForm');
-        if (!(form instanceof HTMLElement) || !(tools instanceof HTMLElement)) {
-            throw new Error('未找到酒馆输入区');
-        }
+        if (!(form instanceof HTMLElement)) throw new Error('未找到酒馆输入区');
         form.classList.add('world-info-control-anchor');
         form.append(this.root);
-        tools.append(this.trigger);
+        this.#restoreHeight();
         this.#bindEvents();
         this.store.subscribe(() => this.render());
         this.render();
@@ -44,7 +47,7 @@ export class WorldInfoControlUi {
 
     setEnabled(enabled) {
         this.enabled = enabled;
-        this.trigger?.classList.toggle('displayNone', !enabled);
+        this.root?.classList.toggle('displayNone', !enabled);
         if (!enabled) this.setOpen(false);
     }
 
@@ -54,8 +57,12 @@ export class WorldInfoControlUi {
 
     setOpen(opened) {
         this.opened = Boolean(opened && this.enabled);
-        this.panel.hidden = !this.opened;
-        this.trigger.setAttribute('aria-expanded', String(this.opened));
+        this.body.hidden = !this.opened;
+        this.panel.classList.toggle('world-info-control-open', this.opened);
+        this.toggleButton.setAttribute('aria-expanded', String(this.opened));
+        this.toggleButton.title = this.opened ? '收起世界书控制' : '展开世界书控制';
+        this.indicator.classList.toggle('fa-chevron-up', !this.opened);
+        this.indicator.classList.toggle('fa-chevron-down', this.opened);
         if (this.opened && this.store.getStatus() !== 'ready') void this.#refresh();
     }
 
@@ -102,9 +109,8 @@ export class WorldInfoControlUi {
     }
 
     #bindEvents() {
-        this.trigger.addEventListener('click', () => this.setOpen(!this.opened));
-        requireButton(this.root, '[data-world-info-control-collapse]')
-            .addEventListener('click', () => this.setOpen(false));
+        this.toggleButton.addEventListener('click', () => this.setOpen(!this.opened));
+        this.resizeHandle.addEventListener('pointerdown', event => this.#startResize(event));
         this.refreshButton.addEventListener('click', () => void this.#refresh());
         this.clearButton.addEventListener('click', () => this.store.clearCurrent());
         this.search.addEventListener('input', () => this.render());
@@ -143,13 +149,12 @@ export class WorldInfoControlUi {
             element('strong', { text: entry.comment || `条目 ${entry.uid}` }),
             element('span', { text: summarize(entry.processedContent) }),
         );
-        const metadata = element('small', {
-            text: [
-                insertionPosition(entry),
-                `顺序 ${Number(entry.order ?? 0)}`,
-                `${Number(entry.tokenCount ?? 0)} Tokens`,
-            ].join(' · '),
-        });
+        const metadata = element('span', { className: 'world-info-control-entry-metadata' });
+        metadata.append(
+            element('small', { text: insertionPosition(entry) }),
+            element('small', { text: `顺序 ${Number(entry.order ?? 0)}` }),
+            element('small', { text: `${Number(entry.tokenCount ?? 0)} Tokens` }),
+        );
         const toggle = createToggle(!this.store.isExcluded(controlId));
         toggle.addEventListener('click', event => event.stopPropagation());
         toggle.querySelector('input').addEventListener('change', event => {
@@ -162,6 +167,43 @@ export class WorldInfoControlUi {
         );
         return details;
     }
+
+    #restoreHeight() {
+        const stored = Number(localStorage.getItem(PANEL_HEIGHT_KEY));
+        if (Number.isFinite(stored) && stored > 0) {
+            this.body.style.height = `${clampPanelHeight(stored)}px`;
+        }
+    }
+
+    // 面板向上展开，因此指针上移时应增加内容高度
+    #startResize(event) {
+        if (!this.opened || event.button !== 0) return;
+        event.preventDefault();
+        const startY = event.clientY;
+        const startHeight = this.body.getBoundingClientRect().height;
+        const move = pointerEvent => {
+            const height = clampPanelHeight(startHeight + startY - pointerEvent.clientY);
+            this.body.style.height = `${height}px`;
+        };
+        const stop = () => {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', stop);
+            localStorage.setItem(PANEL_HEIGHT_KEY, String(Math.round(this.body.getBoundingClientRect().height)));
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', stop, { once: true });
+    }
+}
+
+/**
+ * 将面板高度限制在当前视口的可用范围内
+ * @param {number} height 目标高度
+ * @param {number} viewportHeight 视口高度
+ * @returns {number} 可用高度
+ */
+export function clampPanelHeight(height, viewportHeight = window.innerHeight) {
+    const maximum = Math.max(MIN_PANEL_HEIGHT, Math.min(720, viewportHeight - 100));
+    return Math.min(maximum, Math.max(MIN_PANEL_HEIGHT, Math.round(height)));
 }
 
 function groupByWorld(entries) {

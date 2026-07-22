@@ -93,7 +93,9 @@ export class WorldInfoScanner {
      */
     async syncFromAdapter() {
         const context = this.getContext();
-        const entries = await Promise.all(this.adapter.getActivatedEntries().map(async entry => ({
+        const activatedEntries = this.adapter.getActivatedEntries()
+            .filter(entry => String(entry.processedContent ?? '').trim());
+        const entries = await Promise.all(activatedEntries.map(async entry => ({
             ...entry,
             controlId: worldControlId(entry),
             tokenCount: await context.getTokenCountAsync(entry.processedContent ?? ''),
