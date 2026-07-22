@@ -42,7 +42,10 @@ test('prompt panel stays compact, resizable and free of horizontal scrolling', a
     assert.match(ui, /正在读取本轮提示词…/);
     assert.match(css, /prompt-control-loading-icon[^}]*animation:\s*prompt-control-spin/s);
     assert.match(css, /prompt-control-content-state[^}]*place-content:\s*center/s);
-    assert.match(css, /prompt-control-message pre,[\s\S]*padding:\s*7px 7px 7px 24px/s);
+    assert.match(
+        css,
+        /prompt-control-message pre\s*\{[^}]*margin:\s*0 6px 6px 20px[^}]*padding:\s*8px 10px/s,
+    );
     assert.match(
         css,
         /prompt-control-role-group > \.prompt-control-group-heading,[\s\S]*prompt-control-source-group > \.prompt-control-group-heading[^{]*\{[^}]*min-height:\s*42px/s,
@@ -53,22 +56,22 @@ test('prompt panel stays compact, resizable and free of horizontal scrolling', a
     );
     assert.match(
         css,
-        /prompt-control-source-branch > \.prompt-control-source-branch,[\s\S]*margin:\s*0 6px 6px 14px/s,
+        /prompt-control-source-branch > \.prompt-control-source-branch,[\s\S]*margin:\s*0 6px 6px 12px/s,
     );
     assert.match(
         css,
-        /prompt-control-message\s*\{[^}]*border-left:\s*2px solid var\(--SmartThemeBorderColor\)/s,
+        /prompt-control-message\s*\{[^}]*border:\s*0[^}]*background:\s*var\(--black20a\)/s,
     );
     assert.match(
         css,
-        /prompt-control-single-content\s*\{[^}]*border-left:\s*2px solid var\(--SmartThemeBorderColor\)/s,
+        /prompt-control-single-content\s*\{[^}]*border:\s*0[^}]*background:\s*var\(--black20a\)/s,
     );
     assert.match(
         css,
-        /prompt-control-source-branch\s*\{[^}]*border-left:\s*2px solid var\(--SmartThemeBorderColor\)/s,
+        /prompt-control-source-branch-heading\s*\{[^}]*background:\s*var\(--black20a\)/s,
     );
-    assert.doesNotMatch(css, /prompt-control-source-branch[^}]*border:\s*1px solid/s);
-    assert.doesNotMatch(css, /prompt-control-source-entry[^}]*background:\s*var\(--black50a\)/s);
+    assert.match(css, /prompt-control-message pre\s*\{[^}]*background:\s*var\(--black30a\)/s);
+    assert.doesNotMatch(css, /prompt-control-(?:message|single-content|source-branch)[^}]*border-left/s);
     assert.match(css, /\.prompt-control-action-separator\s*\{[^}]*width:\s*1px/s);
     assert.match(
         css,
