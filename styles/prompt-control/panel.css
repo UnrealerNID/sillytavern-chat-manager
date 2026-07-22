@@ -555,7 +555,7 @@
     overflow-y: auto;
     max-height: 280px;
     margin: 0;
-    padding: 7px;
+    padding: 7px 7px 7px 24px;
     border-top: 1px solid var(--SmartThemeBorderColor);
     font: inherit;
     line-height: 1.45;
