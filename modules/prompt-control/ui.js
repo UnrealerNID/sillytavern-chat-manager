@@ -299,9 +299,8 @@ export class PromptControlUi {
 
     #createPromptMessage(node, index, groupSize) {
         const details = element('details', { className: 'prompt-control-message' });
-        details.open = groupSize === 1;
         const summary = document.createElement('summary');
-        const preview = node.content.trim().split(/\r?\n/)[0].slice(0, 160) || '空内容';
+        const preview = summarizeContent(node.content);
         summary.append(
             element('span', {
                 className: 'prompt-control-message-label',
@@ -708,7 +707,7 @@ function clamp(value, minimum, maximum) {
 function createContent(content) {
     const details = element('details', { className: 'prompt-control-text' });
     details.append(element('summary', {
-        text: content.trim().split(/\r?\n/)[0].slice(0, 160) || '空内容',
+        text: summarizeContent(content),
     }));
     details.addEventListener('toggle', () => {
         if (details.open && details.childElementCount === 1) {
@@ -729,6 +728,10 @@ function createLoadingState() {
 
 function formatNumber(value) {
     return new Intl.NumberFormat().format(Number(value) || 0);
+}
+
+function summarizeContent(content) {
+    return String(content ?? '').trim().replace(/\s+/g, ' ').slice(0, 320) || '空内容';
 }
 
 function appendInBatches(container, items, renderItem) {

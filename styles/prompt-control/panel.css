@@ -229,7 +229,7 @@
 
 .prompt-control-header,
 .prompt-control-viewbar,
-.prompt-control-statebar,
+.prompt-control-view-actions,
 .prompt-control-tabs,
 .prompt-control-role-header,
 .prompt-control-group-heading,
@@ -323,15 +323,20 @@
     box-shadow: inset 0 0 0 1px var(--SmartThemeBorderColor);
 }
 
-.prompt-control-status {
-    color: var(--SmartThemeEmColor);
-    font-size: 0.85rem;
+.prompt-control-view-actions {
+    gap: 6px;
 }
 
-.prompt-control-statebar {
-    justify-content: space-between;
-    gap: 8px;
+.prompt-control-action-separator {
+    width: 1px;
+    height: 20px;
+    background: var(--SmartThemeBorderColor);
+}
+
+.prompt-control-status {
     padding: 0 8px 6px;
+    color: var(--SmartThemeEmColor);
+    font-size: 0.85rem;
 }
 
 .prompt-control-content {
@@ -444,6 +449,8 @@
     line-height: 1.45;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
 }
 
 .prompt-control-role-messages {
@@ -503,7 +510,6 @@
 
 .prompt-control-source-group {
     display: grid;
-    overflow: hidden;
     gap: 0;
     padding: 0;
 }

@@ -38,15 +38,22 @@ test('prompt panel stays compact, resizable and free of horizontal scrolling', a
     assert.match(ui, /inputTools\.append\(this\.trigger\)/);
     assert.match(ui, /正在读取本轮提示词…/);
     assert.match(css, /prompt-control-loading-icon[^}]*animation:\s*prompt-control-spin/s);
+    assert.match(css, /\.prompt-control-action-separator\s*\{[^}]*width:\s*1px/s);
+    assert.match(css, /\.prompt-control-text pre\s*\{[^}]*overflow-y:\s*auto[^}]*overscroll-behavior:\s*contain/s);
+    assert.doesNotMatch(css, /\.prompt-control-source-group\s*\{[^}]*overflow:\s*hidden/s);
     assert.match(ui, /POSITION_KEY/);
     assert.match(ui, /PANEL_SIZE_KEY/);
     assert.match(ui, /Role: \$\{roleIcon\(group\.role\)\} \$\{group\.role\}/);
     assert.match(ui, /Tokens: \$\{formatNumber\(node\.tokenCount\)\}/);
     assert.match(ui, /group\.nodes\.length > 1/);
+    assert.doesNotMatch(ui, /details\.open = groupSize === 1/);
+    assert.match(ui, /trim\(\)\.replace\(\/\\s\+\/g, ' '\)\.slice\(0, 320\)/);
     assert.doesNotMatch(template, /data-prompt-view="position"/);
+    assert.match(template, />最终提示词<\/button>/);
+    assert.match(template, />来源分类<\/button>/);
     assert.match(template, /prompt-control-header[\s\S]*data-prompt-control-collapse[\s\S]*<\/header>/);
-    assert.match(template, /prompt-control-viewbar[\s\S]*data-prompt-control-refresh/);
-    assert.match(template, /prompt-control-statebar[\s\S]*data-prompt-control-clear/);
+    assert.match(template, /prompt-control-view-actions[\s\S]*data-prompt-control-refresh/);
+    assert.match(template, /prompt-control-action-separator[\s\S]*data-prompt-control-clear/);
 });
 
 test('chat manager panels and modal dialogs use their dedicated layers', async () => {
