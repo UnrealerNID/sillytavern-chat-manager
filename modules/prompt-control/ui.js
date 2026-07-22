@@ -1,9 +1,10 @@
 import { element } from '../shared/dom.js';
-import {
-    groupContributionsBySource,
-    groupWorldInfoContributions,
-} from './snapshot.js';
 import { PromptSearchController } from './search.js';
+import {
+    createPromptDisplayNodes,
+    createSourceTree,
+    groupAdjacentPromptNodes,
+} from './view-model.js';
 
 const RENDER_BATCH_SIZE = 100;
 const POSITION_KEY = 'sillytavern-toolbox:prompt-control-position';
@@ -270,7 +271,7 @@ export class PromptControlUi {
     #renderPrompt(container, snapshot) {
         appendInBatches(
             container,
-            groupAdjacentPromptNodes(snapshot.finalNodes),
+            groupAdjacentPromptNodes(createPromptDisplayNodes(snapshot)),
             group => this.#createRoleGroup(group),
         );
     }
@@ -279,23 +280,29 @@ export class PromptControlUi {
         const card = element('details', { className: 'prompt-control-role-group' });
         this.#bindGroupState(card, `role:${group.id}`);
         const header = this.#createGroupHeading({
-            className: 'prompt-control-role-header',
             label: `Role: ${roleIcon(group.role)} ${group.role}`,
             count: group.nodes.length,
             tokenCount: group.tokenCount,
             preview: summarizeItems(group.nodes, item => item.content),
         });
-        if (group.nodes.length > 1) {
+        if (group.nodes.length === 1) {
+            const [node] = group.nodes;
+            this.#appendToggle(header, node.id, node.controlLevel);
+            card.append(header, this.#createContentBody(node.content, 'prompt-control-single-content'));
+        } else {
             const toggle = this.#createGroupToggle(group.nodes);
             toggle.addEventListener('click', event => event.stopPropagation());
             header.append(toggle);
+            const messages = element('div', { className: 'prompt-control-role-messages' });
+            group.nodes.forEach((node, index) => {
+                messages.append(this.#createPromptMessage(node, index, group.nodes.length));
+            });
+            card.append(header, messages);
         }
-        if (this.search.matches(group.role)) this.search.mark(card);
-        const messages = element('div', { className: 'prompt-control-role-messages' });
-        group.nodes.forEach((node, index) => {
-            messages.append(this.#createPromptMessage(node, index, group.nodes.length));
-        });
-        card.append(header, messages);
+        const singleContent = group.nodes.length === 1 ? group.nodes[0].content : '';
+        if (this.search.matches(group.role, singleContent)) {
+            this.search.mark(card);
+        }
         return card;
     }
 
@@ -319,64 +326,39 @@ export class PromptControlUi {
     }
 
     #createPromptMessage(node, index, groupSize) {
-        const details = element('details', { className: 'prompt-control-message' });
-        const summary = document.createElement('summary');
         const preview = summarizeContent(node.content);
-        const label = element('span', { className: 'prompt-control-message-label' });
-        this.search.appendHighlighted(
-            label,
-            groupSize > 1 ? `#${index + 1} ${preview}` : preview,
-        );
-        summary.append(
-            label,
-            element('small', { text: `Tokens: ${formatNumber(node.tokenCount)}` }),
-            this.#createToggle(node.id, node.controlLevel),
-        );
-        summary.querySelector('.prompt-control-switch')?.addEventListener('click', event => {
-            event.stopPropagation();
+        const source = node.sourceName ? `${node.sourceName} · ` : '';
+        return this.#createEntry({
+            label: groupSize > 1 ? `#${index + 1} ${source}${preview}` : `${source}${preview}`,
+            content: node.content,
+            tokenCount: node.tokenCount,
+            controlId: node.id,
+            controlLevel: node.controlLevel,
         });
-        const content = element('pre');
-        this.search.appendHighlighted(content, node.content);
-        details.append(summary, content);
-        details.classList.toggle('prompt-control-excluded', this.store.isExcluded(node.id));
-        if (this.search.matches(node.content)) this.search.mark(details);
-        return details;
     }
 
     #renderSources(container, snapshot) {
-        for (const group of groupContributionsBySource(snapshot.contributions)) {
-            const section = element('details', { className: 'prompt-control-source-group' });
-            this.#bindGroupState(section, `source:${group.id}`);
-            const heading = this.#createGroupHeading({
-                label: group.label,
-                count: group.items.length,
-                tokenCount: sumTokens(group.items),
-                preview: summarizeItems(group.items, item => item.content),
-            });
-            section.append(heading);
-            if (group.id === 'worldInfo') {
-                for (const world of groupWorldInfoContributions(group.items)) {
-                    section.append(this.#createWorldGroup(world));
-                }
-            } else {
-                appendInBatches(section, group.items, item => this.#createContribution(item));
-            }
-            if (this.search.matches(group.label)) this.search.mark(section);
-            container.append(section);
+        for (const group of createSourceTree(snapshot.contributions)) {
+            container.append(this.#createSourceGroup(group));
         }
     }
 
-    #createWorldGroup(group) {
-        const section = element('details', { className: 'prompt-control-world-group' });
-        this.#bindGroupState(section, `world:${group.id}`);
+    #createSourceGroup(group, nested = false) {
+        const section = element('details', {
+            className: nested ? 'prompt-control-source-branch' : 'prompt-control-source-group',
+        });
+        this.#bindGroupState(section, group.id);
         const heading = this.#createGroupHeading({
-            className: 'prompt-control-world-heading',
+            className: nested ? 'prompt-control-source-branch-heading' : '',
             label: group.label,
-            count: group.items.length,
-            tokenCount: sumTokens(group.items),
-            preview: summarizeItems(group.items, item => item.content),
+            count: group.allItems.length,
+            tokenCount: sumTokens(group.allItems),
+            preview: summarizeItems(group.allItems, item => item.content),
         });
         section.append(heading);
+        for (const child of group.children) {
+            section.append(this.#createSourceGroup(child, true));
+        }
         appendInBatches(section, group.items, item => this.#createContribution(item));
         if (this.search.matches(group.label)) this.search.mark(section);
         return section;
@@ -413,22 +395,69 @@ export class PromptControlUi {
     }
 
     #createContribution(item) {
-        const row = element('article', { className: 'prompt-control-contribution' });
-        const copy = element('div', { className: 'prompt-control-contribution-copy' });
-        const name = element('strong');
-        this.search.appendHighlighted(name, item.sourceName);
-        copy.append(
-            name,
-            element('small', { text: `Tokens: ${item.tokenCount}` }),
+        return this.#createEntry({
+            className: 'prompt-control-source-entry',
+            label: `${item.sourceName} · ${summarizeContent(item.content)}`,
+            content: item.content,
+            tokenCount: item.tokenCount,
+            controlId: item.controlId,
+            controlLevel: item.controlLevel,
+            searchTerms: [item.sourceName, item.content],
+        });
+    }
+
+    /**
+     * 创建提示词与来源视图共用的内容行
+     * @param {object} options 内容行数据
+     * @param {string} [options.className] 附加类名
+     * @param {string} options.label 折叠摘要
+     * @param {string} options.content 完整内容
+     * @param {number} options.tokenCount Token 数
+     * @param {string} options.controlId 控制标识
+     * @param {string} options.controlLevel 控制层级
+     * @param {unknown[]} [options.searchTerms] 搜索内容
+     * @returns {HTMLElement} 可折叠内容行
+     */
+    #createEntry({
+        className = '',
+        label,
+        content,
+        tokenCount,
+        controlId,
+        controlLevel,
+        searchTerms = [content],
+    }) {
+        const details = element('details', {
+            className: `prompt-control-message ${className}`.trim(),
+        });
+        const summary = document.createElement('summary');
+        const labelElement = element('span', { className: 'prompt-control-message-label' });
+        this.search.appendHighlighted(labelElement, label);
+        summary.append(
+            labelElement,
+            element('small', { text: `${formatNumber(tokenCount)} Tokens` }),
         );
-        if (item.content) copy.append(createContent(item.content, this.search));
-        row.append(copy, this.#createToggle(item.controlId, item.controlLevel));
-        row.classList.toggle(
+        this.#appendToggle(summary, controlId, controlLevel);
+        const body = this.#createContentBody(content);
+        details.append(summary, body);
+        details.classList.toggle(
             'prompt-control-excluded',
-            Boolean(item.controlId && this.store.isExcluded(item.controlId)),
+            Boolean(controlId && this.store.isExcluded(controlId)),
         );
-        if (this.search.matches(item.sourceName, item.content)) this.search.mark(row);
-        return row;
+        if (this.search.matches(...searchTerms)) this.search.mark(details);
+        return details;
+    }
+
+    #createContentBody(content, className = '') {
+        const body = element('pre', { className });
+        this.search.appendHighlighted(body, content);
+        return body;
+    }
+
+    #appendToggle(container, controlId, controlLevel) {
+        const toggle = this.#createToggle(controlId, controlLevel);
+        toggle.addEventListener('click', event => event.stopPropagation());
+        container.append(toggle);
     }
 
     #bindGroupState(details, key) {
@@ -700,30 +729,6 @@ export function clampFloatingPosition(position, size, viewport) {
 }
 
 /**
- * 按最终提示词顺序合并连续且角色相同的消息
- * @param {object[]} nodes 最终消息节点
- * @returns {object[]} 角色消息组
- */
-export function groupAdjacentPromptNodes(nodes) {
-    const groups = [];
-    for (const node of nodes) {
-        const current = groups.at(-1);
-        if (!current || current.role !== node.role) {
-            groups.push({
-                id: node.id,
-                role: node.role,
-                nodes: [node],
-                tokenCount: node.tokenCount,
-            });
-            continue;
-        }
-        current.nodes.push(node);
-        current.tokenCount += node.tokenCount;
-    }
-    return groups;
-}
-
-/**
  * 根据拖动方向调整面板边界并限制在视口内
  * @param {object} bounds 初始边界
  * @param {number} bounds.left 左边界
@@ -792,21 +797,6 @@ export function placeFloatingPanel(bubble, panel, viewport) {
 
 function clamp(value, minimum, maximum) {
     return Math.min(Math.max(value, minimum), Math.max(minimum, maximum));
-}
-
-function createContent(content, search) {
-    const details = element('details', { className: 'prompt-control-text' });
-    const summary = document.createElement('summary');
-    search.appendHighlighted(summary, summarizeContent(content));
-    details.append(summary);
-    details.addEventListener('toggle', () => {
-        if (details.open && details.childElementCount === 1) {
-            const body = element('pre');
-            search.appendHighlighted(body, content);
-            details.append(body);
-        }
-    });
-    return details;
 }
 
 function createLoadingState() {

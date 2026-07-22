@@ -14,10 +14,14 @@ import {
 import { countPromptMessageTokens } from '../modules/prompt-control/token-counter.js';
 import {
     clampFloatingPosition,
-    groupAdjacentPromptNodes,
     placeFloatingPanel,
     resizeFloatingPanel,
 } from '../modules/prompt-control/ui.js';
+import {
+    createPromptDisplayNodes,
+    createSourceTree,
+    groupAdjacentPromptNodes,
+} from '../modules/prompt-control/view-model.js';
 import { nextSearchIndex } from '../modules/prompt-control/search.js';
 import { WorldInfoPromptAdapter } from '../modules/prompt-control/world-info.js';
 
@@ -45,6 +49,10 @@ test('结构化消息可映射到合并后的最终消息', async () => {
     assert.equal(snapshot.contributions[0].controlLevel, 'locked');
     assert.equal(snapshot.contributions[2].controlLevel, 'final');
     assert.equal(snapshot.totalTokens, '主提示词\n世界书内容你好'.length);
+    assert.deepEqual(
+        createPromptDisplayNodes(snapshot).map(item => item.content),
+        ['主提示词', '世界书内容', '你好'],
+    );
 });
 
 test('重复来源标识仍生成不同的最终节点', async () => {
@@ -216,11 +224,12 @@ test('提示词视图只合并最终顺序中连续且相同的角色', () => {
 });
 
 test('世界书来源按世界书分组且合并结果置于末尾', () => {
-    const groups = groupWorldInfoContributions([
-        { id: 'combined', worldName: '', sourceName: '角色定义前世界书' },
-        { id: 'b', worldName: '世界书乙', sourceName: '条目乙' },
-        { id: 'a', worldName: '世界书甲', sourceName: '条目甲' },
-    ]);
+    const items = [
+        { id: 'combined', sourceType: 'worldInfo', worldName: '', sourceName: '角色定义前世界书' },
+        { id: 'b', sourceType: 'worldInfo', worldName: '世界书乙', sourceName: '条目乙' },
+        { id: 'a', sourceType: 'worldInfo', worldName: '世界书甲', sourceName: '条目甲' },
+    ];
+    const groups = groupWorldInfoContributions(items);
 
     assert.deepEqual(groups.map(group => ({
         id: group.id,
@@ -230,6 +239,20 @@ test('世界书来源按世界书分组且合并结果置于末尾', () => {
         { id: '世界书乙', items: ['b'] },
         { id: 'combined', items: ['combined'] },
     ]);
+    const [source] = createSourceTree(items);
+    assert.equal(source.items.length, 0);
+    assert.deepEqual(
+        source.children.map(group => group.items.map(item => item.id)),
+        [['a'], ['b'], ['combined']],
+    );
+});
+
+test('普通来源沿用同一来源树且直接保留来源项', () => {
+    const items = [{ id: 'main', sourceType: 'preset', sourceName: '主提示词' }];
+    const [source] = createSourceTree(items);
+
+    assert.equal(source.children.length, 0);
+    assert.equal(source.items[0], items[0]);
 });
 
 test('搜索定位支持首次定位与首尾循环', () => {

@@ -238,9 +238,7 @@
 .prompt-control-view-actions,
 .prompt-control-searchbar,
 .prompt-control-tabs,
-.prompt-control-role-header,
-.prompt-control-group-heading,
-.prompt-control-contribution {
+.prompt-control-group-heading {
     display: flex;
     align-items: center;
 }
@@ -265,8 +263,7 @@
 }
 
 .prompt-control-title small,
-.prompt-control-group-heading small,
-.prompt-control-contribution-copy small {
+.prompt-control-group-heading small {
     color: var(--SmartThemeEmColor);
 }
 
@@ -423,8 +420,7 @@
 }
 
 .prompt-control-role-group,
-.prompt-control-source-group,
-.prompt-control-contribution {
+.prompt-control-source-group {
     min-width: 0;
     max-width: 100%;
     box-sizing: border-box;
@@ -433,22 +429,14 @@
     background: var(--black30a);
 }
 
-.prompt-control-role-header,
-.prompt-control-group-heading {
-    gap: 7px;
-    padding: 6px 8px;
-}
-
 .prompt-control-group-heading {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
+    gap: 7px;
+    padding: 6px 8px;
     cursor: pointer;
     list-style: none;
-}
-
-.prompt-control-role-header {
-    grid-template-columns: auto minmax(0, 1fr) auto;
 }
 
 .prompt-control-group-heading::before {
@@ -459,7 +447,7 @@
 
 .prompt-control-role-group[open] > .prompt-control-group-heading::before,
 .prompt-control-source-group[open] > .prompt-control-group-heading::before,
-.prompt-control-world-group[open] > .prompt-control-group-heading::before {
+.prompt-control-source-branch[open] > .prompt-control-group-heading::before {
     transform: rotate(90deg);
 }
 
@@ -473,14 +461,10 @@
     white-space: nowrap;
 }
 
-.prompt-control-group-copy,
-.prompt-control-contribution-copy {
-    min-width: 0;
-    flex: 1;
-}
-
 .prompt-control-group-copy {
     display: grid;
+    min-width: 0;
+    flex: 1;
     gap: 2px;
 }
 
@@ -503,42 +487,13 @@
     white-space: nowrap;
 }
 
-.prompt-control-group-heading strong,
-.prompt-control-contribution-copy {
+.prompt-control-group-heading strong {
     overflow-wrap: anywhere;
 }
 
 .prompt-control-group-heading,
-.prompt-control-contribution {
+.prompt-control-message {
     font-size: 0.88em;
-}
-
-.prompt-control-text {
-    border-top: 1px solid var(--SmartThemeBorderColor);
-}
-
-.prompt-control-text summary {
-    overflow: hidden;
-    padding: 5px 7px;
-    cursor: pointer;
-    color: var(--SmartThemeEmColor);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.prompt-control-text pre {
-    overflow-x: hidden;
-    overflow-y: auto;
-    max-height: 280px;
-    margin: 0;
-    padding: 7px;
-    border-top: 1px solid var(--SmartThemeBorderColor);
-    font: inherit;
-    line-height: 1.45;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
 }
 
 .prompt-control-role-messages {
@@ -546,7 +501,9 @@
 }
 
 .prompt-control-message {
+    overflow: hidden;
     min-width: 0;
+    max-width: 100%;
     border-top: 1px solid var(--SmartThemeBorderColor);
 }
 
@@ -558,6 +515,7 @@
     padding: 5px 7px;
     cursor: pointer;
     list-style: none;
+    min-width: 0;
 }
 
 .prompt-control-message summary::before {
@@ -583,7 +541,8 @@
     white-space: nowrap;
 }
 
-.prompt-control-message pre {
+.prompt-control-message pre,
+.prompt-control-single-content {
     overflow-x: hidden;
     overflow-y: auto;
     max-height: 280px;
@@ -594,6 +553,12 @@
     line-height: 1.45;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
+.prompt-control-single-content {
+    max-width: 100%;
 }
 
 .prompt-control-source-group {
@@ -602,42 +567,19 @@
     padding: 0;
 }
 
-.prompt-control-world-group {
+.prompt-control-source-branch {
     display: grid;
     min-width: 0;
     border-top: 1px solid var(--SmartThemeBorderColor);
 }
 
-.prompt-control-world-heading {
+.prompt-control-source-branch-heading {
     padding: 5px 7px 5px 18px;
 }
 
-.prompt-control-source-group > .prompt-control-contribution {
-    border-width: 1px 0 0;
-    border-radius: 0;
-    background: transparent;
-}
-
-.prompt-control-world-group > .prompt-control-contribution {
-    margin-left: 18px;
-    border-width: 1px 0 0;
-    border-radius: 0;
-    background: transparent;
-}
-
-.prompt-control-contribution {
-    align-items: flex-start;
-    gap: 6px;
-    padding: 5px 7px;
-}
-
-.prompt-control-contribution-copy {
-    display: grid;
-    gap: 2px;
-}
-
-.prompt-control-contribution .prompt-control-text {
-    margin-top: 4px;
+.prompt-control-source-branch > .prompt-control-source-entry summary,
+.prompt-control-source-branch > .prompt-control-source-entry pre {
+    padding-left: 24px;
 }
 
 .prompt-control-excluded {
@@ -711,16 +653,12 @@
         gap: 1px;
     }
 
-    .prompt-control-role-header {
-        grid-template-columns: auto minmax(0, 1fr) auto;
-    }
-
     .prompt-control-group-title {
         display: grid;
         gap: 1px;
     }
 
-    .prompt-control-role-header .prompt-control-switch {
+    .prompt-control-group-heading .prompt-control-switch {
         grid-column: 3;
     }
 

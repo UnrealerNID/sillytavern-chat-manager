@@ -23,6 +23,7 @@ test('style entry imports every responsibility module', async () => {
 test('prompt panel stays compact, resizable and free of horizontal scrolling', async () => {
     const css = await readFile(new URL('../styles/prompt-control/panel.css', import.meta.url), 'utf8');
     const ui = await readFile(new URL('../modules/prompt-control/ui.js', import.meta.url), 'utf8');
+    const viewModel = await readFile(new URL('../modules/prompt-control/view-model.js', import.meta.url), 'utf8');
     const search = await readFile(new URL('../modules/prompt-control/search.js', import.meta.url), 'utf8');
     const template = await readFile(new URL('../templates/prompt-control/panel.html', import.meta.url), 'utf8');
     assert.match(css, /\.prompt-control-host\.prompt-control-floating\s*\{[^}]*position:\s*fixed/s);
@@ -41,13 +42,22 @@ test('prompt panel stays compact, resizable and free of horizontal scrolling', a
     assert.match(ui, /正在读取本轮提示词…/);
     assert.match(css, /prompt-control-loading-icon[^}]*animation:\s*prompt-control-spin/s);
     assert.match(css, /\.prompt-control-action-separator\s*\{[^}]*width:\s*1px/s);
-    assert.match(css, /\.prompt-control-text pre\s*\{[^}]*overflow-y:\s*auto[^}]*overscroll-behavior:\s*contain/s);
+    assert.match(
+        css,
+        /\.prompt-control-message pre,[\s\S]*\.prompt-control-single-content\s*\{[^}]*overflow-y:\s*auto[^}]*overscroll-behavior:\s*contain/s,
+    );
+    assert.match(css, /\.prompt-control-message\s*\{[^}]*overflow:\s*hidden[^}]*min-width:\s*0/s);
+    assert.doesNotMatch(css, /prompt-control-contribution|prompt-control-text/);
     assert.doesNotMatch(css, /\.prompt-control-source-group\s*\{[^}]*overflow:\s*hidden/s);
     assert.match(ui, /POSITION_KEY/);
     assert.match(ui, /PANEL_SIZE_KEY/);
     assert.match(ui, /Role: \$\{roleIcon\(group\.role\)\} \$\{group\.role\}/);
-    assert.match(ui, /Tokens: \$\{formatNumber\(node\.tokenCount\)\}/);
-    assert.match(ui, /group\.nodes\.length > 1/);
+    assert.match(ui, /\$\{formatNumber\(tokenCount\)\} Tokens/);
+    assert.match(ui, /group\.nodes\.length === 1/);
+    assert.doesNotMatch(ui, /group\.items\.length === 1/);
+    assert.match(ui, /createSourceTree\(snapshot\.contributions\)/);
+    assert.match(ui, /#createSourceGroup\(child, true\)/);
+    assert.doesNotMatch(ui, /#createWorldGroup/);
     assert.doesNotMatch(ui, /details\.open = groupSize === 1/);
     assert.match(ui, /trim\(\)\.replace\(\/\\s\+\/g, ' '\)\.slice\(0, 320\)/);
     assert.doesNotMatch(template, /data-prompt-view="position"/);
@@ -60,8 +70,8 @@ test('prompt panel stays compact, resizable and free of horizontal scrolling', a
     assert.match(ui, /new PromptSearchController/);
     assert.match(search, /scrollIntoView/);
     assert.match(ui, /element\('details', \{ className: 'prompt-control-role-group' \}\)/);
-    assert.match(ui, /element\('details', \{ className: 'prompt-control-source-group' \}\)/);
-    assert.match(ui, /groupWorldInfoContributions/);
+    assert.match(ui, /nested \? 'prompt-control-source-branch' : 'prompt-control-source-group'/);
+    assert.match(viewModel, /groupWorldInfoContributions/);
 });
 
 test('chat manager panels and modal dialogs use their dedicated layers', async () => {
