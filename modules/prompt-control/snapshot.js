@@ -172,6 +172,7 @@ export function getPromptChatKey(context) {
  * @param {(message:object)=>Promise<number>} [options.countMessageTokens] 消息 Token 计算器
  * @param {boolean} options.dryRun 是否为预览
  * @param {object[]} [options.worldEntries] 本轮激活世界书条目
+ * @param {(identifier:string)=>string} [options.getPromptName] 预设条目名称读取器
  * @returns {Promise<object>} 提示词快照
  */
 export async function createChatSnapshot({
@@ -181,8 +182,9 @@ export async function createChatSnapshot({
     countMessageTokens = message => countPromptMessageTokens(message, countTokens),
     dryRun,
     worldEntries = [],
+    getPromptName = () => '',
 }) {
-    const structured = flattenStructuredMessages(messages);
+    const structured = flattenStructuredMessages(messages, getPromptName);
     const matches = matchFinalMessages(chat, structured);
     const finalNodes = await Promise.all(chat.map(async (message, index) => {
         const contributions = matches[index] ?? [];
@@ -210,7 +212,7 @@ export async function createChatSnapshot({
             id: item.identifier,
             controlId: finalNode?.id ?? '',
             sourceType: classifySource(item.identifier),
-            sourceName: sourceName(item.identifier),
+            sourceName: item.sourceName || sourceName(item.identifier),
             finalNodeId: finalNode?.id ?? null,
             sendIndex: finalNode?.sendIndex ?? -1,
             insertionRole: finalNode?.role ?? item.role,
@@ -334,9 +336,10 @@ export function groupWorldInfoContributions(items) {
 /**
  * 将酒馆结构化消息展开为叶子消息
  * @param {object|null} root 根消息集合
+ * @param {(identifier:string)=>string} [getPromptName] 预设条目名称读取器
  * @returns {object[]} 结构化消息
  */
-export function flattenStructuredMessages(root) {
+export function flattenStructuredMessages(root, getPromptName = () => '') {
     const output = [];
     const visit = value => {
         const collection = value?.getCollection?.() ?? value?.collection;
@@ -345,8 +348,10 @@ export function flattenStructuredMessages(root) {
             return;
         }
         if (!value || (!value.content && !value.tool_calls)) return;
+        const identifier = String(value.identifier ?? `message-${output.length}`);
         output.push({
-            identifier: String(value.identifier ?? `message-${output.length}`),
+            identifier,
+            sourceName: String(getPromptName(identifier) ?? ''),
             role: value.role ?? 'unknown',
             content: promptContentToText(value.content ?? value.tool_calls),
             tokenCount: Number(value.getTokens?.() ?? value.tokens ?? 0),

@@ -57,6 +57,7 @@ export class PromptControlModule {
         this.capture = new PromptCaptureController({
             getContext: this.getContext,
             getStructuredMessages: () => promptManager?.messages ?? null,
+            getPromptName: identifier => promptManager?.getPromptById?.(identifier)?.name ?? '',
             store: this.store,
             worldInfo: this.worldInfo,
         });

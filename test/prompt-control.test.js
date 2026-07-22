@@ -266,14 +266,16 @@ test('空助手消息按查看器规则计算工具调用', async () => {
     assert.equal(count, JSON.stringify(toolCalls).length);
 });
 
-test('自定义标识归入预设且不直接显示内部哈希', async () => {
+test('自定义预设标识回查真实条目名称', async () => {
+    const identifier = 'adbe0f3a-e6c6-4532-b274-81a02be7fecf';
     const snapshot = await createChatSnapshot({
         chat: [{ role: 'system', content: '内容' }],
-        messages: collection(message('adbe0f3a-e6c6-4532-b274-81a02be7fecf', 'system', '内容')),
+        messages: collection(message(identifier, 'system', '内容')),
         countTokens,
         dryRun: true,
+        getPromptName: id => id === identifier ? 'NSFW 写作规范' : '',
     });
-    assert.equal(snapshot.contributions[0].sourceName, '其他提示词');
+    assert.equal(snapshot.contributions[0].sourceName, 'NSFW 写作规范');
     assert.equal(snapshot.contributions[0].sourceType, 'preset');
 });
 

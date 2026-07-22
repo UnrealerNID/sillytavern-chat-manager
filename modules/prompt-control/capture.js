@@ -14,12 +14,14 @@ export class PromptCaptureController {
      * @param {object} options 配置项
      * @param {()=>object} options.getContext 酒馆上下文读取器
      * @param {()=>object|null} options.getStructuredMessages 结构化消息读取器
+     * @param {(identifier:string)=>string} options.getPromptName 预设条目名称读取器
      * @param {import('./snapshot.js').PromptSnapshotStore} options.store 快照状态
      * @param {import('./world-info.js').WorldInfoPromptAdapter} options.worldInfo 世界书适配器
      */
-    constructor({ getContext, getStructuredMessages, store, worldInfo }) {
+    constructor({ getContext, getStructuredMessages, getPromptName, store, worldInfo }) {
         this.getContext = getContext;
         this.getStructuredMessages = getStructuredMessages;
+        this.getPromptName = getPromptName;
         this.store = store;
         this.worldInfo = worldInfo;
         this.enabled = false;
@@ -105,6 +107,7 @@ export class PromptCaptureController {
             ),
             dryRun: payload.dryRun === true,
             worldEntries: this.worldInfo.getActivatedEntries(),
+            getPromptName: this.getPromptName,
         });
         if (revision !== this.captureRevision) return;
         this.#applyFinalExclusions(payload.chat, snapshot);
