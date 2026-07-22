@@ -9,6 +9,7 @@ import {
     flattenStructuredMessages,
     getPromptChatKey,
     groupContributionsBySource,
+    groupWorldInfoContributions,
 } from '../modules/prompt-control/snapshot.js';
 import { countPromptMessageTokens } from '../modules/prompt-control/token-counter.js';
 import {
@@ -17,6 +18,7 @@ import {
     placeFloatingPanel,
     resizeFloatingPanel,
 } from '../modules/prompt-control/ui.js';
+import { nextSearchIndex } from '../modules/prompt-control/search.js';
 import { WorldInfoPromptAdapter } from '../modules/prompt-control/world-info.js';
 
 const countTokens = async text => String(text).length;
@@ -85,6 +87,7 @@ test('世界书条目保留独立控制标识和处理后文本', async () => {
     assert.equal(entry.controlLevel, 'source');
     assert.equal(entry.finalNodeId, snapshot.finalNodes[0].id);
     assert.equal(entry.tokenCount, 2);
+    assert.equal(entry.worldName, '测试世界书');
 });
 
 test('排除状态按聊天隔离且不写入快照', () => {
@@ -210,6 +213,31 @@ test('提示词视图只合并最终顺序中连续且相同的角色', () => {
         { role: 'user', ids: ['u1'], tokenCount: 2 },
         { role: 'system', ids: ['s3'], tokenCount: 5 },
     ]);
+});
+
+test('世界书来源按世界书分组且合并结果置于末尾', () => {
+    const groups = groupWorldInfoContributions([
+        { id: 'combined', worldName: '', sourceName: '角色定义前世界书' },
+        { id: 'b', worldName: '世界书乙', sourceName: '条目乙' },
+        { id: 'a', worldName: '世界书甲', sourceName: '条目甲' },
+    ]);
+
+    assert.deepEqual(groups.map(group => ({
+        id: group.id,
+        items: group.items.map(item => item.id),
+    })), [
+        { id: '世界书甲', items: ['a'] },
+        { id: '世界书乙', items: ['b'] },
+        { id: 'combined', items: ['combined'] },
+    ]);
+});
+
+test('搜索定位支持首次定位与首尾循环', () => {
+    assert.equal(nextSearchIndex(-1, 3, 1), 0);
+    assert.equal(nextSearchIndex(-1, 3, -1), 2);
+    assert.equal(nextSearchIndex(2, 3, 1), 0);
+    assert.equal(nextSearchIndex(0, 3, -1), 2);
+    assert.equal(nextSearchIndex(0, 0, 1), -1);
 });
 
 test('提示词预览走完整装配链路并在网络请求前停止', async () => {

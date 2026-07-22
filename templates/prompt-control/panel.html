@@ -40,21 +40,46 @@
             </nav>
             <div class="prompt-control-view-actions">
                 <button
-                    data-prompt-control-refresh
-                    class="menu_button fa-solid fa-rotate-right prompt-control-refresh"
-                    type="button"
-                    title="刷新本轮提示词"
-                    aria-label="刷新本轮提示词"
-                ></button>
-                <span class="prompt-control-action-separator" aria-hidden="true"></span>
-                <button
                     data-prompt-control-clear
                     class="menu_button fa-solid fa-eraser prompt-control-clear"
                     type="button"
                     title="恢复临时关闭的内容"
                     aria-label="恢复临时关闭的内容"
                 ></button>
+                <span class="prompt-control-action-separator" aria-hidden="true"></span>
+                <button
+                    data-prompt-control-refresh
+                    class="menu_button fa-solid fa-rotate-right prompt-control-refresh"
+                    type="button"
+                    title="刷新本轮提示词"
+                    aria-label="刷新本轮提示词"
+                ></button>
             </div>
+        </div>
+        <div class="prompt-control-searchbar">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input
+                data-prompt-control-search
+                class="text_pole"
+                type="search"
+                placeholder="搜索提示词或来源"
+                aria-label="搜索提示词或来源"
+            >
+            <span data-prompt-control-search-count class="prompt-control-search-count"></span>
+            <button
+                data-prompt-control-search-previous
+                class="menu_button fa-solid fa-chevron-up"
+                type="button"
+                title="上一个匹配项"
+                aria-label="上一个匹配项"
+            ></button>
+            <button
+                data-prompt-control-search-next
+                class="menu_button fa-solid fa-chevron-down"
+                type="button"
+                title="下一个匹配项"
+                aria-label="下一个匹配项"
+            ></button>
         </div>
         <div data-prompt-control-status class="prompt-control-status" role="status"></div>
         <div data-prompt-control-content class="prompt-control-content"></div>

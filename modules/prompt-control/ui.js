@@ -1,5 +1,9 @@
 import { element } from '../shared/dom.js';
-import { groupContributionsBySource } from './snapshot.js';
+import {
+    groupContributionsBySource,
+    groupWorldInfoContributions,
+} from './snapshot.js';
+import { PromptSearchController } from './search.js';
 
 const RENDER_BATCH_SIZE = 100;
 const POSITION_KEY = 'sillytavern-toolbox:prompt-control-position';
@@ -35,6 +39,7 @@ export class PromptControlUi {
         this.preferredPanelSize = null;
         this.ignoreNextClick = false;
         this.viewportController = null;
+        this.groupStates = new Map();
     }
 
     /**
@@ -59,6 +64,14 @@ export class PromptControlUi {
         this.status = requireElement(root, '[data-prompt-control-status]');
         this.summary = requireElement(root, '[data-prompt-control-summary]');
         this.clearButton = requireButton(root, '[data-prompt-control-clear]');
+        this.search = new PromptSearchController({
+            input: requireInput(root, '[data-prompt-control-search]'),
+            count: requireElement(root, '[data-prompt-control-search-count]'),
+            previous: requireButton(root, '[data-prompt-control-search-previous]'),
+            next: requireButton(root, '[data-prompt-control-search-next]'),
+            content: this.content,
+            onQueryChange: () => this.render(),
+        });
         this.triggerTokens = requireElement(trigger, '[data-prompt-control-trigger-tokens]');
         this.root.classList.add('prompt-control-floating');
         this.#restorePosition();
@@ -147,6 +160,7 @@ export class PromptControlUi {
         const snapshot = this.store.getSnapshot();
         this.#renderStatus(snapshot);
         this.renderInto(this.content, this.view);
+        this.search.sync();
     }
 
     /**
@@ -207,6 +221,7 @@ export class PromptControlUi {
             this.store.clearCurrent();
             void this.#refresh();
         });
+        this.search.bind();
         for (const tab of this.root.querySelectorAll('[data-prompt-view]')) {
             tab.addEventListener('click', () => {
                 this.view = tab.dataset.promptView;
@@ -261,15 +276,24 @@ export class PromptControlUi {
     }
 
     #createRoleGroup(group) {
-        const card = element('article', { className: 'prompt-control-role-group' });
-        const header = element('header', { className: 'prompt-control-role-header' });
+        const card = element('details', { className: 'prompt-control-role-group' });
+        this.#bindGroupState(card, `role:${group.id}`);
+        const header = document.createElement('summary');
+        header.className = 'prompt-control-role-header';
+        const roleLabel = element('strong');
+        this.search.appendHighlighted(roleLabel, `Role: ${roleIcon(group.role)} ${group.role}`);
         header.append(
-            element('strong', { text: `Role: ${roleIcon(group.role)} ${group.role}` }),
+            roleLabel,
             element('small', {
                 text: `${group.nodes.length} 条 · Tokens: ${formatNumber(group.tokenCount)}`,
             }),
         );
-        if (group.nodes.length > 1) header.append(this.#createGroupToggle(group.nodes));
+        if (group.nodes.length > 1) {
+            const toggle = this.#createGroupToggle(group.nodes);
+            toggle.addEventListener('click', event => event.stopPropagation());
+            header.append(toggle);
+        }
+        if (this.search.matches(group.role)) this.search.mark(card);
         const messages = element('div', { className: 'prompt-control-role-messages' });
         group.nodes.forEach((node, index) => {
             messages.append(this.#createPromptMessage(node, index, group.nodes.length));
@@ -301,50 +325,88 @@ export class PromptControlUi {
         const details = element('details', { className: 'prompt-control-message' });
         const summary = document.createElement('summary');
         const preview = summarizeContent(node.content);
+        const label = element('span', { className: 'prompt-control-message-label' });
+        this.search.appendHighlighted(
+            label,
+            groupSize > 1 ? `#${index + 1} ${preview}` : preview,
+        );
         summary.append(
-            element('span', {
-                className: 'prompt-control-message-label',
-                text: groupSize > 1 ? `#${index + 1} ${preview}` : preview,
-            }),
+            label,
             element('small', { text: `Tokens: ${formatNumber(node.tokenCount)}` }),
             this.#createToggle(node.id, node.controlLevel),
         );
         summary.querySelector('.prompt-control-switch')?.addEventListener('click', event => {
             event.stopPropagation();
         });
-        details.append(summary, element('pre', { text: node.content }));
+        const content = element('pre');
+        this.search.appendHighlighted(content, node.content);
+        details.append(summary, content);
         details.classList.toggle('prompt-control-excluded', this.store.isExcluded(node.id));
+        if (this.search.matches(node.content)) this.search.mark(details);
         return details;
     }
 
     #renderSources(container, snapshot) {
         for (const group of groupContributionsBySource(snapshot.contributions)) {
-            const section = element('section', { className: 'prompt-control-source-group' });
-            const heading = element('header', { className: 'prompt-control-group-heading' });
+            const section = element('details', { className: 'prompt-control-source-group' });
+            this.#bindGroupState(section, `source:${group.id}`);
+            const heading = document.createElement('summary');
+            heading.className = 'prompt-control-group-heading';
+            const label = element('strong');
+            this.search.appendHighlighted(label, group.label);
             heading.append(
-                element('strong', { text: group.label }),
+                label,
                 element('small', { text: `${group.items.length} 项` }),
             );
             section.append(heading);
-            appendInBatches(section, group.items, item => this.#createContribution(item));
+            if (group.id === 'worldInfo') {
+                for (const world of groupWorldInfoContributions(group.items)) {
+                    section.append(this.#createWorldGroup(world));
+                }
+            } else {
+                appendInBatches(section, group.items, item => this.#createContribution(item));
+            }
+            if (this.search.matches(group.label)) this.search.mark(section);
             container.append(section);
         }
+    }
+
+    #createWorldGroup(group) {
+        const section = element('details', { className: 'prompt-control-world-group' });
+        this.#bindGroupState(section, `world:${group.id}`);
+        const heading = document.createElement('summary');
+        heading.className = 'prompt-control-world-heading';
+        const label = element('strong');
+        this.search.appendHighlighted(label, group.label);
+        heading.append(label, element('small', { text: `${group.items.length} 项` }));
+        section.append(heading);
+        appendInBatches(section, group.items, item => this.#createContribution(item));
+        if (this.search.matches(group.label)) this.search.mark(section);
+        return section;
     }
 
     #createContribution(item) {
         const row = element('article', { className: 'prompt-control-contribution' });
         const copy = element('div', { className: 'prompt-control-contribution-copy' });
+        const name = element('strong');
+        this.search.appendHighlighted(name, item.sourceName);
         copy.append(
-            element('strong', { text: item.sourceName }),
+            name,
             element('small', { text: `Tokens: ${item.tokenCount}` }),
         );
-        if (item.content) copy.append(createContent(item.content));
+        if (item.content) copy.append(createContent(item.content, this.search));
         row.append(copy, this.#createToggle(item.controlId, item.controlLevel));
         row.classList.toggle(
             'prompt-control-excluded',
             Boolean(item.controlId && this.store.isExcluded(item.controlId)),
         );
+        if (this.search.matches(item.sourceName, item.content)) this.search.mark(row);
         return row;
+    }
+
+    #bindGroupState(details, key) {
+        details.open = this.groupStates.get(key) ?? true;
+        details.addEventListener('toggle', () => this.groupStates.set(key, details.open));
     }
 
     #createToggle(controlId, level) {
@@ -621,6 +683,7 @@ export function groupAdjacentPromptNodes(nodes) {
         const current = groups.at(-1);
         if (!current || current.role !== node.role) {
             groups.push({
+                id: node.id,
                 role: node.role,
                 nodes: [node],
                 tokenCount: node.tokenCount,
@@ -704,14 +767,16 @@ function clamp(value, minimum, maximum) {
     return Math.min(Math.max(value, minimum), Math.max(minimum, maximum));
 }
 
-function createContent(content) {
+function createContent(content, search) {
     const details = element('details', { className: 'prompt-control-text' });
-    details.append(element('summary', {
-        text: summarizeContent(content),
-    }));
+    const summary = document.createElement('summary');
+    search.appendHighlighted(summary, summarizeContent(content));
+    details.append(summary);
     details.addEventListener('toggle', () => {
         if (details.open && details.childElementCount === 1) {
-            details.append(element('pre', { text: content }));
+            const body = element('pre');
+            search.appendHighlighted(body, content);
+            details.append(body);
         }
     });
     return details;
@@ -782,5 +847,11 @@ function requireElement(root, selector) {
 function requireButton(root, selector) {
     const value = root.querySelector(selector);
     if (!(value instanceof HTMLButtonElement)) throw new Error(`本轮提示词模板缺少 ${selector}`);
+    return value;
+}
+
+function requireInput(root, selector) {
+    const value = root.querySelector(selector);
+    if (!(value instanceof HTMLInputElement)) throw new Error(`本轮提示词模板缺少 ${selector}`);
     return value;
 }

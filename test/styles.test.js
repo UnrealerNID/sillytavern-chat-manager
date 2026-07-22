@@ -23,6 +23,7 @@ test('style entry imports every responsibility module', async () => {
 test('prompt panel stays compact, resizable and free of horizontal scrolling', async () => {
     const css = await readFile(new URL('../styles/prompt-control/panel.css', import.meta.url), 'utf8');
     const ui = await readFile(new URL('../modules/prompt-control/ui.js', import.meta.url), 'utf8');
+    const search = await readFile(new URL('../modules/prompt-control/search.js', import.meta.url), 'utf8');
     const template = await readFile(new URL('../templates/prompt-control/panel.html', import.meta.url), 'utf8');
     assert.match(css, /\.prompt-control-host\.prompt-control-floating\s*\{[^}]*position:\s*fixed/s);
     assert.match(css, /\.prompt-control-host\.prompt-control-floating\s*\{[^}]*z-index:\s*31100/s);
@@ -52,8 +53,14 @@ test('prompt panel stays compact, resizable and free of horizontal scrolling', a
     assert.match(template, />最终提示词<\/button>/);
     assert.match(template, />来源分类<\/button>/);
     assert.match(template, /prompt-control-header[\s\S]*data-prompt-control-collapse[\s\S]*<\/header>/);
-    assert.match(template, /prompt-control-view-actions[\s\S]*data-prompt-control-refresh/);
-    assert.match(template, /prompt-control-action-separator[\s\S]*data-prompt-control-clear/);
+    assert.match(template, /prompt-control-view-actions[\s\S]*data-prompt-control-clear/);
+    assert.match(template, /prompt-control-action-separator[\s\S]*data-prompt-control-refresh/);
+    assert.match(template, /data-prompt-control-search/);
+    assert.match(ui, /new PromptSearchController/);
+    assert.match(search, /scrollIntoView/);
+    assert.match(ui, /element\('details', \{ className: 'prompt-control-role-group' \}\)/);
+    assert.match(ui, /element\('details', \{ className: 'prompt-control-source-group' \}\)/);
+    assert.match(ui, /groupWorldInfoContributions/);
 });
 
 test('chat manager panels and modal dialogs use their dedicated layers', async () => {

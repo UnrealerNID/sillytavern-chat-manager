@@ -288,6 +288,30 @@ export function groupContributionsBySource(contributions) {
 }
 
 /**
+ * 将世界书来源项按实际世界书分组，无法定位到原书的合并内容置于末尾
+ * @param {object[]} items 世界书来源项
+ * @returns {object[]} 世界书分组
+ */
+export function groupWorldInfoContributions(items) {
+    const groups = new Map();
+    for (const item of items) {
+        const id = item.worldName || '';
+        const group = groups.get(id) ?? {
+            id: id || 'combined',
+            label: id || '合并结果',
+            items: [],
+        };
+        group.items.push(item);
+        groups.set(id, group);
+    }
+    return Array.from(groups.values()).sort((left, right) => {
+        if (left.id === 'combined') return 1;
+        if (right.id === 'combined') return -1;
+        return left.label.localeCompare(right.label, 'zh-CN');
+    });
+}
+
+/**
  * 将酒馆结构化消息展开为叶子消息
  * @param {object|null} root 根消息集合
  * @returns {object[]} 结构化消息
@@ -371,6 +395,7 @@ async function appendWorldEntries(contributions, finalByContribution, entries, c
             controlId: id,
             sourceType: 'worldInfo',
             sourceName: entry.comment || entry.key?.join?.(', ') || entry.world || '世界书条目',
+            worldName: String(entry.world ?? ''),
             finalNodeId: anchor?.id ?? null,
             orderInNode: index,
             content: String(entry.content ?? ''),
