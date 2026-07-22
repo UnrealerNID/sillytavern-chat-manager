@@ -1,7 +1,5 @@
-import { world_info_position } from '/scripts/world-info.js';
-
 import { element } from '../shared/dom.js';
-import { groupWorldInfoByPromptOrder } from './order.js';
+import { groupWorldInfoByNativeOrder } from './order.js';
 import { worldControlId } from './world-info.js';
 
 const PANEL_HEIGHT_KEY = 'sillytavern-toolbox:world-info-control-height';
@@ -85,14 +83,14 @@ export class WorldInfoControlUi {
         const status = this.store.getStatus();
         const entries = this.store.getEntries();
         const excluded = this.store.getExclusions();
-        this.refreshButton.disabled = status === 'loading';
+        this.refreshButton.disabled = status === 'loading' || status === 'scanning';
         this.#updateSummary(entries.length, excluded.size, status);
         this.content.replaceChildren();
-        if (status === 'loading') {
+        if (status === 'loading' || (status === 'scanning' && !entries.length)) {
             this.content.append(createState('fa-circle-notch', '正在扫描世界书…', true));
             return;
         }
-        if (status !== 'ready') {
+        if (status !== 'ready' && status !== 'scanning') {
             const text = status === 'idle'
                 ? '选择角色或群聊后可扫描'
                 : status === 'error'
@@ -108,7 +106,7 @@ export class WorldInfoControlUi {
             this.content.append(createState('fa-magnifying-glass', query ? '没有匹配条目' : '本轮未触发世界书条目'));
             return;
         }
-        for (const group of groupWorldInfoByPromptOrder(visible)) {
+        for (const group of groupWorldInfoByNativeOrder(visible)) {
             this.content.append(this.#createWorldGroup(group));
         }
     }
@@ -157,8 +155,6 @@ export class WorldInfoControlUi {
         );
         const metadata = element('span', { className: 'world-info-control-entry-metadata' });
         metadata.append(
-            element('small', { text: `位置：${insertionPosition(entry)}` }),
-            element('small', { text: `顺序：${Number(entry.order ?? 0)}` }),
             element('small', {
                 text: tokenCountText(entry.tokenCount),
                 attrs: { 'data-world-info-control-token': '' },
@@ -201,10 +197,12 @@ export class WorldInfoControlUi {
     }
 
     #updateSummary(entryCount, excludedCount, status) {
-        this.summary.textContent = status === 'ready'
-            ? `${entryCount} 个条目 · 已关闭 ${excludedCount} 个`
+        this.summary.textContent = status === 'ready' || status === 'scanning'
+            ? `${entryCount} 个条目 · 已关闭 ${excludedCount} 个${status === 'scanning' ? ' · 扫描中' : ''}`
             : '';
-        this.clearButton.disabled = status === 'loading' || excludedCount === 0;
+        this.clearButton.disabled = status === 'loading'
+            || status === 'scanning'
+            || excludedCount === 0;
     }
 
     #restoreHeight() {
@@ -252,32 +250,11 @@ function matchesEntry(entry, query) {
 }
 
 function tokenCountText(tokenCount) {
-    return Number.isFinite(tokenCount) ? `Tokens：${tokenCount}` : 'Tokens：计算中';
+    return Number.isFinite(tokenCount) ? `${tokenCount} Tokens` : '计算中…';
 }
 
 function summarize(content) {
     return String(content ?? '').trim().replace(/\s+/g, ' ').slice(0, 180) || '空内容';
-}
-
-function insertionPosition(entry) {
-    switch (entry.position) {
-        case world_info_position.after:
-            return '角色定义后';
-        case world_info_position.ANTop:
-            return '作者注释前';
-        case world_info_position.ANBottom:
-            return '作者注释后';
-        case world_info_position.atDepth:
-            return `上下文深度 ${entry.depth ?? 0}`;
-        case world_info_position.EMTop:
-            return '示例消息前';
-        case world_info_position.EMBottom:
-            return '示例消息后';
-        case world_info_position.outlet:
-            return entry.outletName ? `锚点 ${entry.outletName}` : '锚点';
-        default:
-            return '角色定义前';
-    }
 }
 
 function createToggle(checked) {

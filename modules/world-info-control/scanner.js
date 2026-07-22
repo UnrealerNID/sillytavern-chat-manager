@@ -99,7 +99,7 @@ export class WorldInfoScanner {
     /**
      * 将最近一次原生扫描结果同步到面板
      */
-    async syncFromAdapter() {
+    async syncFromAdapter({ complete = true } = {}) {
         const context = this.getContext();
         const chatKey = getWorldInfoControlChatKey(context);
         const activatedEntries = this.adapter.getActivatedEntries()
@@ -110,8 +110,8 @@ export class WorldInfoScanner {
             tokenCount: null,
         }));
         this.store.setEntries(entries);
-        this.store.setStatus('ready');
-        this.#scheduleTokenCounts(context, chatKey, entries);
+        this.store.setStatus(complete ? 'ready' : 'scanning');
+        if (complete) this.#scheduleTokenCounts(context, chatKey, entries);
     }
 
     // Token 统计不参与扫描完成判定，避免大量条目阻塞触发结果
@@ -132,7 +132,7 @@ export class WorldInfoScanner {
             } catch (error) {
                 console.warn('[酒馆工具箱] 世界书条目 Token 统计失败', error);
             }
-        }, 300);
+        }, 800);
     }
 }
 

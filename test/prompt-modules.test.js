@@ -15,7 +15,7 @@ import {
 } from '../modules/prompt-viewer/ui.js';
 import { groupAdjacentPromptNodes } from '../modules/prompt-viewer/view-model.js';
 import { nextSearchIndex } from '../modules/prompt-viewer/search.js';
-import { groupWorldInfoByPromptOrder } from '../modules/world-info-control/order.js';
+import { groupWorldInfoByNativeOrder } from '../modules/world-info-control/order.js';
 import {
     WorldInfoControlStore,
     getWorldInfoControlChatKey,
@@ -121,15 +121,30 @@ test('世界书扫描结果保留条目标识和处理后正文', () => {
     assert.equal(entry.processedContent, '处理:正文');
 });
 
-test('世界书组与组内条目共用最终提示词顺序', () => {
-    const groups = groupWorldInfoByPromptOrder([
-        { world: '后插入', uid: 1, position: 0, order: 1007 },
-        { world: '先插入', uid: 2, position: 0, order: 3 },
-        { world: '先插入', uid: 3, position: 0, order: 2 },
-        { world: '深度插入', uid: 4, position: 4, depth: 2, order: 1 },
+test('世界书组与组内条目共用酒馆原生扫描顺序', () => {
+    const groups = groupWorldInfoByNativeOrder([
+        { world: '后扫描', uid: 1, nativeOrder: 3, order: 1007 },
+        { world: '先扫描', uid: 2, nativeOrder: 1, order: 3 },
+        { world: '先扫描', uid: 3, nativeOrder: 0, order: 2 },
+        { world: '中间扫描', uid: 4, nativeOrder: 2, order: 1 },
     ]);
-    assert.deepEqual(groups.map(group => group.name), ['先插入', '后插入', '深度插入']);
+    assert.deepEqual(groups.map(group => group.name), ['先扫描', '中间扫描', '后扫描']);
     assert.deepEqual(groups[0].entries.map(entry => entry.uid), [3, 2]);
+});
+
+test('世界书适配器保留酒馆 sortedEntries 的原生索引', () => {
+    const store = new WorldInfoControlStore();
+    const adapter = new WorldInfoPromptAdapter({ store });
+    const first = { world: '书一', uid: 1, content: '一' };
+    const second = { world: '书二', uid: 2, content: '二' };
+    adapter.captureActivatedEntries({
+        sortedEntries: [second, first],
+        activated: { entries: new Set([first, second]) },
+    });
+    assert.deepEqual(
+        adapter.getActivatedEntries().map(entry => [entry.uid, entry.nativeOrder]),
+        [[1, 1], [2, 0]],
+    );
 });
 
 test('世界书 Token 更新不替换条目列表', () => {
@@ -195,7 +210,8 @@ test('世界书扫描包含输入框草稿且不触发完整生成', async () =>
     assert.match(source, /getWorldInfoPrompt/);
     assert.match(source, /getMaxPromptTokens/);
     assert.match(source, /slice\(-MAX_SCAN_DEPTH\)/);
-    assert.match(source, /setStatus\('ready'\)[\s\S]*#scheduleTokenCounts/);
+    assert.match(source, /setStatus\(complete \? 'ready' : 'scanning'\)/);
+    assert.match(source, /if \(complete\) this\.#scheduleTokenCounts/);
     assert.doesNotMatch(source, /context\.generate/);
 });
 

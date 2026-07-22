@@ -35,6 +35,9 @@ export class WorldInfoPromptAdapter {
      */
     captureActivatedEntries(payload) {
         const entries = payload?.activated?.entries;
+        const nativeOrder = new Map((payload?.sortedEntries ?? []).map((entry, index) => (
+            [worldControlId(entry), index]
+        )));
         if (entries instanceof Map || entries instanceof Set) {
             this.activatedEntries = Array.from(entries.values());
         } else {
@@ -42,6 +45,7 @@ export class WorldInfoPromptAdapter {
         }
         this.activatedEntries = this.activatedEntries.map(entry => ({
             ...entry,
+            nativeOrder: nativeOrder.get(worldControlId(entry)) ?? Number.MAX_SAFE_INTEGER,
             // 事件中的正文已替换宏；此处继续复用酒馆同一正则链路得到实际发送文本
             processedContent: this.processEntry(entry),
         }));

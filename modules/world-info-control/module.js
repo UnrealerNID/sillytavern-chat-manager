@@ -81,11 +81,12 @@ export class WorldInfoControlModule {
         });
         this.#addEvent(events.WORLDINFO_SCAN_DONE, payload => {
             this.adapter.captureActivatedEntries(payload);
-            if (!this.scanner.isScanning() && this.ui.isOpen()) {
-                void this.scanner.syncFromAdapter().catch(error => {
-                    console.error('[酒馆工具箱] 同步世界书扫描结果失败', error);
-                });
-            }
+            if (!this.ui.isOpen()) return;
+            void this.scanner.syncFromAdapter({
+                complete: !this.scanner.isScanning(),
+            }).catch(error => {
+                console.error('[酒馆工具箱] 同步世界书扫描结果失败', error);
+            });
         });
         this.#addEvent(events.CHAT_CHANGED, () => {
             this.adapter.reset();

@@ -59,7 +59,11 @@ test('世界书控制使用贴靠输入区的单一折叠入口', async () => {
     assert.match(css, /\.world-info-control-resize\s*\{[^}]*cursor:\s*ns-resize/s);
     assert.match(css, /\.world-info-control-entry-metadata\s*\{/);
     assert.match(css, /\.world-info-control-entry-metadata\s*\{[^}]*display:\s*grid/s);
-    assert.match(css, /\.world-info-control-switch\s*\{[^}]*width:\s*28px[^}]*height:\s*16px/s);
+    assert.match(css, /grid-template-columns:\s*minmax\(0, 1fr\) 96px/);
+    assert.match(css, /\.world-info-control-entry-copy\s*\{[^}]*grid-row:\s*1 \/ 3/s);
+    assert.match(css, /\.world-info-control-switch\s*\{[^}]*width:\s*34px[^}]*height:\s*20px/s);
+    assert.match(css, /\.world-info-control-switch \.toolbox-switch-track\s*\{[^}]*scale\(0\.8\)/s);
+    assert.doesNotMatch(css, /\.world-info-control-switch \.toolbox-switch-track::after/);
     assert.match(css, /font-family:\s*var\(--mainFontFamily\)/);
     assert.match(css, /font-size:\s*calc\(var\(--mainFontSize\) \* 0\.9\)/);
     assert.match(css, /\.world-info-control-entry-content\s*\{[^}]*white-space:\s*pre-wrap/s);
@@ -71,10 +75,10 @@ test('世界书控制使用贴靠输入区的单一折叠入口', async () => {
     assert.match(ui, /#syncExclusionState\(\)/);
     assert.match(ui, /scheduleRefresh\(\)/);
     assert.match(ui, /PANEL_HEIGHT_KEY/);
-    assert.match(ui, /`锚点 \$\{entry\.outletName\}`/);
-    assert.doesNotMatch(ui, /出口/);
+    assert.doesNotMatch(ui, /insertionPosition|位置：|顺序：/);
     assert.match(scanner, /processedContent \?\? ''\)\.trim\(\)/);
-    assert.match(scanner, /setStatus\('ready'\)[\s\S]*#scheduleTokenCounts/);
+    assert.match(scanner, /setStatus\(complete \? 'ready' : 'scanning'\)/);
+    assert.match(scanner, /if \(complete\) this\.#scheduleTokenCounts/);
     assert.doesNotMatch(scanner, /await Promise\.all\(activatedEntries/);
     assert.match(template, /data-world-info-control-toggle/);
     assert.match(template, /data-world-info-control-body/);
