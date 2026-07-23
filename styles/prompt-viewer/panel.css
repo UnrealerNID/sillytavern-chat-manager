@@ -343,7 +343,7 @@
     margin: 0;
 }
 
-.prompt-control-search-match mark {
+[data-prompt-search-hit="true"] {
     border-radius: 2px;
     background: var(--SmartThemeQuoteColor);
     color: inherit;

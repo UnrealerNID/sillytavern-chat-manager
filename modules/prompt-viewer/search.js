@@ -35,7 +35,7 @@ export class PromptSearchController {
 
     sync() {
         this.results = this.query
-            ? Array.from(this.content.querySelectorAll('[data-prompt-search-match="true"]'))
+            ? Array.from(this.content.querySelectorAll('mark[data-prompt-search-hit="true"]'))
             : [];
         this.index = Math.min(this.index, this.results.length - 1);
         const disabled = this.results.length === 0;
@@ -43,17 +43,6 @@ export class PromptSearchController {
         this.next.disabled = disabled;
         this.results[this.index]?.classList.add('prompt-control-search-current');
         this.#renderCount();
-    }
-
-    /**
-     * 判断任意文本是否命中当前搜索
-     * @param {...unknown} values 候选文本
-     * @returns {boolean} 是否命中
-     */
-    matches(...values) {
-        if (!this.query) return false;
-        const needle = this.query.toLocaleLowerCase();
-        return values.some(value => String(value ?? '').toLocaleLowerCase().includes(needle));
     }
 
     /**
@@ -74,6 +63,7 @@ export class PromptSearchController {
         while (match >= 0) {
             container.append(document.createTextNode(text.slice(cursor, match)));
             const mark = document.createElement('mark');
+            mark.dataset.promptSearchHit = 'true';
             mark.textContent = text.slice(match, match + this.query.length);
             container.append(mark);
             cursor = match + this.query.length;
@@ -82,27 +72,19 @@ export class PromptSearchController {
         container.append(document.createTextNode(text.slice(cursor)));
     }
 
-    /**
-     * 将节点登记为可定位的搜索结果
-     * @param {HTMLElement} element 结果节点
-     */
-    mark(element) {
-        element.dataset.promptSearchMatch = 'true';
-        element.classList.add('prompt-control-search-match');
-    }
-
     #focus(direction) {
         if (!this.results.length) return;
         this.results[this.index]?.classList.remove('prompt-control-search-current');
         this.index = nextSearchIndex(this.index, this.results.length, direction);
         const target = this.results[this.index];
-        if (target instanceof HTMLDetailsElement) target.open = true;
         for (let parent = target.parentElement; parent; parent = parent.parentElement) {
             if (parent instanceof HTMLDetailsElement) parent.open = true;
             if (parent === this.content) break;
         }
         target.classList.add('prompt-control-search-current');
-        target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        requestAnimationFrame(() => {
+            target.scrollIntoView({ block: 'center', inline: 'nearest' });
+        });
         this.#renderCount();
     }
 

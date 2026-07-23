@@ -103,9 +103,8 @@ export class PromptViewerCapture {
             message.mes = removeMacros(message.mes);
         }
 
+        // 生成开始事件需要读取原始输入，随后由酒馆按正常发送链路清空输入框
         chat.push(message);
-        textarea.value = '';
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
         return { textarea, chat, message, text, selectionStart, selectionEnd };
     }
 
@@ -117,9 +116,12 @@ export class PromptViewerCapture {
         if (!draft) return;
         const index = draft.chat.lastIndexOf(draft.message);
         if (index >= 0) draft.chat.splice(index, 1);
-        const textEnteredDuringPreview = draft.textarea.value;
-        draft.textarea.value = draft.text + textEnteredDuringPreview;
-        if (!textEnteredDuringPreview) {
+        const currentText = draft.textarea.value;
+        const restoredText = currentText.startsWith(draft.text)
+            ? currentText
+            : draft.text + currentText;
+        draft.textarea.value = restoredText;
+        if (restoredText === draft.text) {
             draft.textarea.setSelectionRange(draft.selectionStart, draft.selectionEnd);
         }
         draft.textarea.dispatchEvent(new Event('input', { bubbles: true }));

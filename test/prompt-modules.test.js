@@ -212,6 +212,8 @@ test('提示词查看器读取最终请求 messages 并忽略文本 dry-run', as
     assert.match(source, /this\.previewing/);
     assert.match(source, /#stageDraft\(\)/);
     assert.match(source, /draft\.chat\.splice/);
+    assert.match(source, /currentText\.startsWith\(draft\.text\)/);
+    assert.doesNotMatch(source, /textarea\.value = ''/);
     assert.doesNotMatch(source, /sendMessageAsUser/);
     assert.doesNotMatch(source, /payload\?\.chat/);
 });
@@ -243,6 +245,17 @@ test('搜索定位支持首尾循环', () => {
     assert.equal(nextSearchIndex(-1, 3, 1), 0);
     assert.equal(nextSearchIndex(0, 3, -1), 2);
     assert.equal(nextSearchIndex(2, 3, 1), 0);
+});
+
+test('提示词搜索按具体命中文本定位', async () => {
+    const source = await readFile(
+        new URL('../modules/prompt-viewer/search.js', import.meta.url),
+        'utf8',
+    );
+    assert.match(source, /mark\.dataset\.promptSearchHit = 'true'/);
+    assert.match(source, /mark\[data-prompt-search-hit="true"\]/);
+    assert.match(source, /inline: 'nearest'/);
+    assert.doesNotMatch(source, /data-prompt-search-match/);
 });
 
 test('提示词角色组仅在多条消息时增加消息折叠层', async () => {
