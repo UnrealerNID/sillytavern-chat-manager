@@ -160,7 +160,15 @@ export class PromptViewerUi {
         );
         heading.append(copy);
         const messages = element('div', { className: 'prompt-control-role-messages' });
-        group.nodes.forEach((node, index) => messages.append(this.#createMessage(node, index)));
+        if (group.nodes.length === 1) {
+            const body = element('div', {
+                className: 'prompt-control-message-body prompt-control-single-message-body',
+            });
+            this.search.appendHighlighted(body, group.nodes[0].content);
+            messages.append(body);
+        } else {
+            group.nodes.forEach((node, index) => messages.append(this.#createMessage(node, index)));
+        }
         details.append(heading, messages);
         if (this.search.matches(group.role, ...group.nodes.map(node => node.content))) {
             this.search.mark(details);

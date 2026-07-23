@@ -245,6 +245,16 @@ test('搜索定位支持首尾循环', () => {
     assert.equal(nextSearchIndex(2, 3, 1), 0);
 });
 
+test('提示词角色组仅在多条消息时增加消息折叠层', async () => {
+    const source = await readFile(
+        new URL('../modules/prompt-viewer/ui.js', import.meta.url),
+        'utf8',
+    );
+    assert.match(source, /group\.nodes\.length === 1/);
+    assert.match(source, /prompt-control-single-message-body/);
+    assert.match(source, /else \{\s*group\.nodes\.forEach/s);
+});
+
 test('提示词悬浮面板始终限制在视口内', () => {
     assert.deepEqual(
         clampFloatingPosition(

@@ -213,6 +213,17 @@
     opacity: 0.65;
 }
 
+.prompt-control-state .fa-spin,
+.prompt-control-header-actions .fa-spin {
+    animation: prompt-control-spin 0.9s linear infinite;
+}
+
+@keyframes prompt-control-spin {
+    to {
+        transform: rotate(1turn);
+    }
+}
+
 .prompt-control-role-group {
     margin-bottom: 6px;
     overflow: visible;
@@ -326,6 +337,10 @@
     line-height: 1.45;
     overflow-wrap: anywhere;
     white-space: pre-wrap;
+}
+
+.prompt-control-single-message-body {
+    margin: 0;
 }
 
 .prompt-control-search-match mark {

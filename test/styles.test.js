@@ -38,6 +38,8 @@ test('提示词查看器保持只读、可调整且不横向滚动', async () =>
     assert.match(css, /\.prompt-control-content\s*\{[^}]*overflow-y:\s*auto/s);
     assert.match(css, /\.prompt-control-searchbar\s*\{[^}]*grid-template-columns:/s);
     assert.match(css, /\.prompt-control-state\s*\{[^}]*position:\s*absolute[^}]*inset:\s*0/s);
+    assert.match(css, /@keyframes prompt-control-spin/);
+    assert.match(css, /\.prompt-control-state \.fa-spin,[\s\S]*animation:\s*prompt-control-spin/);
     assert.match(ui, /document\.body\.append\(this\.root\)/);
     assert.match(ui, /document\.querySelector\('#leftSendForm'\)/);
     assert.match(ui, /tools\.append\(this\.trigger\)/);
