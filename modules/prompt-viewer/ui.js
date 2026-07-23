@@ -145,10 +145,13 @@ export class PromptViewerUi {
         heading.className = 'prompt-control-group-heading';
         const copy = element('span', { className: 'prompt-control-group-copy' });
         const title = element('span', { className: 'prompt-control-group-title' });
+        const tokenText = `${formatNumber(group.tokenCount)} Tokens`;
         title.append(
             element('strong', { text: `Role: ${roleIcon(group.role)} ${group.role}` }),
             element('small', {
-                text: `${group.nodes.length} 条 · ${formatNumber(group.tokenCount)} Tokens`,
+                text: group.nodes.length > 1
+                    ? `${group.nodes.length} 条 · ${tokenText}`
+                    : tokenText,
             }),
         );
         copy.append(
@@ -167,7 +170,7 @@ export class PromptViewerUi {
             this.search.appendHighlighted(body, group.nodes[0].content);
             messages.append(body);
         } else {
-            group.nodes.forEach((node, index) => messages.append(this.#createMessage(node, index)));
+            group.nodes.forEach(node => messages.append(this.#createMessage(node)));
         }
         details.append(heading, messages);
         if (this.search.matches(group.role, ...group.nodes.map(node => node.content))) {
@@ -176,12 +179,12 @@ export class PromptViewerUi {
         return details;
     }
 
-    #createMessage(node, index) {
+    #createMessage(node) {
         const details = element('details', { className: 'prompt-control-message' });
         const summary = document.createElement('summary');
         const label = element('span', { className: 'prompt-control-message-label' });
         label.append(
-            element('strong', { text: `#${index + 1} 消息` }),
+            element('strong', { text: `#${node.sendIndex + 1} 消息` }),
             element('span', {
                 className: 'prompt-control-message-preview',
                 text: summarize(node.content),

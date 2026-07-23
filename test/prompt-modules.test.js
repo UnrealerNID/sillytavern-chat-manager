@@ -251,8 +251,11 @@ test('提示词角色组仅在多条消息时增加消息折叠层', async () =>
         'utf8',
     );
     assert.match(source, /group\.nodes\.length === 1/);
+    assert.match(source, /group\.nodes\.length > 1/);
     assert.match(source, /prompt-control-single-message-body/);
     assert.match(source, /else \{\s*group\.nodes\.forEach/s);
+    assert.match(source, /#\$\{node\.sendIndex \+ 1\} 消息/);
+    assert.doesNotMatch(source, /#\$\{index \+ 1\} 消息/);
 });
 
 test('提示词悬浮面板始终限制在视口内', () => {
