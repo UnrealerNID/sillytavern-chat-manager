@@ -3,7 +3,7 @@
         data-prompt-viewer-trigger
         class="prompt-control-trigger"
         type="button"
-        title="查看最终提示词"
+        title="查看提示词"
         aria-expanded="false"
     >
         <i class="fa-solid fa-brain"></i>
@@ -22,16 +22,28 @@
         </div>
         <header class="prompt-control-header">
             <div class="prompt-control-title">
-                <strong>最终提示词</strong>
+                <strong>提示词查看</strong>
                 <small data-prompt-viewer-summary></small>
             </div>
-            <button
-                data-prompt-viewer-collapse
-                class="menu_button fa-solid fa-chevron-down prompt-control-collapse"
-                type="button"
-                title="收起面板"
-                aria-label="收起面板"
-            ></button>
+            <div class="prompt-control-header-actions">
+                <button
+                    data-prompt-viewer-refresh
+                    class="menu_button"
+                    type="button"
+                    title="获取当前提示词"
+                    aria-label="获取当前提示词"
+                >
+                    <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+                </button>
+                <span class="prompt-control-action-divider" aria-hidden="true"></span>
+                <button
+                    data-prompt-viewer-collapse
+                    class="menu_button fa-solid fa-chevron-down prompt-control-collapse"
+                    type="button"
+                    title="收起面板"
+                    aria-label="收起面板"
+                ></button>
+            </div>
         </header>
         <div class="prompt-control-searchbar">
             <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
@@ -39,8 +51,8 @@
                 data-prompt-viewer-search
                 class="text_pole"
                 type="search"
-                placeholder="搜索最终提示词"
-                aria-label="搜索最终提示词"
+                placeholder="搜索提示词"
+                aria-label="搜索提示词"
             >
             <span data-prompt-viewer-search-count class="prompt-control-search-count"></span>
             <button

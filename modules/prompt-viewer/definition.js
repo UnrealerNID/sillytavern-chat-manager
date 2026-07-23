@@ -1,7 +1,7 @@
 import { PromptViewerModule } from './module.js';
 
 /**
- * 最终提示词查看器模块定义
+ * 提示词查看器模块定义
  */
 export const promptViewerModuleDefinition = {
     id: 'promptViewer',

@@ -188,13 +188,14 @@ test('提示词 Token 计算继续支持工具调用', async () => {
     assert.equal(count, JSON.stringify(toolCalls).length);
 });
 
-test('提示词查看器只监听正式请求数据事件', async () => {
+test('提示词查看器同时支持主动预览和正式请求捕获', async () => {
     const source = await readFile(
         new URL('../modules/prompt-viewer/module.js', import.meta.url),
         'utf8',
     );
     assert.match(source, /CHAT_COMPLETION_SETTINGS_READY/);
     assert.match(source, /GENERATE_AFTER_DATA/);
+    assert.match(source, /GENERATION_STARTED/);
     assert.doesNotMatch(source, /context\.generate|WORLDINFO_/);
 });
 
@@ -206,6 +207,12 @@ test('提示词查看器读取最终请求 messages 并忽略文本 dry-run', as
     assert.match(source, /payload\?\.messages/);
     assert.match(source, /chat:\s*payload\.messages/);
     assert.match(source, /dryRun === true/);
+    assert.match(source, /Generate\('normal', \{ automatic_trigger: true \}\)/);
+    assert.match(source, /stopGeneration\(\)/);
+    assert.match(source, /this\.previewing/);
+    assert.match(source, /#stageDraft\(\)/);
+    assert.match(source, /draft\.chat\.splice/);
+    assert.doesNotMatch(source, /sendMessageAsUser/);
     assert.doesNotMatch(source, /payload\?\.chat/);
 });
 

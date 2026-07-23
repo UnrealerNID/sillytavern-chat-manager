@@ -6,7 +6,7 @@ import { PromptViewerStore } from './store.js';
 import { PromptViewerUi } from './ui.js';
 
 /**
- * 装配真实提示词捕获与只读查看面板
+ * 装配提示词主动预览、正式请求捕获与只读查看面板
  */
 export class PromptViewerModule {
     constructor({ toolboxSettings }) {
@@ -29,7 +29,11 @@ export class PromptViewerModule {
             getContext: this.getContext,
             store: this.store,
         });
-        this.ui = new PromptViewerUi({ template, store: this.store });
+        this.ui = new PromptViewerUi({
+            template,
+            store: this.store,
+            refresh: () => this.capture.requestRefresh(),
+        });
         this.ui.initialize();
         this.#prepareEvents();
         this.initialized = true;
@@ -50,11 +54,16 @@ export class PromptViewerModule {
         this.eventSource = context.eventSource;
         this.#addEvent(events.CHAT_COMPLETION_SETTINGS_READY, payload => {
             void this.capture.captureChat(payload).catch(error => {
+                this.store.setError(error instanceof Error ? error.message : String(error));
                 console.error('[酒馆工具箱] 捕获聊天补全提示词失败', error);
             });
         });
+        this.#addEvent(events.GENERATION_STARTED, (_type, _options, dryRun) => {
+            this.capture.handleGenerationStarted(dryRun);
+        });
         this.#addEvent(events.GENERATE_AFTER_DATA, (payload, dryRun) => {
             void this.capture.captureText(payload, dryRun).catch(error => {
+                this.store.setError(error instanceof Error ? error.message : String(error));
                 console.error('[酒馆工具箱] 捕获文本补全提示词失败', error);
             });
         });

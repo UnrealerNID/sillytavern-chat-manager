@@ -49,16 +49,13 @@
 }
 
 .prompt-control-host.prompt-control-input {
-    position: absolute;
-    z-index: 31000;
-    right: 0;
-    bottom: 100%;
+    position: fixed;
+    z-index: 31100;
+    top: 0;
     left: 0;
+    width: 0;
+    height: 0;
     pointer-events: none;
-}
-
-.prompt-control-anchor {
-    position: relative;
 }
 
 .prompt-control-trigger.prompt-control-input-trigger {
@@ -82,6 +79,8 @@
 }
 
 .prompt-control-panel {
+    z-index: 1;
+    box-sizing: border-box;
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr);
     min-width: 320px;
@@ -90,8 +89,10 @@
     border: 1px solid var(--SmartThemeBorderColor);
     border-radius: 10px;
     background: var(--SmartThemeBlurTintColor);
+    backdrop-filter: blur(calc(var(--SmartThemeBlurStrength, 10px) * 1.5));
     box-shadow: 0 8px 28px rgb(0 0 0 / 35%);
     color: var(--SmartThemeBodyColor);
+    isolation: isolate;
     pointer-events: auto;
 }
 
@@ -102,11 +103,8 @@
 }
 
 .prompt-control-host.prompt-control-input .prompt-control-panel {
-    position: absolute;
-    right: 0;
-    bottom: 6px;
-    left: 0;
-    width: 100%;
+    position: fixed;
+    width: min(760px, calc(100vw - 16px));
     height: min(520px, 60vh);
 }
 
@@ -115,6 +113,7 @@
 }
 
 .prompt-control-header,
+.prompt-control-header-actions,
 .prompt-control-searchbar,
 .prompt-control-group-heading,
 .prompt-control-message summary {
@@ -135,6 +134,18 @@
     min-width: 0;
 }
 
+.prompt-control-header-actions {
+    flex: 0 0 auto;
+    gap: 5px;
+}
+
+.prompt-control-action-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--SmartThemeBorderColor);
+    opacity: 0.7;
+}
+
 .prompt-control-title small,
 .prompt-control-group-title small,
 .prompt-control-message summary small,
@@ -144,7 +155,7 @@
     opacity: 0.62;
 }
 
-.prompt-control-collapse {
+.prompt-control-header-actions .menu_button {
     width: 32px;
     min-width: 32px;
     height: 32px;
@@ -152,6 +163,8 @@
 }
 
 .prompt-control-searchbar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto 32px 32px;
     padding: 8px;
     border-bottom: 1px solid var(--SmartThemeBorderColor);
 }
@@ -178,6 +191,7 @@
 }
 
 .prompt-control-content {
+    position: relative;
     min-width: 0;
     min-height: 0;
     overflow-x: hidden;
@@ -186,10 +200,15 @@
     padding: 8px;
 }
 
-.prompt-control-empty {
-    display: grid;
+.prompt-control-state {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     min-height: 100%;
-    place-content: center;
+    padding: 20px;
     text-align: center;
     opacity: 0.65;
 }
@@ -200,6 +219,10 @@
     border: 1px solid var(--SmartThemeBorderColor);
     border-radius: 8px;
     background: var(--black20a);
+}
+
+.prompt-control-role-group:last-child {
+    margin-bottom: 0;
 }
 
 .prompt-control-group-heading {

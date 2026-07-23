@@ -9,17 +9,19 @@ const MIN_PANEL_WIDTH = 320;
 const MIN_PANEL_HEIGHT = 220;
 
 /**
- * 管理最终提示词只读面板
+ * 管理提示词只读面板
  */
 export class PromptViewerUi {
     /**
      * @param {object} options 配置项
      * @param {string} options.template 静态面板模板
      * @param {import('./store.js').PromptViewerStore} options.store 查看器状态
+     * @param {()=>Promise<void>} options.refresh 主动提示词获取器
      */
-    constructor({ template, store }) {
+    constructor({ template, store, refresh }) {
         this.template = template;
         this.store = store;
+        this.refresh = refresh;
         this.enabled = false;
         this.floating = null;
         this.opened = false;
@@ -35,6 +37,8 @@ export class PromptViewerUi {
         this.content = requireElement(this.root, '[data-prompt-viewer-content]');
         this.summary = requireElement(this.root, '[data-prompt-viewer-summary]');
         this.triggerTokens = requireElement(this.trigger, '[data-prompt-viewer-tokens]');
+        this.refreshButton = requireButton(this.root, '[data-prompt-viewer-refresh]');
+        this.refreshIcon = requireElement(this.refreshButton, 'i');
         this.search = new PromptSearchController({
             input: requireInput(this.root, '[data-prompt-viewer-search]'),
             count: requireElement(this.root, '[data-prompt-viewer-search-count]'),
@@ -54,6 +58,7 @@ export class PromptViewerUi {
     setEnabled(enabled) {
         this.enabled = enabled;
         this.root.classList.toggle('displayNone', !enabled);
+        this.trigger.classList.toggle('displayNone', !enabled);
         if (!enabled) this.setOpen(false);
         else requestAnimationFrame(() => this.#keepVisible());
     }
@@ -70,38 +75,56 @@ export class PromptViewerUi {
         if (floating) {
             this.root.prepend(this.trigger);
             document.body.append(this.root);
+            this.panel.style.removeProperty('min-height');
             this.#restorePosition();
             this.#restoreSize();
             requestAnimationFrame(() => this.#positionPanel());
             return;
         }
-        form.classList.add('prompt-control-anchor');
-        form.append(this.root);
+        document.body.append(this.root);
         tools.append(this.trigger);
         this.root.style.removeProperty('left');
         this.root.style.removeProperty('top');
-        for (const property of ['left', 'top', 'width', 'height']) {
+        for (const property of ['left', 'top', 'width']) {
             this.panel.style.removeProperty(property);
         }
+        requestAnimationFrame(() => this.#positionPanel());
     }
 
     setOpen(opened) {
         this.opened = Boolean(opened && this.enabled);
         this.panel.hidden = !this.opened;
         this.trigger.setAttribute('aria-expanded', String(this.opened));
-        if (this.opened) requestAnimationFrame(() => this.#positionPanel());
+        if (this.opened) {
+            requestAnimationFrame(() => this.#positionPanel());
+            if (this.store.getStatus() === 'idle') void this.#refresh();
+        }
     }
 
     render() {
+        const status = this.store.getStatus();
         const snapshot = this.store.getSnapshot();
+        this.refreshButton.disabled = status === 'loading';
+        this.refreshIcon.classList.toggle('fa-spin', status === 'loading');
         this.content.replaceChildren();
+        if (status === 'loading') {
+            this.summary.textContent = '正在获取';
+            this.triggerTokens.textContent = '';
+            this.content.append(createState('fa-circle-notch fa-spin', '正在获取当前提示词…'));
+            this.search.sync();
+            return;
+        }
+        if (status === 'error') {
+            this.summary.textContent = '获取失败';
+            this.triggerTokens.textContent = '';
+            this.content.append(createState('fa-triangle-exclamation', this.store.getError()));
+            this.search.sync();
+            return;
+        }
         if (!snapshot) {
             this.summary.textContent = '';
             this.triggerTokens.textContent = '';
-            this.content.append(element('div', {
-                className: 'prompt-control-empty',
-                text: '发送一次消息后显示最终提示词',
-            }));
+            this.content.append(createState('fa-rotate-right', '点击刷新获取当前提示词'));
             this.search.sync();
             return;
         }
@@ -177,6 +200,7 @@ export class PromptViewerUi {
         this.trigger.addEventListener('pointerup', event => this.#finishDrag(event));
         requireButton(this.root, '[data-prompt-viewer-collapse]')
             .addEventListener('click', () => this.setOpen(false));
+        this.refreshButton.addEventListener('click', () => void this.#refresh());
         this.search.bind();
         for (const handle of this.root.querySelectorAll('[data-prompt-resize]')) {
             handle.addEventListener('pointerdown', event => this.#startResize(event, handle.dataset.promptResize));
@@ -187,6 +211,14 @@ export class PromptViewerUi {
             this.#keepVisible();
             this.#positionPanel();
         });
+    }
+
+    async #refresh() {
+        try {
+            await this.refresh();
+        } catch (error) {
+            globalThis.toastr?.error?.(error instanceof Error ? error.message : String(error), '提示词查看');
+        }
     }
 
     #startDrag(event) {
@@ -232,7 +264,7 @@ export class PromptViewerUi {
     }
 
     #startResize(event, direction) {
-        if (!this.floating || event.button !== 0) return;
+        if (event.button !== 0 || (!this.floating && direction !== 'n')) return;
         const rect = this.panel.getBoundingClientRect();
         this.resizeState = {
             pointerId: event.pointerId,
@@ -240,6 +272,7 @@ export class PromptViewerUi {
             startX: event.clientX,
             startY: event.clientY,
             bounds: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+            input: !this.floating,
         };
         event.currentTarget.setPointerCapture(event.pointerId);
     }
@@ -247,6 +280,19 @@ export class PromptViewerUi {
     #moveResize(event) {
         const state = this.resizeState;
         if (!state || state.pointerId !== event.pointerId) return;
+        if (state.input) {
+            const form = document.querySelector('#send_form');
+            if (!(form instanceof HTMLElement)) return;
+            const available = Math.max(120, form.getBoundingClientRect().top - 14);
+            const height = clamp(
+                state.bounds.height - (event.clientY - state.startY),
+                Math.min(MIN_PANEL_HEIGHT, available),
+                available,
+            );
+            this.panel.style.height = `${height}px`;
+            this.#positionPanel();
+            return;
+        }
         const bounds = resizeFloatingPanel(
             state.bounds,
             state.direction,
@@ -266,6 +312,7 @@ export class PromptViewerUi {
         this.resizeState = null;
         const rect = this.panel.getBoundingClientRect();
         localStorage.setItem(PANEL_SIZE_KEY, JSON.stringify({ width: rect.width, height: rect.height }));
+        this.#positionPanel();
     }
 
     #restorePosition() {
@@ -312,14 +359,33 @@ export class PromptViewerUi {
     }
 
     #positionPanel() {
-        if (!this.floating || !this.opened) return;
-        const position = placeFloatingPanel(
-            this.root.getBoundingClientRect(),
-            this.panel.getBoundingClientRect(),
-            { width: window.innerWidth, height: window.innerHeight },
+        if (!this.opened) return;
+        if (this.floating) {
+            const position = placeFloatingPanel(
+                this.root.getBoundingClientRect(),
+                this.panel.getBoundingClientRect(),
+                { width: window.innerWidth, height: window.innerHeight },
+            );
+            this.panel.style.left = `${position.left}px`;
+            this.panel.style.top = `${position.top}px`;
+            return;
+        }
+        const form = document.querySelector('#send_form');
+        if (!(form instanceof HTMLElement)) return;
+        const formRect = form.getBoundingClientRect();
+        const width = Math.min(formRect.width, window.innerWidth - 16);
+        const availableHeight = Math.max(120, formRect.top - 14);
+        const requestedHeight = this.panel.getBoundingClientRect().height || 520;
+        const height = clamp(
+            requestedHeight,
+            Math.min(MIN_PANEL_HEIGHT, availableHeight),
+            availableHeight,
         );
-        this.panel.style.left = `${position.left}px`;
-        this.panel.style.top = `${position.top}px`;
+        this.panel.style.minHeight = `${Math.min(MIN_PANEL_HEIGHT, availableHeight)}px`;
+        this.panel.style.left = `${clamp(formRect.left, 8, window.innerWidth - width - 8)}px`;
+        this.panel.style.top = `${formRect.top - height - 6}px`;
+        this.panel.style.width = `${width}px`;
+        this.panel.style.height = `${height}px`;
     }
 }
 
@@ -376,6 +442,15 @@ function requireInput(root, selector) {
     const value = root.querySelector(selector);
     if (!(value instanceof HTMLInputElement)) throw new Error(`提示词查看器模板缺少 ${selector}`);
     return value;
+}
+
+function createState(icon, text) {
+    const root = element('div', { className: 'prompt-control-state' });
+    root.append(
+        element('i', { className: `fa-solid ${icon}` }),
+        element('span', { text }),
+    );
+    return root;
 }
 
 function formatNumber(value) {
