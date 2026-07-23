@@ -105,7 +105,7 @@
 .prompt-control-host.prompt-control-input .prompt-control-panel {
     position: fixed;
     width: min(760px, calc(100vw - 16px));
-    height: min(520px, 60vh);
+    height: min(420px, 55vh);
 }
 
 .prompt-control-panel[hidden] {
@@ -339,9 +339,16 @@
     outline-offset: -1px;
 }
 
+.prompt-control-resize-handles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
 .prompt-control-resize-handles > span {
     position: absolute;
     z-index: 2;
+    pointer-events: auto;
 }
 
 .prompt-control-host.prompt-control-input .prompt-control-resize-handles > span:not([data-prompt-resize="n"]) {

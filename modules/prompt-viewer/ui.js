@@ -3,7 +3,7 @@ import { PromptSearchController } from './search.js';
 import { groupAdjacentPromptNodes } from './view-model.js';
 
 const POSITION_KEY = 'sillytavern-toolbox:prompt-viewer-position';
-const PANEL_SIZE_KEY = 'sillytavern-toolbox:prompt-viewer-size';
+const PANEL_SIZE_KEY = 'sillytavern-toolbox:prompt-viewer-size-v2';
 const FLOATING_MARGIN = 8;
 const MIN_PANEL_WIDTH = 320;
 const MIN_PANEL_HEIGHT = 220;
