@@ -38,6 +38,11 @@ test('settings UI distinguishes toolbox, module and integration levels', async (
 
     assert.match(html, /toolbox-settings-master/);
     assert.match(html, /data-toolbox-modules/);
+    assert.match(
+        html,
+        /class="inline-drawer-content">\s*<div class="toolbox-settings-content">/,
+    );
+    assert.doesNotMatch(html, /inline-drawer-content toolbox-settings-content/);
     assert.match(moduleHtml, /<fieldset class="toolbox-module-card"[\s\S]*<legend class="toolbox-module-legend">/);
     assert.equal((`${html}${moduleHtml}`.match(/role="switch"/g) ?? []).length, 5);
     assert.match(panel, /definition\.bindSettings/);
