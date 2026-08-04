@@ -15,7 +15,10 @@ import {
 } from '../modules/prompt-viewer/ui.js';
 import { groupAdjacentPromptNodes } from '../modules/prompt-viewer/view-model.js';
 import { nextSearchIndex } from '../modules/prompt-viewer/search.js';
-import { groupWorldInfoSections } from '../modules/world-info-control/order.js';
+import {
+    compareWorldInfoEntryOrder,
+    groupWorldInfoSections,
+} from '../modules/world-info-control/order.js';
 import {
     WorldInfoControlStore,
     getWorldInfoControlChatKey,
@@ -103,12 +106,25 @@ test('世界书排除状态可持久化并在运行时重置后保留', () => {
     });
 });
 
-test('世界书适配器在扫描前移除关闭条目', () => {
+test('世界书排除统计和恢复只作用于当前加载的世界书', () => {
+    const store = new WorldInfoControlStore({
+        exclusions: {
+            当前书: ['1'],
+            其他书: ['2'],
+        },
+    });
+    store.setEntries([], new Set(['当前书']));
+    assert.deepEqual(Array.from(store.getRelevantExclusions()), ['world:当前书:1']);
+    store.clearLoaded();
+    assert.equal(store.isExcluded('world:当前书:1'), false);
+    assert.equal(store.isExcluded('world:其他书:2'), true);
+});
+
+test('世界书适配器只在正式扫描前移除关闭条目', () => {
     const store = new WorldInfoControlStore();
-    store.setChatKey('character:1:a');
     store.setExcluded('world:书一:2', true);
     const adapter = new WorldInfoPromptAdapter({ store });
-    const payload = {
+    const productionPayload = {
         globalLore: [
             { world: '书一', uid: 1 },
             { world: '书一', uid: 2 },
@@ -117,8 +133,17 @@ test('世界书适配器在扫描前移除关闭条目', () => {
         chatLore: [],
         personaLore: [],
     };
-    adapter.filterLoadedEntries(payload);
-    assert.deepEqual(payload.globalLore.map(entry => entry.uid), [1]);
+    adapter.filterLoadedEntries(productionPayload);
+    assert.deepEqual(productionPayload.globalLore.map(entry => entry.uid), [1]);
+    assert.deepEqual(adapter.getActivatedEntries(), []);
+
+    const previewPayload = structuredClone(productionPayload);
+    previewPayload.globalLore.push({ world: '书一', uid: 2 });
+    adapter.filterLoadedEntries(previewPayload, { applyExclusions: false });
+    assert.deepEqual(previewPayload.globalLore.map(entry => entry.uid), [1, 2]);
+    adapter.captureActivatedEntries({
+        activated: { entries: new Set([previewPayload.globalLore[1]]) },
+    });
     assert.equal(adapter.getActivatedEntries()[0].uid, 2);
 });
 
@@ -139,17 +164,28 @@ test('世界书扫描结果保留条目标识和处理后正文', () => {
     assert.equal(entry.processedContent, '处理:正文');
 });
 
-test('世界书按来源分区并在分区内沿用酒馆文件名排序', () => {
+test('世界书按来源分区并沿用酒馆加载顺序', () => {
     const sections = groupWorldInfoSections([
-        { world: '!! Table.custom', sourceType: 'global', uid: 1, position: 0, order: 30 },
-        { world: '__SSVGG', sourceType: 'global', uid: 2, position: 1, order: 10 },
-        { world: '__SSVGG', sourceType: 'global', uid: 3, position: 0, order: 20 },
-        { world: '角色书', sourceType: 'character', uid: 4, position: 0, order: 40 },
-        { world: '__SSVGG', sourceType: 'global', uid: 5, position: 0, order: 5 },
+        { world: '!! Table.custom', sourceType: 'global', sourceOrder: 0, uid: 1, position: 0, order: 30 },
+        { world: '__SSVGG', sourceType: 'global', sourceOrder: 1, uid: 2, position: 1, order: 10 },
+        { world: '__SSVGG', sourceType: 'global', sourceOrder: 1, uid: 3, position: 0, order: 20 },
+        { world: '角色书', sourceType: 'character', sourceOrder: 0, uid: 4, position: 0, order: 40 },
+        { world: '__SSVGG', sourceType: 'global', sourceOrder: 1, uid: 5, position: 0, order: 5 },
     ]);
     assert.deepEqual(sections.map(section => section.label), ['角色世界书', '全局世界书']);
-    assert.deepEqual(sections[1].groups.map(group => group.name), ['__SSVGG', '!! Table.custom']);
-    assert.deepEqual(sections[1].groups[0].entries.map(entry => entry.uid), [5, 3, 2]);
+    assert.deepEqual(sections[1].groups.map(group => group.name), ['!! Table.custom', '__SSVGG']);
+    assert.deepEqual(sections[1].groups[1].entries.map(entry => entry.uid), [5, 3, 2]);
+});
+
+test('世界书 outlet 与普通锚点使用各自的最终正文方向', () => {
+    assert.ok(compareWorldInfoEntryOrder(
+        { position: 0, order: 10 },
+        { position: 0, order: 20 },
+    ) < 0);
+    assert.ok(compareWorldInfoEntryOrder(
+        { position: 7, order: 20 },
+        { position: 7, order: 10 },
+    ) < 0);
 });
 
 test('世界书适配器保留酒馆加载事件中的来源分类', () => {
@@ -245,10 +281,12 @@ test('世界书扫描包含输入框草稿且不触发完整生成', async () =>
     assert.match(source, /getWorldInfoPrompt/);
     assert.match(source, /getMaxPromptTokens/);
     assert.match(source, /slice\(-MAX_SCAN_DEPTH\)/);
-    assert.match(source, /setStatus\(complete \? 'ready' : 'scanning'\)/);
+    assert.match(source, /#runRefreshLoop\(\)/);
+    assert.match(source, /withTimeout/);
+    assert.match(source, /status = 'ready'/);
     assert.match(source, /#setScanningStatus\(\)/);
     assert.match(source, /this\.adapter\.reset\(\)/);
-    assert.match(source, /if \(complete\) this\.#scheduleTokenCounts/);
+    assert.match(source, /reuseTokenCount/);
     assert.doesNotMatch(source, /context\.generate/);
 });
 
@@ -262,13 +300,14 @@ test('世界书面板在空结果和重复刷新时保持加载反馈', async ()
     assert.match(ui, /status !== 'loading' && status !== 'scanning'/);
 });
 
-test('世界书正式过滤和预览扫描共用同一排除规则', async () => {
+test('世界书预览与正式发送使用独立过滤模式', async () => {
     const source = await readFile(
-        new URL('../modules/world-info-control/world-info.js', import.meta.url),
+        new URL('../modules/world-info-control/module.js', import.meta.url),
         'utf8',
     );
-    assert.doesNotMatch(source, /isPreviewing|beginPreview|endPreview/);
-    assert.match(source, /filterLoadedEntries/);
+    assert.match(source, /applyExclusions: this\.generationActive \|\| !this\.scanner\.isPreviewActive\(\)/);
+    assert.match(source, /GENERATION_STARTED/);
+    assert.match(source, /GENERATION_ENDED/);
 });
 
 test('折叠面板仍接收真实发送产生的世界书扫描结果', async () => {
@@ -278,6 +317,7 @@ test('折叠面板仍接收真实发送产生的世界书扫描结果', async ()
     );
     assert.match(source, /WORLDINFO_SCAN_DONE/);
     assert.match(source, /this\.scanner\.syncFromAdapter/);
+    assert.match(source, /#finishGeneration/);
     assert.doesNotMatch(source, /if \(!this\.ui\.isOpen\(\)\) return/);
 });
 

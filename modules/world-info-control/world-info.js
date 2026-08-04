@@ -11,19 +11,23 @@ export class WorldInfoPromptAdapter {
         this.store = store;
         this.processEntry = processEntry;
         this.activatedEntries = [];
-        this.knownEntries = new Map();
         this.entrySources = new Map();
+        this.worldOrders = new Map();
+        this.loadedWorlds = new Set();
     }
 
     /**
      * 过滤本轮扫描使用的世界书副本
      * @param {object} payload 世界书加载事件参数
+     * @param {object} [options] 过滤选项
+     * @param {boolean} [options.applyExclusions] 是否移除持久关闭项
      */
-    filterLoadedEntries(payload) {
-        const exclusions = this.store.getExclusions();
+    filterLoadedEntries(payload, { applyExclusions = true } = {}) {
+        const exclusions = applyExclusions ? this.store.getExclusions() : null;
         this.activatedEntries = [];
-        this.knownEntries.clear();
         this.entrySources.clear();
+        this.worldOrders.clear();
+        this.loadedWorlds.clear();
         const sources = {
             characterLore: 'character',
             globalLore: 'global',
@@ -33,19 +37,20 @@ export class WorldInfoPromptAdapter {
         for (const [key, sourceType] of Object.entries(sources)) {
             const entries = payload?.[key];
             if (!Array.isArray(entries)) continue;
+            const sourceWorlds = new Map();
             for (const entry of entries) {
                 const controlId = worldControlId(entry);
                 this.entrySources.set(controlId, sourceType);
-                if (exclusions.has(controlId)) {
-                    this.knownEntries.set(controlId, {
-                        ...entry,
-                        sourceType,
-                        processedContent: this.processEntry(entry),
-                    });
+                if (entry.world) {
+                    const worldName = String(entry.world);
+                    this.loadedWorlds.add(worldName);
+                    if (!sourceWorlds.has(worldName)) sourceWorlds.set(worldName, sourceWorlds.size);
+                    this.worldOrders.set(`${sourceType}:${worldName}`, sourceWorlds.get(worldName));
                 }
             }
+            if (!applyExclusions) continue;
             for (let index = entries.length - 1; index >= 0; index -= 1) {
-                if (exclusions.has(worldControlId(entries[index]))) entries.splice(index, 1);
+                if (exclusions?.has(worldControlId(entries[index]))) entries.splice(index, 1);
             }
         }
     }
@@ -61,13 +66,16 @@ export class WorldInfoPromptAdapter {
         } else {
             this.activatedEntries = Array.isArray(entries) ? entries.slice() : [];
         }
-        this.activatedEntries = this.activatedEntries.map(entry => ({
-            ...entry,
-            sourceType: this.entrySources.get(worldControlId(entry)) ?? 'unknown',
-            // 事件中的正文已替换宏；此处继续复用酒馆同一正则链路得到实际发送文本
-            processedContent: this.processEntry(entry),
-        }));
-        for (const entry of this.activatedEntries) this.knownEntries.set(worldControlId(entry), entry);
+        this.activatedEntries = this.activatedEntries.map(entry => {
+            const sourceType = this.entrySources.get(worldControlId(entry)) ?? 'unknown';
+            return {
+                ...entry,
+                sourceType,
+                sourceOrder: this.worldOrders.get(`${sourceType}:${entry.world}`) ?? Number.MAX_SAFE_INTEGER,
+                // 事件中的正文已替换宏；此处继续复用酒馆同一正则链路得到实际发送文本
+                processedContent: this.processEntry(entry),
+            };
+        });
     }
 
     /**
@@ -75,19 +83,22 @@ export class WorldInfoPromptAdapter {
      * @returns {object[]} 激活条目
      */
     getActivatedEntries() {
-        const entries = new Map(this.activatedEntries.map(entry => [worldControlId(entry), entry]));
-        for (const controlId of this.store.getExclusions()) {
-            if (controlId.startsWith('world:') && this.knownEntries.has(controlId)) {
-                entries.set(controlId, this.knownEntries.get(controlId));
-            }
-        }
-        return Array.from(entries.values());
+        return this.activatedEntries.slice();
+    }
+
+    /**
+     * 取得最近一次扫描实际加载的世界书
+     * @returns {Set<string>} 世界书名称集合
+     */
+    getLoadedWorlds() {
+        return new Set(this.loadedWorlds);
     }
 
     reset() {
         this.activatedEntries = [];
-        this.knownEntries.clear();
         this.entrySources.clear();
+        this.worldOrders.clear();
+        this.loadedWorlds.clear();
     }
 }
 

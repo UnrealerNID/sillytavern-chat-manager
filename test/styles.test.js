@@ -90,8 +90,10 @@ test('世界书控制使用贴靠输入区的单一折叠入口', async () => {
     assert.match(ui, /PANEL_HEIGHT_KEY/);
     assert.doesNotMatch(ui, /insertionPosition|位置：|顺序：/);
     assert.match(scanner, /processedContent \?\? ''\)\.trim\(\)/);
-    assert.match(scanner, /setStatus\(complete \? 'ready' : 'scanning'\)/);
-    assert.match(scanner, /if \(complete\) this\.#scheduleTokenCounts/);
+    assert.match(scanner, /status = 'ready'/);
+    assert.match(scanner, /this\.store\.setStatus\(resultStatus\)/);
+    assert.match(scanner, /this\.#scheduleTokenCounts/);
+    assert.match(scanner, /reuseTokenCount/);
     assert.doesNotMatch(scanner, /await Promise\.all\(activatedEntries/);
     assert.match(template, /data-world-info-control-toggle/);
     assert.match(template, /data-world-info-control-body/);

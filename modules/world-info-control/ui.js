@@ -83,7 +83,7 @@ export class WorldInfoControlUi {
         if (!this.content) return;
         const status = this.store.getStatus();
         const entries = this.store.getEntries();
-        const excluded = this.store.getExclusions();
+        const excluded = this.store.getRelevantExclusions();
         this.refreshButton.disabled = status === 'loading' || status === 'scanning';
         this.#updateSummary(entries.length, excluded.size, status);
         this.content.replaceChildren();
@@ -91,7 +91,7 @@ export class WorldInfoControlUi {
             this.content.append(createState('fa-circle-notch', '正在扫描世界书…', true));
             return;
         }
-        if (status !== 'ready' && status !== 'scanning') {
+        if (status !== 'ready' && status !== 'captured' && status !== 'scanning') {
             const text = status === 'idle'
                 ? '选择角色或群聊后可扫描'
                 : status === 'error'
@@ -116,7 +116,7 @@ export class WorldInfoControlUi {
         this.toggleButton.addEventListener('click', () => this.setOpen(!this.opened));
         this.resizeHandle.addEventListener('pointerdown', event => this.#startResize(event));
         this.refreshButton.addEventListener('click', () => void this.#refresh());
-        this.clearButton.addEventListener('click', () => this.store.clearAll());
+        this.clearButton.addEventListener('click', () => this.store.clearLoaded());
         this.search.addEventListener('input', () => this.render());
     }
 
@@ -141,8 +141,9 @@ export class WorldInfoControlUi {
 
     #createWorldGroup(group) {
         const details = element('details', { className: 'world-info-control-group' });
-        details.open = this.groupStates.get(group.name) ?? false;
-        details.addEventListener('toggle', () => this.groupStates.set(group.name, details.open));
+        const groupKey = `${group.sourceType}:${group.name}`;
+        details.open = this.groupStates.get(groupKey) ?? false;
+        details.addEventListener('toggle', () => this.groupStates.set(groupKey, details.open));
         const summary = document.createElement('summary');
         summary.append(
             element('strong', { text: group.name }),
@@ -189,7 +190,7 @@ export class WorldInfoControlUi {
     }
 
     #syncExclusionState() {
-        const excluded = this.store.getExclusions();
+        const excluded = this.store.getRelevantExclusions();
         this.#updateSummary(this.store.getEntries().length, excluded.size, this.store.getStatus());
         for (const entry of this.content.querySelectorAll('[data-world-info-control-id]')) {
             const isExcluded = this.store.isExcluded(entry.dataset.worldInfoControlId);
@@ -209,7 +210,7 @@ export class WorldInfoControlUi {
     }
 
     #updateSummary(entryCount, excludedCount, status) {
-        this.summary.textContent = status === 'ready' || status === 'scanning'
+        this.summary.textContent = status === 'ready' || status === 'captured' || status === 'scanning'
             ? `${entryCount} 个条目 · 已关闭 ${excludedCount} 个${status === 'scanning' ? ' · 扫描中' : ''}`
             : '';
         this.clearButton.disabled = status === 'loading'
@@ -237,10 +238,12 @@ export class WorldInfoControlUi {
         const stop = () => {
             window.removeEventListener('pointermove', move);
             window.removeEventListener('pointerup', stop);
+            window.removeEventListener('pointercancel', stop);
             localStorage.setItem(PANEL_HEIGHT_KEY, String(Math.round(this.body.getBoundingClientRect().height)));
         };
         window.addEventListener('pointermove', move);
         window.addEventListener('pointerup', stop, { once: true });
+        window.addEventListener('pointercancel', stop, { once: true });
     }
 }
 

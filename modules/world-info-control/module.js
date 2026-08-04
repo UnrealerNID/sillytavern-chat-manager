@@ -17,10 +17,12 @@ export class WorldInfoControlModule {
     constructor({ toolboxSettings }) {
         this.settings = toolboxSettings.modules.worldInfoControl;
         this.getContext = () => SillyTavern.getContext();
-        this.enabled = false;
         this.initialized = false;
         this.eventsBound = false;
         this.bindings = [];
+        this.generationActive = false;
+        this.generationHasScan = false;
+        this.generationChatKey = '';
     }
 
     async initialize() {
@@ -59,7 +61,9 @@ export class WorldInfoControlModule {
         this.ui = new WorldInfoControlUi({
             template,
             store: this.store,
-            refresh: () => this.scanner.refresh(),
+            refresh: () => this.generationActive
+                ? Promise.resolve()
+                : this.scanner.refresh(),
         });
         this.ui.initialize();
         this.#prepareEvents();
@@ -69,12 +73,12 @@ export class WorldInfoControlModule {
 
     setEnabled(enabled) {
         if (!this.initialized) return;
-        this.enabled = enabled;
         this.scanner.setEnabled(enabled);
         this.ui.setEnabled(enabled);
         this.#setEventsEnabled(enabled);
         if (enabled) this.#syncChat();
         else {
+            this.#resetGeneration();
             this.adapter.reset();
             this.store.resetRuntime();
         }
@@ -85,17 +89,20 @@ export class WorldInfoControlModule {
         const events = context.eventTypes;
         this.eventSource = context.eventSource;
         this.#addEvent(events.WORLDINFO_ENTRIES_LOADED, payload => {
-            this.adapter.filterLoadedEntries(payload);
+            this.adapter.filterLoadedEntries(payload, {
+                applyExclusions: this.generationActive || !this.scanner.isPreviewActive(),
+            });
         });
         this.#addEvent(events.WORLDINFO_SCAN_DONE, payload => {
             this.adapter.captureActivatedEntries(payload);
-            void this.scanner.syncFromAdapter({
-                complete: !this.scanner.isScanning(),
-            }).catch(error => {
-                console.error('[酒馆工具箱] 同步世界书扫描结果失败', error);
-            });
+            if (this.generationActive) this.generationHasScan = true;
         });
+        this.#addEvent(events.GENERATION_STARTED, (...args) => this.#startGeneration(args.at(-1)));
+        this.#addEvent(events.GENERATION_ENDED, () => this.#finishGeneration());
+        this.#addEvent(events.GENERATION_STOPPED, () => this.#finishGeneration());
         this.#addEvent(events.CHAT_CHANGED, () => {
+            this.#resetGeneration();
+            this.scanner.interrupt();
             this.adapter.reset();
             this.#syncChat();
             this.ui.scheduleRefresh();
@@ -129,6 +136,36 @@ export class WorldInfoControlModule {
             'input',
             () => this.ui.scheduleRefresh(),
         );
+    }
+
+    #startGeneration(dryRun) {
+        if (dryRun === true) return;
+        this.generationActive = true;
+        this.generationHasScan = false;
+        this.generationChatKey = getWorldInfoControlChatKey(this.getContext());
+        this.scanner.interrupt();
+        this.adapter.reset();
+        this.store.setStatus(this.store.getEntries().length ? 'scanning' : 'loading');
+    }
+
+    #finishGeneration() {
+        if (!this.generationActive) return;
+        const expectedChatKey = this.generationChatKey;
+        const hasScan = this.generationHasScan;
+        this.#resetGeneration();
+        if (!hasScan) {
+            this.store.setStatus('stale');
+            return;
+        }
+        void this.scanner.syncFromAdapter({ expectedChatKey, status: 'captured' }).catch(error => {
+            console.error('[酒馆工具箱] 同步真实发送的世界书结果失败', error);
+        });
+    }
+
+    #resetGeneration() {
+        this.generationActive = false;
+        this.generationHasScan = false;
+        this.generationChatKey = '';
     }
 
     #syncChat() {

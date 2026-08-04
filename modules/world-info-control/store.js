@@ -9,6 +9,7 @@ export class WorldInfoControlStore {
      */
     constructor({ exclusions = {}, onExclusionsChange = () => {} } = {}) {
         this.entries = [];
+        this.loadedWorlds = new Set();
         this.status = 'idle';
         this.chatKey = '';
         this.exclusions = deserializeExclusions(exclusions);
@@ -24,11 +25,13 @@ export class WorldInfoControlStore {
         if (this.chatKey === chatKey) return;
         this.chatKey = chatKey;
         this.entries = [];
+        this.loadedWorlds.clear();
         this.#notify('entries');
     }
 
-    setEntries(entries) {
+    setEntries(entries, loadedWorlds = this.loadedWorlds) {
         this.entries = entries;
+        this.loadedWorlds = new Set(loadedWorlds);
         this.#notify('entries');
     }
 
@@ -68,6 +71,16 @@ export class WorldInfoControlStore {
         return controlIds;
     }
 
+    getRelevantExclusions() {
+        const controlIds = new Set();
+        for (const worldName of this.loadedWorlds) {
+            for (const entryId of this.exclusions.get(worldName) ?? []) {
+                controlIds.add(`world:${worldName}:${entryId}`);
+            }
+        }
+        return controlIds;
+    }
+
     isExcluded(controlId) {
         const identity = parseWorldControlId(controlId);
         return identity
@@ -88,15 +101,19 @@ export class WorldInfoControlStore {
         this.#notify('exclusions');
     }
 
-    clearAll() {
-        if (!this.exclusions.size) return;
-        this.exclusions.clear();
+    clearLoaded() {
+        let changed = false;
+        for (const worldName of this.loadedWorlds) {
+            changed = this.exclusions.delete(worldName) || changed;
+        }
+        if (!changed) return;
         this.#persistExclusions();
         this.#notify('exclusions');
     }
 
     resetRuntime() {
         this.entries = [];
+        this.loadedWorlds.clear();
         this.status = 'idle';
         this.#notify('entries');
     }
