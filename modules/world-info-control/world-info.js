@@ -1,5 +1,5 @@
 /**
- * 维护世界书激活条目并在正式扫描前应用临时排除
+ * 维护世界书激活条目并在正式扫描前应用发送排除
  */
 export class WorldInfoPromptAdapter {
     /**
@@ -21,6 +21,9 @@ export class WorldInfoPromptAdapter {
      */
     filterLoadedEntries(payload) {
         const exclusions = this.store.getExclusions();
+        this.activatedEntries = [];
+        this.knownEntries.clear();
+        this.entrySources.clear();
         const sources = {
             characterLore: 'character',
             globalLore: 'global',
@@ -31,7 +34,15 @@ export class WorldInfoPromptAdapter {
             const entries = payload?.[key];
             if (!Array.isArray(entries)) continue;
             for (const entry of entries) {
-                this.entrySources.set(worldControlId(entry), sourceType);
+                const controlId = worldControlId(entry);
+                this.entrySources.set(controlId, sourceType);
+                if (exclusions.has(controlId)) {
+                    this.knownEntries.set(controlId, {
+                        ...entry,
+                        sourceType,
+                        processedContent: this.processEntry(entry),
+                    });
+                }
             }
             for (let index = entries.length - 1; index >= 0; index -= 1) {
                 if (exclusions.has(worldControlId(entries[index]))) entries.splice(index, 1);

@@ -1,6 +1,7 @@
 import { renderExtensionTemplateAsync } from '/scripts/extensions.js';
 import { getRegexedString, regex_placement } from '/scripts/extensions/regex/engine.js';
 import { DEFAULT_DEPTH, world_info_position } from '/scripts/world-info.js';
+import { saveSettingsDebounced } from '/script.js';
 
 import { waitForElement } from '../platform/dom.js';
 import { EXTENSION_ID } from '../platform/extension-identity.js';
@@ -10,10 +11,11 @@ import { WorldInfoControlUi } from './ui.js';
 import { WorldInfoPromptAdapter } from './world-info.js';
 
 /**
- * 装配世界书实时扫描、临时排除与输入区面板
+ * 装配世界书实时扫描、持久关闭与输入区面板
  */
 export class WorldInfoControlModule {
-    constructor() {
+    constructor({ toolboxSettings }) {
+        this.settings = toolboxSettings.modules.worldInfoControl;
         this.getContext = () => SillyTavern.getContext();
         this.enabled = false;
         this.initialized = false;
@@ -28,7 +30,13 @@ export class WorldInfoControlModule {
             EXTENSION_ID,
             'templates/world-info-control/panel',
         );
-        this.store = new WorldInfoControlStore();
+        this.store = new WorldInfoControlStore({
+            exclusions: this.settings.exclusions,
+            onExclusionsChange: exclusions => {
+                this.settings.exclusions = exclusions;
+                saveSettingsDebounced();
+            },
+        });
         this.adapter = new WorldInfoPromptAdapter({
             store: this.store,
             processEntry: entry => getRegexedString(
@@ -68,7 +76,7 @@ export class WorldInfoControlModule {
         if (enabled) this.#syncChat();
         else {
             this.adapter.reset();
-            this.store.clearAll();
+            this.store.resetRuntime();
         }
     }
 
@@ -81,7 +89,6 @@ export class WorldInfoControlModule {
         });
         this.#addEvent(events.WORLDINFO_SCAN_DONE, payload => {
             this.adapter.captureActivatedEntries(payload);
-            if (!this.ui.isOpen()) return;
             void this.scanner.syncFromAdapter({
                 complete: !this.scanner.isScanning(),
             }).catch(error => {

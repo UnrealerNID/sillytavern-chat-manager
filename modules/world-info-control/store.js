@@ -1,12 +1,18 @@
 /**
- * 管理当前聊天的世界书条目与发送排除状态
+ * 管理当前扫描结果与按世界书持久化的发送排除状态
  */
 export class WorldInfoControlStore {
-    constructor() {
+    /**
+     * @param {object} [options] 配置项
+     * @param {Record<string,string[]>} [options.exclusions] 按世界书保存的条目排除状态
+     * @param {(exclusions:Record<string,string[]>)=>void} [options.onExclusionsChange] 排除状态变化回调
+     */
+    constructor({ exclusions = {}, onExclusionsChange = () => {} } = {}) {
         this.entries = [];
         this.status = 'idle';
         this.chatKey = '';
-        this.exclusions = new Map();
+        this.exclusions = deserializeExclusions(exclusions);
+        this.onExclusionsChange = onExclusionsChange;
         this.listeners = new Set();
     }
 
@@ -55,31 +61,43 @@ export class WorldInfoControlStore {
     }
 
     getExclusions() {
-        return new Set(this.exclusions.get(this.chatKey) ?? []);
+        const controlIds = new Set();
+        for (const [worldName, entryIds] of this.exclusions) {
+            for (const entryId of entryIds) controlIds.add(`world:${worldName}:${entryId}`);
+        }
+        return controlIds;
     }
 
     isExcluded(controlId) {
-        return this.exclusions.get(this.chatKey)?.has(controlId) ?? false;
+        const identity = parseWorldControlId(controlId);
+        return identity
+            ? (this.exclusions.get(identity.worldName)?.has(identity.entryId) ?? false)
+            : false;
     }
 
     setExcluded(controlId, excluded) {
-        if (!controlId || !this.chatKey) return;
-        const values = this.exclusions.get(this.chatKey) ?? new Set();
-        if (excluded) values.add(controlId);
-        else values.delete(controlId);
-        if (values.size) this.exclusions.set(this.chatKey, values);
-        else this.exclusions.delete(this.chatKey);
+        const identity = parseWorldControlId(controlId);
+        if (!identity) return;
+        const entryIds = this.exclusions.get(identity.worldName) ?? new Set();
+        if (entryIds.has(identity.entryId) === excluded) return;
+        if (excluded) entryIds.add(identity.entryId);
+        else entryIds.delete(identity.entryId);
+        if (entryIds.size) this.exclusions.set(identity.worldName, entryIds);
+        else this.exclusions.delete(identity.worldName);
+        this.#persistExclusions();
         this.#notify('exclusions');
     }
 
-    clearCurrent() {
-        if (this.exclusions.delete(this.chatKey)) this.#notify('exclusions');
+    clearAll() {
+        if (!this.exclusions.size) return;
+        this.exclusions.clear();
+        this.#persistExclusions();
+        this.#notify('exclusions');
     }
 
-    clearAll() {
+    resetRuntime() {
         this.entries = [];
         this.status = 'idle';
-        this.exclusions.clear();
         this.#notify('entries');
     }
 
@@ -91,6 +109,44 @@ export class WorldInfoControlStore {
     #notify(change) {
         for (const listener of this.listeners) listener(change);
     }
+
+    #persistExclusions() {
+        this.onExclusionsChange(Object.fromEntries(
+            Array.from(this.exclusions, ([worldName, entryIds]) => [worldName, Array.from(entryIds)]),
+        ));
+    }
+}
+
+/**
+ * 将按世界书保存的排除记录转换为运行时集合
+ * @param {Record<string,string[]>} exclusions 已保存的排除记录
+ * @returns {Map<string,Set<string>>} 世界书名称与条目 ID 集合
+ */
+function deserializeExclusions(exclusions) {
+    const result = new Map();
+    if (!exclusions || typeof exclusions !== 'object' || Array.isArray(exclusions)) return result;
+    for (const [worldName, values] of Object.entries(exclusions)) {
+        if (!Array.isArray(values)) continue;
+        const entryIds = values.filter(value => typeof value === 'string' && value);
+        if (entryIds.length) result.set(worldName, new Set(entryIds));
+    }
+    return result;
+}
+
+/**
+ * 从控制标识中提取世界书和条目 ID
+ * @param {string} controlId 控制标识
+ * @returns {object|null} 包含世界书名称与条目 ID 的标识
+ */
+function parseWorldControlId(controlId) {
+    if (!controlId?.startsWith('world:')) return null;
+    const identity = controlId.slice('world:'.length);
+    const separator = identity.lastIndexOf(':');
+    if (separator < 1 || separator === identity.length - 1) return null;
+    return {
+        worldName: identity.slice(0, separator),
+        entryId: identity.slice(separator + 1),
+    };
 }
 
 /**

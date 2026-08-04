@@ -43,6 +43,7 @@ export class WorldInfoScanner {
         if (!this.enabled) return;
         if (this.refreshTask) {
             this.pendingRefresh = true;
+            this.#setScanningStatus();
             return this.refreshTask;
         }
         const context = this.getContext();
@@ -55,7 +56,9 @@ export class WorldInfoScanner {
         const revision = ++this.revision;
         this.tokenRevision += 1;
         clearTimeout(this.tokenTimer);
-        this.store.setStatus('loading');
+        this.#setScanningStatus();
+        // 手动与初始化扫描只消费本次干扫描事件，不沿用上次真实发送结果
+        this.adapter.reset();
         this.refreshTask = this.#scan(context, revision).catch(error => {
             if (revision === this.revision) this.store.setStatus('error');
             console.error('[酒馆工具箱] 世界书扫描失败', error);
@@ -68,6 +71,13 @@ export class WorldInfoScanner {
             }
         });
         return this.refreshTask;
+    }
+
+    /**
+     * 根据是否已有稳定结果显示当前扫描状态
+     */
+    #setScanningStatus() {
+        this.store.setStatus(this.store.getEntries().length ? 'scanning' : 'loading');
     }
 
     isScanning() {

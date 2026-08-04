@@ -55,10 +55,6 @@ export class WorldInfoControlUi {
         if (!enabled) this.setOpen(false);
     }
 
-    isOpen() {
-        return this.opened;
-    }
-
     setOpen(opened) {
         this.opened = Boolean(opened && this.enabled);
         this.body.hidden = !this.opened;
@@ -67,12 +63,17 @@ export class WorldInfoControlUi {
         this.toggleButton.title = this.opened ? '收起世界书控制' : '展开世界书控制';
         this.indicator.classList.toggle('fa-chevron-up', !this.opened);
         this.indicator.classList.toggle('fa-chevron-down', this.opened);
-        if (this.opened && this.store.getStatus() !== 'ready') void this.#refresh();
+        if (!this.opened) return;
+        const status = this.store.getStatus();
+        if (status !== 'ready' && status !== 'loading' && status !== 'scanning') {
+            void this.#refresh();
+        }
     }
 
     scheduleRefresh() {
         if (!this.enabled) return;
-        this.store.setStatus('stale');
+        const status = this.store.getStatus();
+        if (status !== 'loading' && status !== 'scanning') this.store.setStatus('stale');
         if (!this.opened) return;
         clearTimeout(this.refreshTimer);
         this.refreshTimer = setTimeout(() => void this.#refresh(), 250);
@@ -115,7 +116,7 @@ export class WorldInfoControlUi {
         this.toggleButton.addEventListener('click', () => this.setOpen(!this.opened));
         this.resizeHandle.addEventListener('pointerdown', event => this.#startResize(event));
         this.refreshButton.addEventListener('click', () => void this.#refresh());
-        this.clearButton.addEventListener('click', () => this.store.clearCurrent());
+        this.clearButton.addEventListener('click', () => this.store.clearAll());
         this.search.addEventListener('input', () => this.render());
     }
 

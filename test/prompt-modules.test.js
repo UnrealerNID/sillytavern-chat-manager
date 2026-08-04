@@ -76,17 +76,34 @@ test('连续相同角色只影响展示分组不改变消息', () => {
     ]);
 });
 
-test('世界书排除状态按聊天隔离', () => {
+test('世界书排除状态按世界书保存并跨聊天生效', () => {
     const store = new WorldInfoControlStore();
     store.setChatKey('character:1:a');
     store.setExcluded('world:书:1', true);
     store.setChatKey('character:1:b');
-    assert.equal(store.isExcluded('world:书:1'), false);
-    store.setChatKey('character:1:a');
     assert.equal(store.isExcluded('world:书:1'), true);
+    assert.equal(store.isExcluded('world:另一书:1'), false);
 });
 
-test('世界书适配器在扫描前移除临时关闭条目', () => {
+test('世界书排除状态可持久化并在运行时重置后保留', () => {
+    let saved = null;
+    const store = new WorldInfoControlStore({
+        exclusions: {
+            书: ['1'],
+        },
+        onExclusionsChange: exclusions => { saved = exclusions; },
+    });
+    store.setChatKey('character:1:a');
+    assert.equal(store.isExcluded('world:书:1'), true);
+    store.resetRuntime();
+    assert.equal(store.isExcluded('world:书:1'), true);
+    store.setExcluded('world:书:2', true);
+    assert.deepEqual(saved, {
+        书: ['1', '2'],
+    });
+});
+
+test('世界书适配器在扫描前移除关闭条目', () => {
     const store = new WorldInfoControlStore();
     store.setChatKey('character:1:a');
     store.setExcluded('world:书一:2', true);
@@ -102,6 +119,7 @@ test('世界书适配器在扫描前移除临时关闭条目', () => {
     };
     adapter.filterLoadedEntries(payload);
     assert.deepEqual(payload.globalLore.map(entry => entry.uid), [1]);
+    assert.equal(adapter.getActivatedEntries()[0].uid, 2);
 });
 
 test('世界书扫描结果保留条目标识和处理后正文', () => {
@@ -228,8 +246,20 @@ test('世界书扫描包含输入框草稿且不触发完整生成', async () =>
     assert.match(source, /getMaxPromptTokens/);
     assert.match(source, /slice\(-MAX_SCAN_DEPTH\)/);
     assert.match(source, /setStatus\(complete \? 'ready' : 'scanning'\)/);
+    assert.match(source, /#setScanningStatus\(\)/);
+    assert.match(source, /this\.adapter\.reset\(\)/);
     assert.match(source, /if \(complete\) this\.#scheduleTokenCounts/);
     assert.doesNotMatch(source, /context\.generate/);
+});
+
+test('世界书面板在空结果和重复刷新时保持加载反馈', async () => {
+    const [scanner, ui] = await Promise.all([
+        readFile(new URL('../modules/world-info-control/scanner.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/world-info-control/ui.js', import.meta.url), 'utf8'),
+    ]);
+    assert.match(scanner, /this\.store\.getEntries\(\)\.length \? 'scanning' : 'loading'/);
+    assert.match(ui, /status !== 'ready' && status !== 'loading' && status !== 'scanning'/);
+    assert.match(ui, /status !== 'loading' && status !== 'scanning'/);
 });
 
 test('世界书正式过滤和预览扫描共用同一排除规则', async () => {
@@ -239,6 +269,16 @@ test('世界书正式过滤和预览扫描共用同一排除规则', async () =>
     );
     assert.doesNotMatch(source, /isPreviewing|beginPreview|endPreview/);
     assert.match(source, /filterLoadedEntries/);
+});
+
+test('折叠面板仍接收真实发送产生的世界书扫描结果', async () => {
+    const source = await readFile(
+        new URL('../modules/world-info-control/module.js', import.meta.url),
+        'utf8',
+    );
+    assert.match(source, /WORLDINFO_SCAN_DONE/);
+    assert.match(source, /this\.scanner\.syncFromAdapter/);
+    assert.doesNotMatch(source, /if \(!this\.ui\.isOpen\(\)\) return/);
 });
 
 test('搜索定位支持首尾循环', () => {

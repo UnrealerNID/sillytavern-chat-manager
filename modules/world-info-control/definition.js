@@ -9,7 +9,11 @@ export const worldInfoControlModuleDefinition = {
 
     initializeSettings(toolboxSettings) {
         toolboxSettings.modules.worldInfoControl ??= { enabled: true };
-        toolboxSettings.modules.worldInfoControl.enabled ??= true;
+        const settings = toolboxSettings.modules.worldInfoControl;
+        settings.enabled ??= true;
+        if (!settings.exclusions || typeof settings.exclusions !== 'object' || Array.isArray(settings.exclusions)) {
+            settings.exclusions = {};
+        }
     },
 
     isEnabled(toolboxSettings) {
