@@ -12,6 +12,7 @@ export class WorldInfoControlStore {
         this.loadedWorlds = new Set();
         this.status = 'idle';
         this.chatKey = '';
+        this.snapshotReady = false;
         this.exclusions = deserializeExclusions(exclusions);
         this.onExclusionsChange = onExclusionsChange;
         this.listeners = new Set();
@@ -26,13 +27,39 @@ export class WorldInfoControlStore {
         this.chatKey = chatKey;
         this.entries = [];
         this.loadedWorlds.clear();
+        this.snapshotReady = false;
         this.#notify('entries');
     }
 
     setEntries(entries, loadedWorlds = this.loadedWorlds) {
         this.entries = entries;
         this.loadedWorlds = new Set(loadedWorlds);
+        this.snapshotReady = true;
         this.#notify('entries');
+    }
+
+    /**
+     * 判断当前聊天是否已经取得过完整快照
+     * @returns {boolean} 是否已有快照
+     */
+    hasSnapshot() {
+        return this.snapshotReady;
+    }
+
+    /**
+     * 用真实发送结果更新快照，同时保留发送前被排除的当前世界书条目
+     * @param {object[]} currentEntries 本轮真实发送条目
+     * @param {Set<string>} loadedWorlds 本轮加载的世界书
+     * @returns {object[]} 可写入面板的完整快照
+     */
+    mergeGenerationEntries(currentEntries, loadedWorlds) {
+        const entries = new Map(currentEntries.map(entry => [entry.controlId, entry]));
+        for (const previous of this.entries) {
+            if (!loadedWorlds.has(String(previous.world ?? ''))) continue;
+            if (!this.isExcluded(previous.controlId)) continue;
+            if (!entries.has(previous.controlId)) entries.set(previous.controlId, previous);
+        }
+        return Array.from(entries.values());
     }
 
     /**
@@ -115,6 +142,7 @@ export class WorldInfoControlStore {
         this.entries = [];
         this.loadedWorlds.clear();
         this.status = 'idle';
+        this.snapshotReady = false;
         this.#notify('entries');
     }
 

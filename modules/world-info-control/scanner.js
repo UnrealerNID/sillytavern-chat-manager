@@ -70,7 +70,7 @@ export class WorldInfoScanner {
         return this.refreshTask;
     }
 
-    // 输入变化只保留一个待处理标记，当前扫描结束后读取最新上下文
+    // 重复刷新只保留一个待处理标记，当前扫描结束后读取最新上下文
     async #runRefreshLoop() {
         while (this.enabled && this.pendingRefresh) {
             this.pendingRefresh = false;
@@ -95,7 +95,7 @@ export class WorldInfoScanner {
             await this.#scan(context, revision);
         } catch (error) {
             if (revision !== this.revision) return;
-            this.store.setStatus('error');
+            this.store.setStatus(this.store.hasSnapshot() ? 'ready' : 'error');
             console.error('[酒馆工具箱] 世界书扫描失败', error);
             throw error;
         } finally {
@@ -107,7 +107,7 @@ export class WorldInfoScanner {
      * 根据是否已有稳定结果显示当前扫描状态
      */
     #setScanningStatus() {
-        this.store.setStatus(this.store.getEntries().length ? 'scanning' : 'loading');
+        this.store.setStatus(this.store.hasSnapshot() ? 'scanning' : 'loading');
     }
 
     async #scan(context, revision) {
@@ -141,25 +141,26 @@ export class WorldInfoScanner {
      * 将最近一次原生扫描结果同步到面板
      * @param {object} [options] 同步选项
      * @param {string} [options.expectedChatKey] 结果所属聊天
-     * @param {'ready'|'captured'} [options.status] 同步后的结果状态
+     * @param {boolean} [options.preserveExcluded] 是否保留正式发送前已关闭的条目
      */
-    async syncFromAdapter({ expectedChatKey = '', status = 'ready' } = {}) {
+    async syncFromAdapter({ expectedChatKey = '', preserveExcluded = false } = {}) {
         const context = this.getContext();
         const chatKey = getWorldInfoControlChatKey(context);
         if (expectedChatKey && expectedChatKey !== chatKey) return;
         const previousEntries = new Map(this.store.getEntries().map(entry => [entry.controlId, entry]));
+        const loadedWorlds = this.adapter.getLoadedWorlds();
         const activatedEntries = this.adapter.getActivatedEntries()
             .filter(entry => String(entry.processedContent ?? '').trim());
-        const entries = activatedEntries.map(entry => ({
+        const currentEntries = activatedEntries.map(entry => ({
             ...entry,
             controlId: worldControlId(entry),
             tokenCount: reuseTokenCount(previousEntries, entry),
         }));
-        this.store.setEntries(entries, this.adapter.getLoadedWorlds());
-        const resultStatus = status === 'captured' && !this.store.getRelevantExclusions().size
-            ? 'ready'
-            : status;
-        this.store.setStatus(resultStatus);
+        const entries = preserveExcluded
+            ? this.store.mergeGenerationEntries(currentEntries, loadedWorlds)
+            : currentEntries;
+        this.store.setEntries(entries, loadedWorlds);
+        this.store.setStatus('ready');
         this.#scheduleTokenCounts(context, chatKey, entries);
     }
 

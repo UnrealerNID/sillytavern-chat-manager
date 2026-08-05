@@ -67,7 +67,6 @@ export class WorldInfoControlModule {
         });
         this.ui.initialize();
         this.#prepareEvents();
-        this.#bindInput();
         this.initialized = true;
     }
 
@@ -104,18 +103,9 @@ export class WorldInfoControlModule {
             this.#resetGeneration();
             this.scanner.interrupt();
             this.adapter.reset();
+            this.ui.setOpen(false);
             this.#syncChat();
-            this.ui.scheduleRefresh();
         });
-        for (const eventType of [
-            events.MESSAGE_EDITED,
-            events.MESSAGE_DELETED,
-            events.MESSAGE_UPDATED,
-            events.CHARACTER_EDITED,
-            events.WORLDINFO_UPDATED,
-        ]) {
-            this.#addEvent(eventType, () => this.ui.scheduleRefresh());
-        }
     }
 
     #addEvent(eventType, handler) {
@@ -131,13 +121,6 @@ export class WorldInfoControlModule {
         }
     }
 
-    #bindInput() {
-        document.querySelector('#send_textarea')?.addEventListener(
-            'input',
-            () => this.ui.scheduleRefresh(),
-        );
-    }
-
     #startGeneration(dryRun) {
         if (dryRun === true) return;
         this.generationActive = true;
@@ -145,7 +128,7 @@ export class WorldInfoControlModule {
         this.generationChatKey = getWorldInfoControlChatKey(this.getContext());
         this.scanner.interrupt();
         this.adapter.reset();
-        this.store.setStatus(this.store.getEntries().length ? 'scanning' : 'loading');
+        this.store.setStatus(this.store.hasSnapshot() ? 'scanning' : 'loading');
     }
 
     #finishGeneration() {
@@ -154,12 +137,14 @@ export class WorldInfoControlModule {
         const hasScan = this.generationHasScan;
         this.#resetGeneration();
         if (!hasScan) {
-            this.store.setStatus('stale');
+            this.store.setStatus(this.store.hasSnapshot() ? 'ready' : 'stale');
             return;
         }
-        void this.scanner.syncFromAdapter({ expectedChatKey, status: 'captured' }).catch(error => {
-            console.error('[酒馆工具箱] 同步真实发送的世界书结果失败', error);
-        });
+        void this.scanner
+            .syncFromAdapter({ expectedChatKey, preserveExcluded: true })
+            .catch(error => {
+                console.error('[酒馆工具箱] 同步真实发送的世界书结果失败', error);
+            });
     }
 
     #resetGeneration() {

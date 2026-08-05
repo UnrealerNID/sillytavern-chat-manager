@@ -86,12 +86,15 @@ test('世界书控制使用贴靠输入区的单一折叠入口', async () => {
     assert.match(ui, /store\.setExcluded\(controlId/);
     assert.match(ui, /change === 'exclusions'/);
     assert.match(ui, /#syncExclusionState\(\)/);
-    assert.match(ui, /scheduleRefresh\(\)/);
+    assert.match(ui, /ensureSnapshot\(\)/);
+    assert.match(ui, /this\.enabled && this\.opened && !this\.store\.hasSnapshot\(\)/);
+    assert.doesNotMatch(ui, /scheduleRefresh\(\)/);
     assert.match(ui, /PANEL_HEIGHT_KEY/);
     assert.doesNotMatch(ui, /insertionPosition|位置：|顺序：/);
     assert.match(scanner, /processedContent \?\? ''\)\.trim\(\)/);
-    assert.match(scanner, /status = 'ready'/);
-    assert.match(scanner, /this\.store\.setStatus\(resultStatus\)/);
+    assert.match(scanner, /preserveExcluded = false/);
+    assert.match(scanner, /mergeGenerationEntries/);
+    assert.match(scanner, /this\.store\.setStatus\('ready'\)/);
     assert.match(scanner, /this\.#scheduleTokenCounts/);
     assert.match(scanner, /reuseTokenCount/);
     assert.doesNotMatch(scanner, /await Promise\.all\(activatedEntries/);

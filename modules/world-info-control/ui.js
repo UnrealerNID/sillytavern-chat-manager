@@ -15,7 +15,6 @@ export class WorldInfoControlUi {
         this.refresh = refresh;
         this.enabled = false;
         this.opened = false;
-        this.refreshTimer = null;
         this.groupStates = new Map();
     }
 
@@ -63,20 +62,14 @@ export class WorldInfoControlUi {
         this.toggleButton.title = this.opened ? '收起世界书控制' : '展开世界书控制';
         this.indicator.classList.toggle('fa-chevron-up', !this.opened);
         this.indicator.classList.toggle('fa-chevron-down', this.opened);
-        if (!this.opened) return;
-        const status = this.store.getStatus();
-        if (status !== 'ready' && status !== 'loading' && status !== 'scanning') {
-            void this.#refresh();
-        }
+        this.ensureSnapshot();
     }
 
-    scheduleRefresh() {
-        if (!this.enabled) return;
-        const status = this.store.getStatus();
-        if (status !== 'loading' && status !== 'scanning') this.store.setStatus('stale');
-        if (!this.opened) return;
-        clearTimeout(this.refreshTimer);
-        this.refreshTimer = setTimeout(() => void this.#refresh(), 250);
+    /**
+     * 仅在当前聊天尚无快照且面板可见时执行首次扫描
+     */
+    ensureSnapshot() {
+        if (this.enabled && this.opened && !this.store.hasSnapshot()) void this.#refresh();
     }
 
     render() {
@@ -91,7 +84,7 @@ export class WorldInfoControlUi {
             this.content.append(createState('fa-circle-notch', '正在扫描世界书…', true));
             return;
         }
-        if (status !== 'ready' && status !== 'captured' && status !== 'scanning') {
+        if (status !== 'ready' && status !== 'scanning') {
             const text = status === 'idle'
                 ? '选择角色或群聊后可扫描'
                 : status === 'error'
@@ -210,7 +203,7 @@ export class WorldInfoControlUi {
     }
 
     #updateSummary(entryCount, excludedCount, status) {
-        this.summary.textContent = status === 'ready' || status === 'captured' || status === 'scanning'
+        this.summary.textContent = status === 'ready' || status === 'scanning'
             ? `${entryCount} 个条目 · 已关闭 ${excludedCount} 个${status === 'scanning' ? ' · 扫描中' : ''}`
             : '';
         this.clearButton.disabled = status === 'loading'

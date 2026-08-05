@@ -283,7 +283,7 @@ test('世界书扫描包含输入框草稿且不触发完整生成', async () =>
     assert.match(source, /slice\(-MAX_SCAN_DEPTH\)/);
     assert.match(source, /#runRefreshLoop\(\)/);
     assert.match(source, /withTimeout/);
-    assert.match(source, /status = 'ready'/);
+    assert.match(source, /this\.store\.setStatus\('ready'\)/);
     assert.match(source, /#setScanningStatus\(\)/);
     assert.match(source, /this\.adapter\.reset\(\)/);
     assert.match(source, /reuseTokenCount/);
@@ -295,9 +295,11 @@ test('世界书面板在空结果和重复刷新时保持加载反馈', async ()
         readFile(new URL('../modules/world-info-control/scanner.js', import.meta.url), 'utf8'),
         readFile(new URL('../modules/world-info-control/ui.js', import.meta.url), 'utf8'),
     ]);
-    assert.match(scanner, /this\.store\.getEntries\(\)\.length \? 'scanning' : 'loading'/);
-    assert.match(ui, /status !== 'ready' && status !== 'loading' && status !== 'scanning'/);
-    assert.match(ui, /status !== 'loading' && status !== 'scanning'/);
+    assert.match(scanner, /this\.store\.hasSnapshot\(\) \? 'scanning' : 'loading'/);
+    assert.match(scanner, /this\.store\.hasSnapshot\(\) \? 'ready' : 'error'/);
+    assert.match(ui, /this\.enabled && this\.opened && !this\.store\.hasSnapshot\(\)/);
+    assert.match(ui, /status === 'loading' \|\| \(status === 'scanning' && !entries\.length\)/);
+    assert.doesNotMatch(ui, /scheduleRefresh\(\)/);
 });
 
 test('世界书预览与正式发送使用独立过滤模式', async () => {
@@ -319,6 +321,19 @@ test('折叠面板仍接收真实发送产生的世界书扫描结果', async ()
     assert.match(source, /this\.scanner\.syncFromAdapter/);
     assert.match(source, /#finishGeneration/);
     assert.doesNotMatch(source, /if \(!this\.ui\.isOpen\(\)\) return/);
+});
+
+test('切换聊天时折叠世界书面板并等待用户首次展开', async () => {
+    const source = await readFile(
+        new URL('../modules/world-info-control/module.js', import.meta.url),
+        'utf8',
+    );
+    const chatChanged = source.slice(
+        source.indexOf('events.CHAT_CHANGED'),
+        source.indexOf("#addEvent(eventType", source.indexOf('events.CHAT_CHANGED')),
+    );
+    assert.match(chatChanged, /this\.ui\.setOpen\(false\)/);
+    assert.doesNotMatch(chatChanged, /ensureSnapshot/);
 });
 
 test('搜索定位支持首尾循环', () => {
