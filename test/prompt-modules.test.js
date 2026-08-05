@@ -126,8 +126,8 @@ test('世界书适配器只在正式扫描前移除关闭条目', () => {
     const adapter = new WorldInfoPromptAdapter({ store });
     const productionPayload = {
         globalLore: [
-            { world: '书一', uid: 1 },
-            { world: '书一', uid: 2 },
+            { world: '书一', uid: 1, content: '启用正文' },
+            { world: '书一', uid: 2, content: '关闭正文' },
         ],
         characterLore: [],
         chatLore: [],
@@ -136,11 +136,14 @@ test('世界书适配器只在正式扫描前移除关闭条目', () => {
     adapter.filterLoadedEntries(productionPayload);
     assert.deepEqual(productionPayload.globalLore.map(entry => entry.uid), [1]);
     assert.deepEqual(adapter.getActivatedEntries(), []);
+    assert.equal(adapter.getExcludedEntries()[0].uid, 2);
+    assert.equal(adapter.getExcludedEntries()[0].processedContent, '关闭正文');
 
     const previewPayload = structuredClone(productionPayload);
     previewPayload.globalLore.push({ world: '书一', uid: 2 });
     adapter.filterLoadedEntries(previewPayload, { applyExclusions: false });
     assert.deepEqual(previewPayload.globalLore.map(entry => entry.uid), [1, 2]);
+    assert.equal(adapter.getExcludedEntries()[0].uid, 2);
     adapter.captureActivatedEntries({
         activated: { entries: new Set([previewPayload.globalLore[1]]) },
     });
@@ -283,7 +286,7 @@ test('世界书扫描包含输入框草稿且不触发完整生成', async () =>
     assert.match(source, /slice\(-MAX_SCAN_DEPTH\)/);
     assert.match(source, /#runRefreshLoop\(\)/);
     assert.match(source, /withTimeout/);
-    assert.match(source, /this\.store\.setStatus\('ready'\)/);
+    assert.match(source, /this\.store\.setStatus\(status\)/);
     assert.match(source, /#setScanningStatus\(\)/);
     assert.match(source, /this\.adapter\.reset\(\)/);
     assert.match(source, /reuseTokenCount/);
@@ -318,9 +321,11 @@ test('折叠面板仍接收真实发送产生的世界书扫描结果', async ()
         'utf8',
     );
     assert.match(source, /WORLDINFO_SCAN_DONE/);
-    assert.match(source, /this\.scanner\.syncFromAdapter/);
+    assert.match(source, /#syncGenerationSnapshot\('scanning'\)/);
+    assert.match(source, /#syncGenerationSnapshot\('ready'/);
     assert.match(source, /#finishGeneration/);
     assert.doesNotMatch(source, /if \(!this\.ui\.isOpen\(\)\) return/);
+    assert.doesNotMatch(source, /this\.ui\.opened/);
 });
 
 test('切换聊天时折叠世界书面板并等待用户首次展开', async () => {

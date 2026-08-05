@@ -92,14 +92,18 @@ test('世界书控制使用贴靠输入区的单一折叠入口', async () => {
     assert.match(ui, /PANEL_HEIGHT_KEY/);
     assert.doesNotMatch(ui, /insertionPosition|位置：|顺序：/);
     assert.match(scanner, /processedContent \?\? ''\)\.trim\(\)/);
-    assert.match(scanner, /preserveExcluded = false/);
-    assert.match(scanner, /mergeGenerationEntries/);
-    assert.match(scanner, /this\.store\.setStatus\('ready'\)/);
+    assert.match(scanner, /getExcludedEntries/);
+    assert.match(scanner, /mergeSnapshotEntries/);
+    assert.match(scanner, /this\.store\.setStatus\(status\)/);
     assert.match(scanner, /this\.#scheduleTokenCounts/);
     assert.match(scanner, /reuseTokenCount/);
     assert.doesNotMatch(scanner, /await Promise\.all\(activatedEntries/);
     assert.match(template, /data-world-info-control-toggle/);
     assert.match(template, /data-world-info-control-body/);
+    assert.ok(
+        template.indexOf('data-world-info-control-summary')
+            < template.indexOf('data-world-info-control-body'),
+    );
     assert.match(template, /data-world-info-control-resize/);
     assert.doesNotMatch(template, /data-world-info-control-trigger/);
     assert.match(template, /data-world-info-control-search/);

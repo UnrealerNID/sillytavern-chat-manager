@@ -11,6 +11,7 @@ export class WorldInfoPromptAdapter {
         this.store = store;
         this.processEntry = processEntry;
         this.activatedEntries = [];
+        this.excludedEntries = [];
         this.entrySources = new Map();
         this.worldOrders = new Map();
         this.loadedWorlds = new Set();
@@ -25,6 +26,7 @@ export class WorldInfoPromptAdapter {
     filterLoadedEntries(payload, { applyExclusions = true } = {}) {
         const exclusions = applyExclusions ? this.store.getExclusions() : null;
         this.activatedEntries = [];
+        this.excludedEntries = [];
         this.entrySources.clear();
         this.worldOrders.clear();
         this.loadedWorlds.clear();
@@ -48,6 +50,10 @@ export class WorldInfoPromptAdapter {
                     this.worldOrders.set(`${sourceType}:${worldName}`, sourceWorlds.get(worldName));
                 }
             }
+            for (const entry of entries) {
+                if (!this.store.isExcluded(worldControlId(entry))) continue;
+                this.excludedEntries.push(this.#createSnapshotEntry(entry));
+            }
             if (!applyExclusions) continue;
             for (let index = entries.length - 1; index >= 0; index -= 1) {
                 if (exclusions?.has(worldControlId(entries[index]))) entries.splice(index, 1);
@@ -66,16 +72,7 @@ export class WorldInfoPromptAdapter {
         } else {
             this.activatedEntries = Array.isArray(entries) ? entries.slice() : [];
         }
-        this.activatedEntries = this.activatedEntries.map(entry => {
-            const sourceType = this.entrySources.get(worldControlId(entry)) ?? 'unknown';
-            return {
-                ...entry,
-                sourceType,
-                sourceOrder: this.worldOrders.get(`${sourceType}:${entry.world}`) ?? Number.MAX_SAFE_INTEGER,
-                // 事件中的正文已替换宏；此处继续复用酒馆同一正则链路得到实际发送文本
-                processedContent: this.processEntry(entry),
-            };
-        });
+        this.activatedEntries = this.activatedEntries.map(entry => this.#createSnapshotEntry(entry));
     }
 
     /**
@@ -84,6 +81,14 @@ export class WorldInfoPromptAdapter {
      */
     getActivatedEntries() {
         return this.activatedEntries.slice();
+    }
+
+    /**
+     * 取得当前加载世界书中的全部关闭条目
+     * @returns {object[]} 关闭条目
+     */
+    getExcludedEntries() {
+        return this.excludedEntries.slice();
     }
 
     /**
@@ -96,9 +101,26 @@ export class WorldInfoPromptAdapter {
 
     reset() {
         this.activatedEntries = [];
+        this.excludedEntries = [];
         this.entrySources.clear();
         this.worldOrders.clear();
         this.loadedWorlds.clear();
+    }
+
+    /**
+     * 将加载或激活条目转换为面板快照项
+     * @param {object} entry 世界书条目
+     * @returns {object} 面板快照项
+     */
+    #createSnapshotEntry(entry) {
+        const sourceType = this.entrySources.get(worldControlId(entry)) ?? 'unknown';
+        return {
+            ...entry,
+            sourceType,
+            sourceOrder: this.worldOrders.get(`${sourceType}:${entry.world}`) ?? Number.MAX_SAFE_INTEGER,
+            // 激活条目使用酒馆已替换宏的正文，未触发的关闭条目保留当前可处理正文
+            processedContent: this.processEntry(entry),
+        };
     }
 }
 

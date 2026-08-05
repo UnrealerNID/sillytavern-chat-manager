@@ -47,17 +47,17 @@ export class WorldInfoControlStore {
     }
 
     /**
-     * 用真实发送结果更新快照，同时保留发送前被排除的当前世界书条目
+     * 合并触发条目与当前世界书中持久关闭的条目
      * @param {object[]} currentEntries 本轮真实发送条目
-     * @param {Set<string>} loadedWorlds 本轮加载的世界书
+     * @param {object[]} excludedEntries 当前加载世界书中的关闭条目
      * @returns {object[]} 可写入面板的完整快照
      */
-    mergeGenerationEntries(currentEntries, loadedWorlds) {
+    mergeSnapshotEntries(currentEntries, excludedEntries) {
         const entries = new Map(currentEntries.map(entry => [entry.controlId, entry]));
-        for (const previous of this.entries) {
-            if (!loadedWorlds.has(String(previous.world ?? ''))) continue;
-            if (!this.isExcluded(previous.controlId)) continue;
-            if (!entries.has(previous.controlId)) entries.set(previous.controlId, previous);
+        const previousEntries = new Map(this.entries.map(entry => [entry.controlId, entry]));
+        for (const excluded of excludedEntries) {
+            if (entries.has(excluded.controlId)) continue;
+            entries.set(excluded.controlId, previousEntries.get(excluded.controlId) ?? excluded);
         }
         return Array.from(entries.values());
     }

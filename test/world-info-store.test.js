@@ -31,7 +31,7 @@ test('切换聊天或关闭模块时清空当前快照', () => {
     assert.equal(store.hasSnapshot(), false);
 });
 
-test('真实发送同步只保留当前世界书中已关闭的旧条目', () => {
+test('快照合并全部关闭条目并优先复用已有正文', () => {
     const store = new WorldInfoControlStore({
         exclusions: {
             当前世界书: ['2'],
@@ -44,13 +44,17 @@ test('真实发送同步只保留当前世界书中已关闭的旧条目', () =>
         { controlId: 'world:已移除世界书:3', world: '已移除世界书' },
     ]);
 
-    const entries = store.mergeGenerationEntries(
+    const entries = store.mergeSnapshotEntries(
         [{ controlId: 'world:当前世界书:4', world: '当前世界书' }],
-        new Set(['当前世界书']),
+        [
+            { controlId: 'world:当前世界书:2', world: '当前世界书', processedContent: '新读取正文' },
+            { controlId: 'world:已移除世界书:3', world: '已移除世界书' },
+        ],
     );
 
     assert.deepEqual(entries.map(entry => entry.controlId), [
         'world:当前世界书:4',
         'world:当前世界书:2',
+        'world:已移除世界书:3',
     ]);
 });

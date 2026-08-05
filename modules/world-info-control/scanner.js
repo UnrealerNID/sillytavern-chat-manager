@@ -141,9 +141,12 @@ export class WorldInfoScanner {
      * 将最近一次原生扫描结果同步到面板
      * @param {object} [options] 同步选项
      * @param {string} [options.expectedChatKey] 结果所属聊天
-     * @param {boolean} [options.preserveExcluded] 是否保留正式发送前已关闭的条目
+     * @param {'ready'|'scanning'} [options.status] 同步后的面板状态
      */
-    async syncFromAdapter({ expectedChatKey = '', preserveExcluded = false } = {}) {
+    async syncFromAdapter({
+        expectedChatKey = '',
+        status = 'ready',
+    } = {}) {
         const context = this.getContext();
         const chatKey = getWorldInfoControlChatKey(context);
         if (expectedChatKey && expectedChatKey !== chatKey) return;
@@ -156,11 +159,14 @@ export class WorldInfoScanner {
             controlId: worldControlId(entry),
             tokenCount: reuseTokenCount(previousEntries, entry),
         }));
-        const entries = preserveExcluded
-            ? this.store.mergeGenerationEntries(currentEntries, loadedWorlds)
-            : currentEntries;
+        const excludedEntries = this.adapter.getExcludedEntries().map(entry => ({
+            ...entry,
+            controlId: worldControlId(entry),
+            tokenCount: reuseTokenCount(previousEntries, entry),
+        }));
+        const entries = this.store.mergeSnapshotEntries(currentEntries, excludedEntries);
         this.store.setEntries(entries, loadedWorlds);
-        this.store.setStatus('ready');
+        this.store.setStatus(status);
         this.#scheduleTokenCounts(context, chatKey, entries);
     }
 

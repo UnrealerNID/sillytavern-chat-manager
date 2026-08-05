@@ -94,7 +94,9 @@ export class WorldInfoControlModule {
         });
         this.#addEvent(events.WORLDINFO_SCAN_DONE, payload => {
             this.adapter.captureActivatedEntries(payload);
-            if (this.generationActive) this.generationHasScan = true;
+            if (!this.generationActive) return;
+            this.generationHasScan = true;
+            void this.#syncGenerationSnapshot('scanning');
         });
         this.#addEvent(events.GENERATION_STARTED, (...args) => this.#startGeneration(args.at(-1)));
         this.#addEvent(events.GENERATION_ENDED, () => this.#finishGeneration());
@@ -140,11 +142,24 @@ export class WorldInfoControlModule {
             this.store.setStatus(this.store.hasSnapshot() ? 'ready' : 'stale');
             return;
         }
-        void this.scanner
-            .syncFromAdapter({ expectedChatKey, preserveExcluded: true })
-            .catch(error => {
-                console.error('[酒馆工具箱] 同步真实发送的世界书结果失败', error);
+        void this.#syncGenerationSnapshot('ready', expectedChatKey);
+    }
+
+    /**
+     * 将真实发送的最新世界书扫描结果写入面板快照
+     * @param {'scanning'|'ready'} status 同步后的状态
+     * @param {string} [expectedChatKey] 结果所属聊天
+     * @returns {Promise<void>} 同步任务
+     */
+    async #syncGenerationSnapshot(status, expectedChatKey = this.generationChatKey) {
+        try {
+            await this.scanner.syncFromAdapter({
+                expectedChatKey,
+                status,
             });
+        } catch (error) {
+            console.error('[酒馆工具箱] 同步真实发送的世界书结果失败', error);
+        }
     }
 
     #resetGeneration() {
