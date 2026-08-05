@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
     deriveIncrementalSplit,
+    getSplitGroupState,
     filterChatRecords,
     getCurrentOwner,
     getStoredSplitConfigs,
@@ -139,8 +140,19 @@ test('derives incremental config from new messages in the last volume', () => {
         splitRecord('长聊天 [分卷 002-of-002] [#100-#199]', 100, 199, 2, { messageCount: 145 }),
     ]);
     const incremental = deriveIncrementalSplit(series);
+    const state = getSplitGroupState(series);
 
     assert.equal(incremental.available, true);
+    assert.deepEqual(state, {
+        parts: series.records,
+        continuous: true,
+        start: 0,
+        end: 244,
+        messageCount: 245,
+        pendingCount: 45,
+        pendingStart: 200,
+        pendingEnd: 244,
+    });
     assert.equal(incremental.sourceRecord.fileId, '长聊天 [分卷 002-of-002] [#100-#199]');
     assert.deepEqual(incremental.options, {
         mode: 'fixed',
@@ -152,6 +164,24 @@ test('derives incremental config from new messages in the last volume', () => {
         outputRootChatId: '长聊天',
         rangeOffset: 100,
         groupConfigs: [{ mode: 'fixed', chunkSize: 100, occurrences: 2 }],
+    });
+});
+
+test('does not count an older tail snapshot again after incremental split', () => {
+    const [series] = groupSplitRecords([
+        splitRecord('长聊天 - 1', 0, 99, 1),
+        splitRecord('长聊天 - 2', 100, 199, 2, { messageCount: 145 }),
+        splitRecord('长聊天 - 3', 200, 244, 3, { messageCount: 45 }),
+    ]);
+
+    const state = getSplitGroupState(series);
+
+    assert.equal(state.end, 244);
+    assert.equal(state.messageCount, 245);
+    assert.equal(state.pendingCount, 0);
+    assert.deepEqual(deriveIncrementalSplit(series), {
+        available: false,
+        reason: '最后一卷没有新增楼层',
     });
 });
 

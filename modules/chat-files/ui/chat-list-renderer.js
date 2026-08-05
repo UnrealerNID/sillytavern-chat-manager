@@ -1,5 +1,6 @@
 import {
     deriveIncrementalSplit,
+    getSplitGroupState,
     orderSplitGroupRecords,
 } from '../chat/grouping.js';
 import { formatBytes, parseBytes } from '../../shared/files.js';
@@ -140,16 +141,15 @@ export class ChatListRenderer {
         const children = this.ui.mount(root, '[data-cm-split-children]');
         const continueButton = this.ui.mount(root, '[data-cm-split-continue]', HTMLButtonElement);
         const incremental = deriveIncrementalSplit(group);
+        const splitState = getSplitGroupState(group);
         const expanded = this.expandedSplits.has(group.key);
-        const first = splitRecords[0].split;
-        const last = splitRecords.at(-1).split;
         const aggregate = aggregateRecords(splitRecords.map(item => item.record));
         this.ui.mount(root, '[data-cm-split-group-name]').textContent = group.rootChatId;
 
         const summary = [
             `${splitRecords.length} 个分卷`,
-            `覆盖 #${first.start}–#${last.end}`,
-            `分卷合计 ${aggregate.messageCount} 层 / ${formatBytes(aggregate.bytes)}`,
+            `覆盖 #${splitState.start}–#${splitState.end}`,
+            `逻辑合计 ${splitState.messageCount} 层 / ${formatBytes(aggregate.bytes)}`,
             group.sourceRecord ? '源聊天存在' : '仅保留分卷',
         ].join(' · ');
         const latest = aggregate.latest

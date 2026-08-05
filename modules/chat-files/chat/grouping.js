@@ -244,18 +244,59 @@ export function getStoredSplitConfigs(series) {
 }
 
 /**
+ * 汇总分卷组的逻辑范围与尾卷待处理消息
+ *
+ * 最后一卷可以继续聊天，其文件会同时包含已封存楼层和新增楼层
+ * 新增楼层在生成下一卷前只计入逻辑范围，不能与旧卷文件长度重复累计
+ * @param {object} series 分卷显示单元
+ * @returns {object} 分卷顺序、连续性、逻辑范围和待分卷数量
+ */
+export function getSplitGroupState(series) {
+    const parts = [...series.records].sort(compareSplitItems);
+    if (!parts.length) {
+        return {
+            parts,
+            continuous: false,
+            start: 0,
+            end: -1,
+            messageCount: 0,
+            pendingCount: 0,
+            pendingStart: 0,
+            pendingEnd: -1,
+        };
+    }
+
+    const continuous = parts.every((part, index) => (
+        index === 0 || part.split.start === parts[index - 1].split.end + 1
+    ));
+    const lastPart = parts.at(-1);
+    const storedCount = parts.reduce((sum, part) => sum + part.split.count, 0);
+    const tailStoredCount = lastPart.split.count;
+    const tailFileCount = Math.max(0, Number(lastPart.record.messageCount) || 0);
+    const pendingCount = Math.max(0, tailFileCount - tailStoredCount);
+
+    return {
+        parts,
+        continuous,
+        start: parts[0].split.start,
+        end: lastPart.split.end + pendingCount,
+        messageCount: storedCount + pendingCount,
+        pendingCount,
+        pendingStart: lastPart.split.end + 1,
+        pendingEnd: lastPart.split.end + pendingCount,
+    };
+}
+
+/**
  * 根据最后一卷保存的元数据生成下一次增量分卷配置
  * @param {object} series 分卷显示单元
  * @returns {object} 可用状态、原因、来源聊天和增量分卷参数
  */
 export function deriveIncrementalSplit(series) {
-    const parts = [...series.records].sort((a, b) => a.split.start - b.split.start);
+    const state = getSplitGroupState(series);
+    const { parts } = state;
     if (!parts.length) return { available: false, reason: '没有可识别的分卷范围' };
-    for (let index = 1; index < parts.length; index++) {
-        if (parts[index].split.start !== parts[index - 1].split.end + 1) {
-            return { available: false, reason: '已有分卷楼层范围不连续' };
-        }
-    }
+    if (!state.continuous) return { available: false, reason: '已有分卷楼层范围不连续' };
     const lastPart = parts.at(-1);
     const sourceRecord = lastPart.record;
     const metadata = sourceRecord.chatManager;
@@ -270,7 +311,7 @@ export function deriveIncrementalSplit(series) {
         return { available: false, reason: '最后一卷的楼层配置无效' };
     }
     const currentCount = Number(sourceRecord.messageCount);
-    if (currentCount <= originalCount) return { available: false, reason: '最后一卷没有新增楼层' };
+    if (!state.pendingCount) return { available: false, reason: '最后一卷没有新增楼层' };
     const lastEnd = lastPart.split.end;
     const sequenceStart = Math.max(...parts.map((part, index) => part.split.sequence ?? index + 1)) + 1;
     const mode = metadata.splitMode;
@@ -278,7 +319,9 @@ export function deriveIncrementalSplit(series) {
     const configs = getStoredSplitConfigs(series);
     return {
         available: true,
-        reason: mode === 'fixed' ? `从 #${lastEnd + 1} 继续，每卷 ${chunkSize} 层` : `从 #${lastEnd + 1} 继续`,
+        reason: mode === 'fixed'
+            ? `待分卷 #${state.pendingStart}–#${state.pendingEnd}，每卷 ${chunkSize} 层`
+            : `待分卷 #${state.pendingStart}–#${state.pendingEnd}`,
         sourceRecord,
         options: {
             mode,
