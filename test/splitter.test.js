@@ -26,6 +26,7 @@ function fixture() {
                 chat_metadata: chat[0].chat_metadata,
             }),
         getCharacterChat: async (_avatar, fileId) => files.get(fileId) ?? {},
+        chatExists: async target => files.has(target.fileId),
         sanitizeFileName: async name => name,
         saveCharacterChat: async (_avatar, fileId, chat) => { files.set(fileId, chat); },
     };
@@ -36,7 +37,14 @@ function fixture() {
         async list() { return Array.from(this.tasks.values()); },
     };
     let id = 0;
-    const splitter = new SplitService(api, journal, () => `uuid-${++id}`);
+    const renameRecord = async (target, nextFileId) => {
+        const chat = files.get(target.fileId);
+        if (!chat || files.has(nextFileId)) return false;
+        files.delete(target.fileId);
+        files.set(nextFileId, chat);
+        return true;
+    };
+    const splitter = new SplitService(api, journal, () => `uuid-${++id}`, renameRecord);
     const record = {
         ownerType: 'character',
         ownerId: '角色.png',
@@ -103,6 +111,41 @@ test('continues a split group with logical ranges and sequence numbers', async (
     assert.equal(plan.parts[0].fileId, '逻辑分卷组 - 3');
     assert.equal(plan.parts[1].fileId, '逻辑分卷组 - 4');
     assert.equal(plan.parts[0].header.chat_metadata.chat_manager.rootChatId, '逻辑分卷组');
+});
+
+test('增量分卷保留旧尾卷并复用原卷号', async () => {
+    const { splitter, files, record } = fixture();
+    const oldTail = files.get(record.fileId);
+    files.delete(record.fileId);
+    record.fileId = '长聊天 - 3';
+    record.fileName = '长聊天 - 3.jsonl';
+    files.set(record.fileId, oldTail);
+
+    const plan = await splitter.prepare(record, {
+        mode: 'fixed',
+        start: 0,
+        end: 4,
+        chunkSize: 3,
+        incremental: true,
+        sequenceStart: 3,
+        outputRootChatId: '长聊天',
+        rangeOffset: 400,
+    });
+
+    assert.equal(plan.replacement.backupFileId, '长聊天 - 3 备份');
+    assert.deepEqual(plan.parts.map(part => part.fileId), ['长聊天 - 3', '长聊天 - 4']);
+    assert.deepEqual(plan.parts.map(part => [part.start, part.end]), [[400, 402], [403, 404]]);
+
+    const task = await splitter.execute(plan);
+
+    assert.equal(task.status, 'complete');
+    assert.ok(files.has('长聊天 - 3 备份'));
+    assert.ok(files.has('长聊天 - 3'));
+    assert.ok(files.has('长聊天 - 4'));
+    assert.equal(
+        files.get('长聊天 - 3')[0].chat_metadata.chat_manager.sourceChatId,
+        '长聊天 - 3 备份',
+    );
 });
 
 test('registers a verified group split only after saving it', async () => {

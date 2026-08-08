@@ -58,8 +58,11 @@ export class SplitDialogs {
         const fixed = initialOptions.mode === 'fixed';
         const defaultChunk = Math.min(500, Math.max(1, record.messageCount));
         const initialChunk = fixed ? Number(initialOptions.chunkSize ?? defaultChunk) : '';
+        const rangeOffset = Number(initialOptions.rangeOffset ?? 0);
+        const logicalStart = rangeOffset + initialStart;
+        const logicalEnd = rangeOffset + initialEnd;
         summary.textContent = incremental
-            ? `最后一卷新增 #${initialStart}–#${initialEnd}${fixed ? ` · 每卷 ${initialChunk} 层` : ''}`
+            ? `尾卷范围 #${logicalStart}–#${logicalEnd}${fixed ? ` · 每卷 ${initialChunk} 层` : ''}`
             : `原聊天 ${record.fileSize} · ${record.messageCount} 层 · 可用范围 #0–#${maxFloor}`;
         this.ui.configureNumberInput(start, initialStart, 0, maxFloor);
         this.ui.configureNumberInput(end, initialEnd, 0, maxFloor);
@@ -201,7 +204,6 @@ export class SplitDialogs {
             dialog.setClosable(false);
             try {
                 const task = await this.splitter.execute(plan, {
-                    shouldPause: () => this.isGenerating(),
                     onUpdate: current => this.#renderTask(preview, current),
                 });
                 this.#renderTask(preview, task);
@@ -281,7 +283,7 @@ export class SplitDialogs {
                 resume.disabled = true;
                 try {
                     const plan = await this.splitter.restorePlan(task);
-                    await this.splitter.execute(plan, { resumeTask: task, shouldPause: () => this.isGenerating() });
+                    await this.splitter.execute(plan, { resumeTask: task });
                     card.remove();
                     this.notify('success', '任务已完成');
                     await this.refresh();

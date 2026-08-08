@@ -32,6 +32,7 @@ function splitRecord(fileId, start, end, sequence, overrides = {}) {
         chatManager: {
             schema: 1,
             rootChatId: '长聊天',
+            sourceChatId: '长聊天',
             sourceStart: start,
             sourceEnd: end,
             sequence,
@@ -149,20 +150,18 @@ test('derives incremental config from new messages in the last volume', () => {
         start: 0,
         end: 244,
         messageCount: 245,
-        pendingCount: 45,
-        pendingStart: 200,
-        pendingEnd: 244,
-        pendingLocalStart: 100,
-        pendingLocalEnd: 144,
+        tailStart: 100,
+        tailEnd: 244,
+        tailCount: 145,
     });
     assert.equal(incremental.record.fileId, '长聊天 [分卷 002-of-002] [#100-#199]');
-    assert.equal(incremental.reason, '最后一卷新增 #100–#144，每卷 100 层');
+    assert.equal(incremental.reason, '尾卷 #100–#244，共 145 层，每卷 100 层');
     assert.deepEqual(incremental.options, {
         mode: 'fixed',
-        start: 100,
+        start: 0,
         end: 144,
         chunkSize: 100,
-        sequenceStart: 3,
+        sequenceStart: 2,
         incremental: true,
         outputRootChatId: '长聊天',
         rangeOffset: 100,
@@ -181,10 +180,10 @@ test('does not count an older tail snapshot again after incremental split', () =
 
     assert.equal(state.end, 244);
     assert.equal(state.messageCount, 245);
-    assert.equal(state.pendingCount, 0);
+    assert.equal(state.tailCount, 45);
     assert.deepEqual(deriveIncrementalSplit(series), {
         available: false,
-        reason: '最后一卷没有新增楼层',
+        reason: '尾卷尚未超过每卷 100 层',
     });
 });
 
@@ -202,14 +201,14 @@ test('derives the incremental range only from the last volume and ignores the so
     const incremental = deriveIncrementalSplit(series);
 
     assert.equal(incremental.record.fileId, '长聊天 - 3');
-    assert.equal(incremental.reason, '最后一卷新增 #31–#288，每卷 200 层');
+    assert.equal(incremental.reason, '尾卷 #400–#688，共 289 层，每卷 200 层');
     assert.deepEqual(
         {
             start: incremental.options.start,
             end: incremental.options.end,
             rangeOffset: incremental.options.rangeOffset,
         },
-        { start: 31, end: 288, rangeOffset: 400 },
+        { start: 0, end: 288, rangeOffset: 400 },
     );
 });
 
@@ -232,8 +231,57 @@ test('rejects incremental split when the last volume has no appended messages', 
     ]);
     assert.deepEqual(deriveIncrementalSplit(series), {
         available: false,
-        reason: '最后一卷没有新增楼层',
+        reason: '尾卷尚未超过每卷 100 层',
     });
+});
+
+test('把被完整替代的尾卷保留为同组源分卷', () => {
+    const [series] = groupSplitRecords([
+        record('长聊天', { messageCount: 431 }),
+        splitRecord('长聊天 - 1', 0, 199, 1, { chatManager: { chunkSize: 200 } }),
+        splitRecord('长聊天 - 2', 200, 399, 2, { chatManager: { chunkSize: 200 } }),
+        splitRecord('长聊天 - 3 备份', 400, 430, 3, {
+            messageCount: 289,
+            chatManager: { chunkSize: 200 },
+        }),
+        splitRecord('长聊天 - 3', 400, 599, 3, {
+            messageCount: 200,
+            chatManager: { chunkSize: 200, sourceChatId: '长聊天 - 3 备份' },
+        }),
+        splitRecord('长聊天 - 4', 600, 688, 4, {
+            messageCount: 89,
+            chatManager: { chunkSize: 200, sourceChatId: '长聊天 - 3 备份' },
+        }),
+    ]);
+
+    assert.deepEqual(series.allRecords.map(item => item.record.fileId), [
+        '长聊天 - 1',
+        '长聊天 - 2',
+        '长聊天 - 3',
+        '长聊天 - 4',
+    ]);
+    assert.deepEqual(series.sourceParts.map(item => item.record.fileId), ['长聊天 - 3 备份']);
+    assert.deepEqual(getSplitGroupState(series), {
+        parts: series.allRecords,
+        continuous: true,
+        start: 0,
+        end: 688,
+        messageCount: 689,
+        tailStart: 600,
+        tailEnd: 688,
+        tailCount: 89,
+    });
+    assert.deepEqual(
+        orderSplitGroupRecords(series).map(item => [item.record.fileId, item.sourceLabel]),
+        [
+            ['长聊天 - 4', ''],
+            ['长聊天 - 3', ''],
+            ['长聊天 - 2', ''],
+            ['长聊天 - 1', ''],
+            ['长聊天 - 3 备份', '源分卷'],
+            ['长聊天', '源聊天'],
+        ],
+    );
 });
 
 test('does not infer incremental config when saved metadata is missing', () => {

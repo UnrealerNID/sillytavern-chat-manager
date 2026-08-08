@@ -280,9 +280,11 @@ export class WelcomeRecentEnhancer {
         const indicator = this.templates.mount(root, '[data-cm-split-toggle]');
         this.templates.mount(root, '[data-cm-split-continue]').classList.add('cm-hidden');
         this.#text(root, '[data-cm-split-group-name]', group.rootChatId);
-        const sourceSummary = group.sourceRecord ? ' · 含源聊天' : '';
-        this.#text(root, '[data-cm-split-group-summary]', `${group.records.length} 个分卷${sourceSummary}`);
-        this.#text(root, '[data-cm-split-group-latest]', `最新：${group.records.at(-1)?.record.fileId ?? ''}`);
+        const sourceCount = (group.sourceParts?.length ?? 0) + Number(Boolean(group.sourceRecord));
+        const sourceSummary = sourceCount ? ` · ${sourceCount} 个来源备份` : '';
+        const activeRecords = group.allRecords ?? group.records;
+        this.#text(root, '[data-cm-split-group-summary]', `${activeRecords.length} 个分卷${sourceSummary}`);
+        this.#text(root, '[data-cm-split-group-latest]', `最新：${activeRecords.at(-1)?.record.fileId ?? ''}`);
         this.templates.mount(root, '[data-cm-split-group-incremental]').classList.add('cm-hidden');
         const expanded = this.expandedSplits.has(group.key);
         bindGroupExpansion(header, indicator, expanded, '分卷', () => {
@@ -293,7 +295,7 @@ export class WelcomeRecentEnhancer {
             children.classList.remove('cm-hidden');
             for (const item of orderSplitGroupRecords(group)) {
                 const row = session.rowByKey.get(chatKey(item.record));
-                if (item.source) this.#markSource(row);
+                if (item.source) this.#markSource(row, item.sourceLabel);
                 children.append(row);
             }
         }
@@ -360,15 +362,16 @@ export class WelcomeRecentEnhancer {
     }
 
     /**
-     * 标记原始聊天
+     * 标记来源聊天或来源分卷
      * @param {HTMLElement} row 原生聊天卡
+     * @param {string} label 来源标记
      */
-    #markSource(row) {
+    #markSource(row, label) {
         const name = row?.querySelector('.chatName');
         if (!name || name.querySelector('[data-cm-welcome-source]')) return;
         name.append(element('span', {
             className: 'cm-source-badge',
-            text: '源',
+            text: label,
             attrs: { 'data-cm-welcome-source': '' },
         }));
     }

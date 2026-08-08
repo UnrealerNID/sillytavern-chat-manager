@@ -17,11 +17,13 @@ export class SplitService {
      * @param {import('../api.js').ChatManagerApi} api 接口实例
      * @param {import('./task-journal.js').TaskJournal} journal 任务日志
      * @param {()=>string} uuid UUID 提供器
+     * @param {(record:object,nextFileId:string)=>Promise<boolean>} [renameRecord] 重命名聊天
      */
-    constructor(api, journal, uuid) {
+    constructor(api, journal, uuid, renameRecord = null) {
         this.api = api;
         this.journal = journal;
         this.uuid = uuid;
+        this.renameRecord = renameRecord;
         this.running = false;
         this.stopRequested = false;
     }
@@ -57,6 +59,17 @@ export class SplitService {
         if (options.end >= source.messages.length) throw new Error('楼层范围超出聊天长度');
         const occupied = await this.#occupiedNames(record);
         const reserved = new Set();
+        let replacement = null;
+        if (options.incremental) {
+            const backupFileId = await this.#uniqueName(record, ' 备份', occupied, reserved);
+            replacement = {
+                originalFileId: record.fileId,
+                backupFileId,
+                status: 'planned',
+            };
+            reserved.add(backupFileId);
+            occupied.delete(record.fileId);
+        }
         const parts = [];
         const sequenceStart = Number(options.sequenceStart ?? 1);
         const rangeOffset = Number(options.rangeOffset ?? 0);
@@ -69,7 +82,14 @@ export class SplitService {
             const sequence = sequenceStart + index;
             // 楼层范围和分卷配置已写入聊天头，文件名只保留便于辨认的顺序号
             const suffix = ` - ${sequence}`;
-            const fileId = await this.#uniqueName(record, suffix, occupied, reserved, outputRootChatId);
+            const fileId = await this.#uniqueName(
+                record,
+                suffix,
+                occupied,
+                reserved,
+                outputRootChatId,
+                replacement?.originalFileId,
+            );
             reserved.add(fileId);
             const messages = source.messages.slice(range.start, range.end + 1);
             const digest = await digestMessages(messages);
@@ -80,6 +100,7 @@ export class SplitService {
                 sequence,
                 incremental: Boolean(options.incremental),
                 rootChatId: outputRootChatId,
+                sourceChatId: replacement?.backupFileId,
             });
             parts.push({
                 ...logicalRange,
@@ -94,6 +115,7 @@ export class SplitService {
                     sequence,
                     incremental: Boolean(options.incremental),
                     rootChatId: outputRootChatId,
+                    sourceChatId: replacement?.backupFileId,
                 },
                 digest,
                 integrity,
@@ -108,6 +130,7 @@ export class SplitService {
             fingerprint: source.fingerprint,
             source,
             parts,
+            replacement,
             createdAt: new Date().toISOString(),
         };
     }
@@ -116,7 +139,6 @@ export class SplitService {
      * 串行执行已确认的分卷计划
      * @param {object} plan 分卷计划
      * @param {object} options 执行参数
-     * @param {()=>boolean} [options.shouldPause] 是否暂停任务
      * @param {(task:object)=>void} [options.onUpdate] 任务进度回调
      * @param {object} [options.resumeTask] 待恢复任务
      * @param {boolean} [options.lockAcquired] 是否已取得浏览器锁
@@ -143,11 +165,12 @@ export class SplitService {
         const task = options.resumeTask ?? this.#taskFromPlan(plan);
         await this.journal.put(task);
         try {
+            await this.#prepareReplacement(plan, task);
             for (let index = 0; index < plan.parts.length; index++) {
                 const part = plan.parts[index];
                 const state = task.parts[index];
                 if (state.status === 'complete') continue;
-                if (this.stopRequested || options.shouldPause?.()) {
+                if (this.stopRequested) {
                     task.status = 'paused';
                     await this.journal.put(task);
                     options.onUpdate?.(task);
@@ -246,7 +269,8 @@ export class SplitService {
      * @returns {Promise<object>} 分卷计划
      */
     async restorePlan(task) {
-        const source = await loadStableSource(task.record, this.api);
+        const record = await this.#resolveTaskRecord(task);
+        const source = await loadStableSource(record, this.api);
         if (!fingerprintsEqual(task.fingerprint, source.fingerprint)) throw new Error('原聊天已变化，不能继续旧任务');
         const parts = [];
         for (const saved of task.parts) {
@@ -266,7 +290,7 @@ export class SplitService {
                 messages,
                 header: this.#makeHeader(
                     source.header,
-                    task.record,
+                    record,
                     range,
                     digest,
                     saved.integrity,
@@ -275,7 +299,15 @@ export class SplitService {
                 splitConfig: saved.splitConfig,
             });
         }
-        return { id: task.id, record: task.record, fingerprint: task.fingerprint, source, parts };
+        task.record = record;
+        return {
+            id: task.id,
+            record,
+            fingerprint: task.fingerprint,
+            source,
+            parts,
+            replacement: task.replacement ?? null,
+        };
     }
 
     #taskFromPlan(plan) {
@@ -285,6 +317,7 @@ export class SplitService {
             createdAt: plan.createdAt,
             record: plan.record,
             fingerprint: plan.fingerprint,
+            replacement: plan.replacement,
             parts: plan.parts.map(part => ({
                 fileId: part.fileId,
                 start: part.start,
@@ -312,7 +345,7 @@ export class SplitService {
         metadata.integrity = integrity;
         metadata.chat_manager = {
             schema: 1,
-            sourceChatId: record.fileId,
+            sourceChatId: splitConfig.sourceChatId ?? record.fileId,
             rootChatId: splitConfig.rootChatId ?? previous?.rootChatId ?? previous?.sourceChatId ?? record.fileId,
             sourceIntegrity: sourceHeader.chat_metadata?.integrity ?? null,
             sourceStart: range.start,
@@ -341,7 +374,14 @@ export class SplitService {
         return new Set(group?.chats ?? []);
     }
 
-    async #uniqueName(record, suffix, occupied, reserved, baseFileId = record.fileId) {
+    async #uniqueName(
+        record,
+        suffix,
+        occupied,
+        reserved,
+        baseFileId = record.fileId,
+        ignoredFileId = '',
+    ) {
         const codePoints = Array.from(baseFileId);
         for (let collision = 1; collision <= 9999; collision++) {
             const numeric = collision === 1 ? '' : `-${collision}`;
@@ -351,12 +391,53 @@ export class SplitService {
                 if (!full.toLowerCase().endsWith('.jsonl')) continue;
                 const fileId = stripJsonl(full);
                 if (!fileId.endsWith(tail)) continue;
-                if (occupied.has(fileId) || reserved.has(fileId)) break;
-                if (record.ownerType === 'group' && await this.api.groupChatExists(fileId)) break;
+                if ((occupied.has(fileId) && fileId !== ignoredFileId) || reserved.has(fileId)) break;
+                if (record.ownerType === 'group'
+                    && fileId !== ignoredFileId
+                    && await this.api.groupChatExists(fileId)) break;
                 return fileId;
             }
         }
         throw new Error('无法生成安全且不冲突的分卷名称');
+    }
+
+    /**
+     * 在写入替代分卷前把旧尾卷保留为来源备份
+     * @param {object} plan 分卷计划
+     * @param {object} task 任务日志
+     */
+    async #prepareReplacement(plan, task) {
+        if (!plan.replacement || task.replacement?.status === 'complete') return;
+        if (!this.renameRecord) throw new Error('当前环境不支持保留源分卷');
+        const replacement = task.replacement ?? cloneJson(plan.replacement);
+        const backupRecord = { ...plan.record, fileId: replacement.backupFileId };
+        const [backupExists, originalExists] = await Promise.all([
+            this.api.chatExists(backupRecord),
+            this.api.chatExists(plan.record),
+        ]);
+        if (backupExists && originalExists) throw new Error('源分卷备份名称已被占用');
+        if (!backupExists) {
+            if (!originalExists) throw new Error('待保留的尾卷已不存在');
+            const renamed = await this.renameRecord(plan.record, replacement.backupFileId);
+            if (!renamed) throw new Error('无法把旧尾卷保留为源分卷');
+        }
+        replacement.status = 'complete';
+        task.replacement = replacement;
+        task.record = backupRecord;
+        await this.journal.put(task);
+    }
+
+    /**
+     * 从原文件或已完成重命名的来源备份恢复任务输入
+     * @param {object} task 任务日志
+     * @returns {Promise<object>} 当前可读取的来源聊天
+     */
+    async #resolveTaskRecord(task) {
+        const replacement = task.replacement;
+        if (!replacement) return task.record;
+        const backupRecord = { ...task.record, fileId: replacement.backupFileId };
+        if (await this.api.chatExists(backupRecord)) return backupRecord;
+        return { ...task.record, fileId: replacement.originalFileId };
     }
 
     async #nameExists(record, fileId) {

@@ -30,6 +30,7 @@ export function createChatActions({ getContext, api, backups, openRecord }) {
         restoreBackup,
         deleteRecord,
         renameRecord,
+        renameRecordTo,
     };
 
     /**
@@ -85,14 +86,25 @@ export function createChatActions({ getContext, api, backups, openRecord }) {
      * @returns {Promise<boolean>} 是否完成重命名
      */
     async function renameRecord(record) {
-        const context = getContext();
         const popup = await renderTemplateAsync('chatRename');
         const input = await callGenericPopup(popup, POPUP_TYPE.INPUT, record.fileId);
         if (typeof input !== 'string') return false;
         const requested = stripJsonl(input.trim());
         const nextFileId = requested ? await api.sanitizeFileName(requested) : '';
         if (!nextFileId || nextFileId === record.fileId) return false;
+        return renameRecordTo(record, nextFileId, { refreshWelcome: true });
+    }
 
+    /**
+     * 调用酒馆原生链路把聊天重命名为已校验的文件名
+     * @param {object} record 待重命名聊天
+     * @param {string} nextFileId 新聊天文件 ID
+     * @param {object} [options] 重命名选项
+     * @param {boolean} [options.refreshWelcome] 是否刷新欢迎页
+     * @returns {Promise<boolean>} 是否完成重命名
+     */
+    async function renameRecordTo(record, nextFileId, options = {}) {
+        const context = getContext();
         if (record.ownerType === 'character') {
             const characterId = context.characters.findIndex(character => character.avatar === record.ownerId);
             if (characterId < 0) throw new Error(`找不到角色：${record.ownerName}`);
@@ -115,7 +127,7 @@ export function createChatActions({ getContext, api, backups, openRecord }) {
             });
             if (!await api.chatExists({ ...record, fileId: nextFileId })) return false;
         }
-        await openWelcomeScreen({ force: true });
+        if (options.refreshWelcome) await openWelcomeScreen({ force: true });
         return true;
     }
 }
