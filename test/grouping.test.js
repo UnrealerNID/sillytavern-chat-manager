@@ -152,8 +152,11 @@ test('derives incremental config from new messages in the last volume', () => {
         pendingCount: 45,
         pendingStart: 200,
         pendingEnd: 244,
+        pendingLocalStart: 100,
+        pendingLocalEnd: 144,
     });
-    assert.equal(incremental.sourceRecord.fileId, '长聊天 [分卷 002-of-002] [#100-#199]');
+    assert.equal(incremental.record.fileId, '长聊天 [分卷 002-of-002] [#100-#199]');
+    assert.equal(incremental.reason, '最后一卷新增 #100–#144，每卷 100 层');
     assert.deepEqual(incremental.options, {
         mode: 'fixed',
         start: 100,
@@ -183,6 +186,31 @@ test('does not count an older tail snapshot again after incremental split', () =
         available: false,
         reason: '最后一卷没有新增楼层',
     });
+});
+
+test('derives the incremental range only from the last volume and ignores the source chat', () => {
+    const [series] = groupSplitRecords([
+        record('长聊天', { messageCount: 431 }),
+        splitRecord('长聊天 - 1', 0, 199, 1, { chatManager: { chunkSize: 200 } }),
+        splitRecord('长聊天 - 2', 200, 399, 2, { chatManager: { chunkSize: 200 } }),
+        splitRecord('长聊天 - 3', 400, 430, 3, {
+            messageCount: 289,
+            chatManager: { chunkSize: 200 },
+        }),
+    ]);
+
+    const incremental = deriveIncrementalSplit(series);
+
+    assert.equal(incremental.record.fileId, '长聊天 - 3');
+    assert.equal(incremental.reason, '最后一卷新增 #31–#288，每卷 200 层');
+    assert.deepEqual(
+        {
+            start: incremental.options.start,
+            end: incremental.options.end,
+            rangeOffset: incremental.options.rangeOffset,
+        },
+        { start: 31, end: 288, rangeOffset: 400 },
+    );
 });
 
 test('reads selectable configs only from saved split metadata', () => {

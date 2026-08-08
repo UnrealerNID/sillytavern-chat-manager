@@ -164,7 +164,7 @@ export class ChatListRenderer {
             ? incremental.reason
             : `暂不可增量分卷：${incremental.reason}`;
         this.ui.bindButton(continueButton, () => this.openSplit(
-            incremental.sourceRecord,
+            incremental.record,
             incremental.options,
         ));
         bindGroupExpansion(header, indicator, expanded, '分卷', () => {

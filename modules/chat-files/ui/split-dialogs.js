@@ -27,7 +27,7 @@ export class SplitDialogs {
     }
 
     /**
-     * @param {object} record 来源聊天
+     * @param {object} record 待处理聊天
      * @param {object} initialOptions 初始分卷配置
      */
     async open(record, initialOptions = {}) {
@@ -58,10 +58,8 @@ export class SplitDialogs {
         const fixed = initialOptions.mode === 'fixed';
         const defaultChunk = Math.min(500, Math.max(1, record.messageCount));
         const initialChunk = fixed ? Number(initialOptions.chunkSize ?? defaultChunk) : '';
-        const rangeOffset = Number(initialOptions.rangeOffset ?? 0);
-        const incrementalRange = `#${rangeOffset + initialStart}–#${rangeOffset + initialEnd}`;
         summary.textContent = incremental
-            ? `待分卷楼层：${incrementalRange}${fixed ? ` · 每卷 ${initialChunk} 层` : ''}`
+            ? `最后一卷新增 #${initialStart}–#${initialEnd}${fixed ? ` · 每卷 ${initialChunk} 层` : ''}`
             : `原聊天 ${record.fileSize} · ${record.messageCount} 层 · 可用范围 #0–#${maxFloor}`;
         this.ui.configureNumberInput(start, initialStart, 0, maxFloor);
         this.ui.configureNumberInput(end, initialEnd, 0, maxFloor);
