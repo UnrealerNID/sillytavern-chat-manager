@@ -8,12 +8,20 @@ export class SplitDialogs {
      * @param {object} options 依赖项
      * @param {import('./templates.js').UiTemplates} options.ui UI 模板工具
      * @param {import('../chat/splitter.js').SplitService} options.splitter 分卷服务
+     * @param {(record:object)=>Promise<void>} options.openRecord 打开聊天
      * @param {()=>boolean} options.isGenerating 是否正在生成
      * @param {()=>Promise<void>} options.refresh 刷新聊天列表
      * @param {(type:string,message:string)=>void} options.notify 消息提示
      */
-    constructor({ ui, splitter, isGenerating, refresh, notify }) {
-        Object.assign(this, { ui, splitter, isGenerating, refresh, notify });
+    constructor({ ui, splitter, openRecord, isGenerating, refresh, notify }) {
+        Object.assign(this, {
+            ui,
+            splitter,
+            openRecord,
+            isGenerating,
+            refresh,
+            notify,
+        });
         this.activeClose = null;
         this.activeRoot = null;
         this.activeSync = null;
@@ -27,7 +35,7 @@ export class SplitDialogs {
     }
 
     /**
-     * @param {object} record 来源聊天
+     * @param {object} record 待处理聊天
      * @param {object} initialOptions 初始分卷配置
      */
     async open(record, initialOptions = {}) {
@@ -58,8 +66,11 @@ export class SplitDialogs {
         const fixed = initialOptions.mode === 'fixed';
         const defaultChunk = Math.min(500, Math.max(1, record.messageCount));
         const initialChunk = fixed ? Number(initialOptions.chunkSize ?? defaultChunk) : '';
+        const rangeOffset = Number(initialOptions.rangeOffset ?? 0);
+        const logicalStart = rangeOffset + initialStart;
+        const logicalEnd = rangeOffset + initialEnd;
         summary.textContent = incremental
-            ? `增量来源：最后一卷新增楼层 · 本地 #${initialStart}–#${initialEnd}${fixed ? ` · 每卷 ${initialChunk} 层` : ''}`
+            ? `尾卷范围 #${logicalStart}–#${logicalEnd}${fixed ? ` · 每卷 ${initialChunk} 层` : ''}`
             : `原聊天 ${record.fileSize} · ${record.messageCount} 层 · 可用范围 #0–#${maxFloor}`;
         this.ui.configureNumberInput(start, initialStart, 0, maxFloor);
         this.ui.configureNumberInput(end, initialEnd, 0, maxFloor);
@@ -201,7 +212,6 @@ export class SplitDialogs {
             dialog.setClosable(false);
             try {
                 const task = await this.splitter.execute(plan, {
-                    shouldPause: () => this.isGenerating(),
                     onUpdate: current => this.#renderTask(preview, current),
                 });
                 this.#renderTask(preview, task);
@@ -214,6 +224,19 @@ export class SplitDialogs {
                     completed ? '分卷完成' : '任务已安全暂停',
                 );
                 await this.refresh();
+                if (completed) {
+                    const tail = task.parts.at(-1);
+                    dialog.close();
+                    try {
+                        await this.openRecord({
+                            ...record,
+                            fileId: tail.fileId,
+                            fileName: `${tail.fileId}.jsonl`,
+                        });
+                    } catch (error) {
+                        this.notify('warning', `分卷已完成，但未能打开最新分卷：${error.message}`);
+                    }
+                }
             } catch (error) {
                 setPreviewStatus('创建失败', 'error');
                 this.notify('error', error.message);
@@ -281,7 +304,7 @@ export class SplitDialogs {
                 resume.disabled = true;
                 try {
                     const plan = await this.splitter.restorePlan(task);
-                    await this.splitter.execute(plan, { resumeTask: task, shouldPause: () => this.isGenerating() });
+                    await this.splitter.execute(plan, { resumeTask: task });
                     card.remove();
                     this.notify('success', '任务已完成');
                     await this.refresh();

@@ -1,0 +1,75 @@
+<div id="prompt_viewer_host" class="prompt-control-host displayNone">
+    <button
+        data-prompt-viewer-trigger
+        class="prompt-control-trigger"
+        type="button"
+        title="查看提示词"
+        aria-expanded="false"
+    >
+        <i class="fa-solid fa-brain"></i>
+        <span data-prompt-viewer-tokens></span>
+    </button>
+    <section data-prompt-viewer-panel class="prompt-control-panel" hidden>
+        <div class="prompt-control-resize-handles" aria-hidden="true">
+            <span data-prompt-resize="n"></span>
+            <span data-prompt-resize="e"></span>
+            <span data-prompt-resize="s"></span>
+            <span data-prompt-resize="w"></span>
+            <span data-prompt-resize="ne"></span>
+            <span data-prompt-resize="se"></span>
+            <span data-prompt-resize="sw"></span>
+            <span data-prompt-resize="nw"></span>
+        </div>
+        <header class="prompt-control-header">
+            <div class="prompt-control-title">
+                <strong>提示词查看</strong>
+                <small data-prompt-viewer-summary></small>
+            </div>
+            <div class="prompt-control-header-actions">
+                <button
+                    data-prompt-viewer-refresh
+                    class="menu_button"
+                    type="button"
+                    title="获取当前提示词"
+                    aria-label="获取当前提示词"
+                >
+                    <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+                </button>
+                <span class="prompt-control-action-divider" aria-hidden="true"></span>
+                <button
+                    data-prompt-viewer-collapse
+                    class="menu_button fa-solid fa-chevron-down prompt-control-collapse"
+                    type="button"
+                    title="收起面板"
+                    aria-label="收起面板"
+                ></button>
+            </div>
+        </header>
+        <div class="prompt-control-searchbar">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input
+                data-prompt-viewer-search
+                class="text_pole"
+                type="search"
+                placeholder="搜索提示词"
+                aria-label="搜索提示词"
+            >
+            <span data-prompt-viewer-search-count class="prompt-control-search-count"></span>
+            <button
+                data-prompt-viewer-search-previous
+                class="menu_button fa-solid fa-chevron-up"
+                type="button"
+                title="上一个匹配项"
+                aria-label="上一个匹配项"
+            ></button>
+            <button
+                data-prompt-viewer-search-next
+                class="menu_button fa-solid fa-chevron-down"
+                type="button"
+                title="下一个匹配项"
+                aria-label="下一个匹配项"
+            ></button>
+        </div>
+        <div data-prompt-viewer-content class="prompt-control-content"></div>
+    </section>
+</div>

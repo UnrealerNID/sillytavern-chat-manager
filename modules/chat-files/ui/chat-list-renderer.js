@@ -1,5 +1,6 @@
 import {
     deriveIncrementalSplit,
+    getSplitGroupState,
     orderSplitGroupRecords,
 } from '../chat/grouping.js';
 import { formatBytes, parseBytes } from '../../shared/files.js';
@@ -126,9 +127,11 @@ export class ChatListRenderer {
     #splitGroup(group) {
         const root = this.ui.component('split-group');
         const splitRecords = group.allRecords ?? group.records;
-        const selectableRecords = group.sourceRecord
-            ? [group.sourceRecord, ...splitRecords.map(item => item.record)]
-            : splitRecords.map(item => item.record);
+        const selectableRecords = [
+            ...(group.sourceRecord ? [group.sourceRecord] : []),
+            ...splitRecords.map(item => item.record),
+            ...(group.sourceParts ?? []).map(item => item.record),
+        ];
         this.#configureGroupSelection(
             this.ui.mount(root, '[data-cm-split-select-wrap]'),
             this.ui.mount(root, '[data-cm-split-select]', HTMLInputElement),
@@ -140,18 +143,18 @@ export class ChatListRenderer {
         const children = this.ui.mount(root, '[data-cm-split-children]');
         const continueButton = this.ui.mount(root, '[data-cm-split-continue]', HTMLButtonElement);
         const incremental = deriveIncrementalSplit(group);
+        const splitState = getSplitGroupState(group);
         const expanded = this.expandedSplits.has(group.key);
-        const first = splitRecords[0].split;
-        const last = splitRecords.at(-1).split;
         const aggregate = aggregateRecords(splitRecords.map(item => item.record));
         this.ui.mount(root, '[data-cm-split-group-name]').textContent = group.rootChatId;
 
         const summary = [
             `${splitRecords.length} 个分卷`,
-            `覆盖 #${first.start}–#${last.end}`,
-            `分卷合计 ${aggregate.messageCount} 层 / ${formatBytes(aggregate.bytes)}`,
+            `覆盖 #${splitState.start}–#${splitState.end}`,
+            `逻辑合计 ${splitState.messageCount} 层 / ${formatBytes(aggregate.bytes)}`,
+            group.sourceParts?.length ? `${group.sourceParts.length} 个源分卷` : '',
             group.sourceRecord ? '源聊天存在' : '仅保留分卷',
-        ].join(' · ');
+        ].filter(Boolean).join(' · ');
         const latest = aggregate.latest
             ? `最近：${aggregate.latest.fileId} · ${this.ui.formatDate(aggregate.latest.lastMessageAt)}`
             : '没有可用的分卷记录';
@@ -164,7 +167,7 @@ export class ChatListRenderer {
             ? incremental.reason
             : `暂不可增量分卷：${incremental.reason}`;
         this.ui.bindButton(continueButton, () => this.openSplit(
-            incremental.sourceRecord,
+            incremental.record,
             incremental.options,
         ));
         bindGroupExpansion(header, indicator, expanded, '分卷', () => {
@@ -173,7 +176,10 @@ export class ChatListRenderer {
         if (expanded) {
             children.classList.remove('cm-hidden');
             for (const item of orderSplitGroupRecords(group)) {
-                children.append(this.#chatRow(item.record, { source: item.source }));
+                children.append(this.#chatRow(item.record, {
+                    source: item.source,
+                    sourceLabel: item.sourceLabel,
+                }));
             }
         }
         return root;
@@ -208,9 +214,10 @@ export class ChatListRenderer {
      * @param {object} record 聊天记录
      * @param {object} options 显示选项
      * @param {boolean} [options.source] 是否标记为源聊天
+     * @param {string} [options.sourceLabel] 来源标记文本
      * @returns {HTMLElement} 聊天行
      */
-    #chatRow(record, { source = false } = {}) {
+    #chatRow(record, { source = false, sourceLabel = '源' } = {}) {
         const row = this.ui.component('chat-row');
         const selectWrap = this.ui.mount(row, '[data-cm-chat-select-wrap]');
         const select = this.ui.mount(row, '[data-cm-chat-select]', HTMLInputElement);
@@ -236,6 +243,7 @@ export class ChatListRenderer {
         select.checked = this.selectedRecords.has(key);
         row.classList.toggle('cm-source-record', source);
         sourceBadge.classList.toggle('cm-hidden', !source);
+        sourceBadge.textContent = sourceLabel;
         image.src = record.avatarUrl;
         image.alt = record.ownerName;
         name.title = `${record.ownerName} - ${record.fileId}`;
@@ -256,12 +264,17 @@ export class ChatListRenderer {
         this.ui.bindButton(split, () => this.openSplit(record));
         this.ui.bindButton(remove, () => this.confirmDelete([record]));
         const blocked = this.isGenerating() || this.isSplitting();
-        open.disabled = blocked;
+        open.disabled = blocked || source;
         view.disabled = this.isLoading() || blocked;
-        rename.disabled = this.isLoading() || blocked;
+        rename.disabled = this.isLoading() || blocked || source;
         backup.disabled = blocked;
-        split.disabled = blocked || record.messageCount < 1;
+        split.disabled = blocked || source || record.messageCount < 1;
         remove.disabled = this.isLoading() || blocked;
+        if (source) {
+            open.title = `${sourceLabel}仅用于备份`;
+            rename.title = `${sourceLabel}不参与聊天文件管理`;
+            split.title = `${sourceLabel}不参与后续分卷`;
+        }
 
         select.addEventListener('change', () => {
             if (select.checked) this.selectedRecords.set(key, record);

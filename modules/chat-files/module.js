@@ -61,13 +61,18 @@ export class ChatFilesModule {
         this.api = new ChatManagerApi(this.getContext);
         this.journal = new TaskJournal();
         this.backups = new BackupService(this.api);
-        this.splitter = new SplitService(this.api, this.journal, () => this.getContext().uuidv4());
         const chatActions = createChatActions({
             getContext: this.getContext,
             api: this.api,
             backups: this.backups,
             openRecord: record => this.#openRecord(record),
         });
+        this.splitter = new SplitService(
+            this.api,
+            this.journal,
+            () => this.getContext().uuidv4(),
+            chatActions.renameRecordTo,
+        );
         const nativePageSize = Number(accountStorage.getItem('Characters_PerPage')) || 50;
         this.dataMaid = new DataMaidEnhancer({ api: this.api, template: dataMaidTemplate });
         const saveViewOptions = (options, source) => {

@@ -5,12 +5,18 @@ import { ToolboxModuleRegistry } from './modules/core/module-registry.js';
 import { initializeToolboxSettings } from './modules/core/settings.js';
 import { ToolboxSettingsPanel } from './modules/core/settings-panel.js';
 import { TOOLBOX_SETTINGS_KEY } from './modules/platform/extension-identity.js';
+import { promptViewerModuleDefinition } from './modules/prompt-viewer/definition.js';
+import { worldInfoControlModuleDefinition } from './modules/world-info-control/definition.js';
 import {
     ExtensionUpdater,
     loadExtensionMetadata,
 } from './modules/platform/extension-updater.js';
 
-const moduleDefinitions = [chatFilesModuleDefinition];
+const moduleDefinitions = [
+    chatFilesModuleDefinition,
+    promptViewerModuleDefinition,
+    worldInfoControlModuleDefinition,
+];
 let initializationTask = null;
 let runtime = null;
 

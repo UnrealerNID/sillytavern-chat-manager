@@ -121,8 +121,21 @@ export function groupSplitRecords(records, allRecords = records) {
         series.records.push({ record, split });
     }
     for (const series of seriesByKey.values()) {
-        series.records.sort(compareSplitItems);
-        series.allRecords = [...(allSeriesByKey.get(series.key) ?? [])].sort(compareSplitItems);
+        const allParts = [...(allSeriesByKey.get(series.key) ?? [])].sort(compareSplitItems);
+        const sourcePartKeys = findSourceSplitKeys(allParts);
+        const visibleParts = series.records;
+        series.records = series.records
+            .filter(item => !sourcePartKeys.has(ownerFileKey(item.record, item.record.fileId)))
+            .sort(compareSplitItems);
+        series.allRecords = allParts.filter(
+            item => !sourcePartKeys.has(ownerFileKey(item.record, item.record.fileId)),
+        );
+        series.sourceParts = allParts.filter(
+            item => sourcePartKeys.has(ownerFileKey(item.record, item.record.fileId)),
+        );
+        series.visibleSourceParts = visibleParts.filter(
+            item => sourcePartKeys.has(ownerFileKey(item.record, item.record.fileId)),
+        );
         series.sourceRecord = recordByOwnerFile.get(ownerFileKey(series, series.rootChatId));
     }
     const sources = new Set(Array.from(seriesByKey.values(), series => series.sourceRecord).filter(Boolean));
@@ -130,15 +143,20 @@ export function groupSplitRecords(records, allRecords = records) {
 }
 
 /**
- * 生成统一的分卷展示顺序，新卷在前且源聊天固定在末尾
+ * 生成统一的分卷展示顺序，有效分卷在前，源分卷与源聊天在后
  * @param {object} group 分卷组
- * @returns {Array<{record:object,source:boolean}>} 展示记录
+ * @returns {Array<{record:object,source:boolean,sourceLabel:string}>} 展示记录
  */
 export function orderSplitGroupRecords(group) {
     const ordered = [...group.records]
         .sort((left, right) => right.split.sequence - left.split.sequence)
-        .map(item => ({ record: item.record, source: false }));
-    if (group.sourceRecord) ordered.push({ record: group.sourceRecord, source: true });
+        .map(item => ({ record: item.record, source: false, sourceLabel: '' }));
+    ordered.push(...[...(group.visibleSourceParts ?? group.sourceParts ?? [])]
+        .sort((left, right) => right.split.sequence - left.split.sequence)
+        .map(item => ({ record: item.record, source: true, sourceLabel: '源分卷' })));
+    if (group.sourceRecord) {
+        ordered.push({ record: group.sourceRecord, source: true, sourceLabel: '源聊天' });
+    }
     return ordered;
 }
 
@@ -202,6 +220,24 @@ function splitSeriesKey(record, rootChatId) {
 }
 
 /**
+ * 找出已被后续分卷替代的来源分卷
+ *
+ * 增量分卷的 sourceChatId 指向本次保留的旧尾卷
+ * @param {object[]} parts 同一分卷组的全部记录
+ * @returns {Set<string>} 来源分卷记录键
+ */
+function findSourceSplitKeys(parts) {
+    const partByFileId = new Map(parts.map(part => [part.record.fileId, part]));
+    const sourceKeys = new Set();
+    for (const part of parts) {
+        const sourceChatId = String(part.record.chatManager?.sourceChatId ?? '');
+        const source = partByFileId.get(sourceChatId);
+        if (source) sourceKeys.add(ownerFileKey(source.record, sourceChatId));
+    }
+    return sourceKeys;
+}
+
+/**
  * 创建聊天记录显示单元
  * @param {object} record 聊天记录
  * @returns {object} 显示单元
@@ -232,7 +268,7 @@ function compareSplitItems(left, right) {
  */
 export function getStoredSplitConfigs(series) {
     const occurrences = new Map();
-    for (const part of series.records) {
+    for (const part of series.allRecords ?? series.records) {
         const metadata = part.record.chatManager;
         if (metadata?.splitMode !== 'fixed'
             || !Number.isInteger(metadata.chunkSize)
@@ -244,45 +280,87 @@ export function getStoredSplitConfigs(series) {
 }
 
 /**
+ * 汇总有效分卷的逻辑范围与尾卷实际范围
+ *
+ * 最后一卷可以继续聊天，因此其实际楼层数可以大于创建时记录的范围
+ * 组统计使用前置分卷范围与尾卷实际长度，源聊天和源分卷都不参与计算
+ * @param {object} series 分卷显示单元
+ * @returns {object} 分卷顺序、连续性、逻辑范围与尾卷范围
+ */
+export function getSplitGroupState(series) {
+    const parts = [...(series.allRecords ?? series.records)].sort(compareSplitItems);
+    if (!parts.length) {
+        return {
+            parts,
+            continuous: false,
+            start: 0,
+            end: -1,
+            messageCount: 0,
+            tailStart: 0,
+            tailEnd: -1,
+            tailCount: 0,
+        };
+    }
+
+    const continuous = parts.every((part, index) => (
+        index === 0 || part.split.start === parts[index - 1].split.end + 1
+    ));
+    const lastPart = parts.at(-1);
+    const storedCount = parts.reduce((sum, part) => sum + part.split.count, 0);
+    const tailStoredCount = lastPart.split.count;
+    const tailFileCount = Math.max(0, Number(lastPart.record.messageCount) || 0);
+    const tailStart = lastPart.split.start;
+    const tailEnd = tailStart + tailFileCount - 1;
+
+    return {
+        parts,
+        continuous,
+        start: parts[0].split.start,
+        end: tailEnd,
+        messageCount: storedCount - tailStoredCount + tailFileCount,
+        tailStart,
+        tailEnd,
+        tailCount: tailFileCount,
+    };
+}
+
+/**
  * 根据最后一卷保存的元数据生成下一次增量分卷配置
  * @param {object} series 分卷显示单元
- * @returns {object} 可用状态、原因、来源聊天和增量分卷参数
+ * @returns {object} 可用状态、原因、尾卷聊天和增量分卷参数
  */
 export function deriveIncrementalSplit(series) {
-    const parts = [...series.records].sort((a, b) => a.split.start - b.split.start);
+    const state = getSplitGroupState(series);
+    const { parts } = state;
     if (!parts.length) return { available: false, reason: '没有可识别的分卷范围' };
-    for (let index = 1; index < parts.length; index++) {
-        if (parts[index].split.start !== parts[index - 1].split.end + 1) {
-            return { available: false, reason: '已有分卷楼层范围不连续' };
-        }
-    }
+    if (!state.continuous) return { available: false, reason: '已有分卷楼层范围不连续' };
     const lastPart = parts.at(-1);
-    const sourceRecord = lastPart.record;
-    const metadata = sourceRecord.chatManager;
+    const tailRecord = lastPart.record;
+    const metadata = tailRecord.chatManager;
     if (!metadata || metadata.rootChatId !== series.rootChatId || !['fixed', 'range'].includes(metadata.splitMode)
         || (metadata.splitMode === 'fixed' && (!Number.isInteger(metadata.chunkSize) || metadata.chunkSize < 1))) {
         return { available: false, reason: '最后一卷没有分卷配置' };
     }
-    const sourceStart = Number(metadata.sourceStart);
-    const sourceEnd = Number(metadata.sourceEnd);
-    const originalCount = sourceEnd - sourceStart + 1;
-    if (!Number.isInteger(originalCount) || originalCount < 1) {
-        return { available: false, reason: '最后一卷的楼层配置无效' };
-    }
-    const currentCount = Number(sourceRecord.messageCount);
-    if (currentCount <= originalCount) return { available: false, reason: '最后一卷没有新增楼层' };
-    const lastEnd = lastPart.split.end;
-    const sequenceStart = Math.max(...parts.map((part, index) => part.split.sequence ?? index + 1)) + 1;
+    const currentCount = state.tailCount;
+    const sequenceStart = lastPart.split.sequence;
     const mode = metadata.splitMode;
-    const chunkSize = mode === 'fixed' ? metadata.chunkSize : currentCount - originalCount;
+    const chunkSize = mode === 'fixed' ? metadata.chunkSize : currentCount;
+    if (mode === 'fixed' && currentCount <= chunkSize) {
+        return { available: false, reason: `尾卷尚未超过每卷 ${chunkSize} 层` };
+    }
+    if (mode === 'range' && currentCount <= lastPart.split.count) {
+        return { available: false, reason: '尾卷尚无需重新分卷' };
+    }
     const configs = getStoredSplitConfigs(series);
     return {
         available: true,
-        reason: mode === 'fixed' ? `从 #${lastEnd + 1} 继续，每卷 ${chunkSize} 层` : `从 #${lastEnd + 1} 继续`,
-        sourceRecord,
+        reason: mode === 'fixed'
+            ? `尾卷 #${state.tailStart}–#${state.tailEnd}，共 ${state.tailCount} 层，每卷 ${chunkSize} 层`
+            : `尾卷 #${state.tailStart}–#${state.tailEnd}，共 ${state.tailCount} 层`,
+        record: tailRecord,
         options: {
             mode,
-            start: originalCount,
+            start: 0,
             end: currentCount - 1,
             chunkSize,
             sequenceStart,
