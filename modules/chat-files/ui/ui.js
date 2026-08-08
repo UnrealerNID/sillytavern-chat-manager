@@ -153,6 +153,7 @@ export class ChatManagerUi {
         this.splitDialogs = new SplitDialogs({
             ui: this.ui,
             splitter: this.splitter,
+            openRecord: this.openRecord,
             isGenerating: this.isGenerating,
             refresh: () => this.refresh(),
             notify,

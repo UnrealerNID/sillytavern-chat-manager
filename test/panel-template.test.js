@@ -263,6 +263,16 @@ test('backup listing is only requested explicitly while chat files are stable', 
     assert.doesNotMatch(backupDialogs, /row\.addEventListener\('click'/);
 });
 
+test('分卷完成后关闭弹窗并打开本次最新分卷', async () => {
+    const [ui, dialogs] = await Promise.all([
+        readFile(new URL('../modules/chat-files/ui/ui.js', import.meta.url), 'utf8'),
+        readFile(new URL('../modules/chat-files/ui/split-dialogs.js', import.meta.url), 'utf8'),
+    ]);
+
+    assert.match(ui, /new SplitDialogs\(\{[\s\S]*openRecord: this\.openRecord/);
+    assert.match(dialogs, /if \(completed\) \{[\s\S]*task\.parts\.at\(-1\)[\s\S]*dialog\.close\(\)[\s\S]*this\.openRecord/);
+});
+
 test('chat deletion uses SillyTavern native character and group workflows', async () => {
     const [entry, ui, inventory, actions, deletion, dialogs] = await Promise.all([
         readFile(new URL('../modules/chat-files/module.js', import.meta.url), 'utf8'),

@@ -8,12 +8,20 @@ export class SplitDialogs {
      * @param {object} options 依赖项
      * @param {import('./templates.js').UiTemplates} options.ui UI 模板工具
      * @param {import('../chat/splitter.js').SplitService} options.splitter 分卷服务
+     * @param {(record:object)=>Promise<void>} options.openRecord 打开聊天
      * @param {()=>boolean} options.isGenerating 是否正在生成
      * @param {()=>Promise<void>} options.refresh 刷新聊天列表
      * @param {(type:string,message:string)=>void} options.notify 消息提示
      */
-    constructor({ ui, splitter, isGenerating, refresh, notify }) {
-        Object.assign(this, { ui, splitter, isGenerating, refresh, notify });
+    constructor({ ui, splitter, openRecord, isGenerating, refresh, notify }) {
+        Object.assign(this, {
+            ui,
+            splitter,
+            openRecord,
+            isGenerating,
+            refresh,
+            notify,
+        });
         this.activeClose = null;
         this.activeRoot = null;
         this.activeSync = null;
@@ -216,6 +224,19 @@ export class SplitDialogs {
                     completed ? '分卷完成' : '任务已安全暂停',
                 );
                 await this.refresh();
+                if (completed) {
+                    const tail = task.parts.at(-1);
+                    dialog.close();
+                    try {
+                        await this.openRecord({
+                            ...record,
+                            fileId: tail.fileId,
+                            fileName: `${tail.fileId}.jsonl`,
+                        });
+                    } catch (error) {
+                        this.notify('warning', `分卷已完成，但未能打开最新分卷：${error.message}`);
+                    }
+                }
             } catch (error) {
                 setPreviewStatus('创建失败', 'error');
                 this.notify('error', error.message);
